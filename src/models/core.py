@@ -38,3 +38,13 @@ class ReviewResult(BaseModel):
     feedback: List[str]
     security_score: int = Field(ge=0, le=100)
     risk_level: RiskLevel
+
+class QualityGateResult(BaseModel):
+    passed: bool
+    complexity_score: int = Field(ge=0, le=100, description="0 is simple, 100 is overly complex/over-engineered")
+    feedback: List[str]
+
+class AgentAdvice(BaseModel):
+    bottlenecks_identified: List[str] = Field(default_factory=list, description="Potential issues or bottlenecks spotted")
+    recommendations: List[str] = Field(default_factory=list, description="Actionable advice for downstream agents")
+    approved_to_proceed: bool = Field(default=True)

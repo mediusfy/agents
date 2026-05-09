@@ -7,6 +7,9 @@ from src.agents.frontend import frontend_agent
 from src.agents.sre import sre_agent
 from src.agents.test_eng import test_agent
 from src.agents.review import review_agent
+from src.agents.quality_gate import quality_gate_agent
+from src.agents.cto import cto_agent
+from src.agents.ux import ux_agent
 from src.writer import ArtifactWriter
 from src.config import AgentSettings
 
@@ -56,6 +59,27 @@ async def main(step: str = "all"):
         print("\n[✓] BA step complete. Exiting (--step ba).")
         return
 
+    print("\n[2.5] Executing CTO & UX Advisory...")
+    story_context = "\n".join([f"- {us.id}: {us.title}\n  {us.gherkin}" for us in user_stories])
+    
+    cto_task = cto_agent.run(f"Review these user stories and provide architectural advice and bottleneck warnings:\n{story_context}")
+    ux_task = ux_agent.run(f"Review these user stories and provide UX/UI advice:\n{story_context}")
+    
+    advisory_results = await asyncio.gather(cto_task, ux_task, return_exceptions=True)
+    
+    cto_advice = ""
+    ux_advice = ""
+    
+    if not isinstance(advisory_results[0], Exception):
+        cto_advice = "\nCTO Guidelines:\n" + "\n".join(advisory_results[0].data.recommendations)
+    else:
+        print(f"CTO Agent failed: {advisory_results[0]}")
+        
+    if not isinstance(advisory_results[1], Exception):
+        ux_advice = "\nUX Guidelines:\n" + "\n".join(advisory_results[1].data.recommendations)
+    else:
+        print(f"UX Agent failed: {advisory_results[1]}")
+
     MAX_RETRIES = AgentSettings.MAX_RETRIES if step == "all" else 1
     review_feedback = None
 
@@ -64,8 +88,8 @@ async def main(step: str = "all"):
         artifacts = []
 
         print("\\n[3] Executing Backend & Frontend Agents in parallel...")
-        backend_tasks = [backend_agent.run(f"Implement backend for story {us.id}: {us.title}") for us in user_stories]
-        frontend_tasks = [frontend_agent.run(f"Implement frontend for story {us.id}: {us.title}") for us in user_stories]
+        backend_tasks = [backend_agent.run(f"Implement backend for story {us.id}: {us.title}\n{cto_advice}") for us in user_stories]
+        frontend_tasks = [frontend_agent.run(f"Implement frontend for story {us.id}: {us.title}\n{cto_advice}\n{ux_advice}") for us in user_stories]
         
         results = await asyncio.gather(*backend_tasks, *frontend_tasks, return_exceptions=True)
         
@@ -108,8 +132,28 @@ async def main(step: str = "all"):
             print("\\n[✓] SRE step complete. Exiting (--step sre).")
             return
 
-        print("\\n[6] Executing Board of Review...")
+        print("\n[5.5] Executing Quality Gate Check...")
         summary = summarize_artifacts(artifacts)
+        quality_prompt = f"Perform a quality gate check on the following artifacts:\n{summary}\n"
+        
+        try:
+            quality_res = await quality_gate_agent.run(quality_prompt)
+            q_result = quality_res.data
+        except Exception as e:
+            print(f"Quality Gate Agent failed: {e}")
+            break
+            
+        print("\n--- Quality Gate Result ---")
+        print(f"Passed: {q_result.passed}")
+        print(f"Complexity Score: {q_result.complexity_score}")
+        print(f"Feedback: {q_result.feedback}")
+        
+        if not q_result.passed:
+            print("\n[!] Quality Gate rejected artifacts due to over-engineering. Retrying...")
+            review_feedback = q_result.feedback
+            continue
+
+        print("\\n[6] Executing Board of Review...")
         review_prompt = f"Review the following generated artifacts for the project:\\n{summary}\\n\\nEnsure the generated code is robust and meets all criteria."
         
         if review_feedback:
