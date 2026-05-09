@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+generated-app/
+.claw-checkpoints/
+telemetry.jsonl
+*.egg-info/
+dist/
+build/
+.DS_Store

@@ -2,6 +2,7 @@ from pydantic_ai import Agent, RunContext
 from src.models.core import Artifact
 from src.config import AgentSettings
 from pydantic import BaseModel
+from src.a2a import agent_bus
 
 frontend_prompt = '''You are a Lead Frontend Engineer building Vue 3 interfaces using the Composition API and TSX. You must ensure every interactive element is strictly **WCAG 2.1 compliant** and includes a unique data-testid attribute to facilitate flawless automated simulation by testing agents.
 
@@ -28,3 +29,10 @@ async def create_component(ctx: RunContext[str], component_name: str, requiremen
     """Calls model to generate a production-ready Vue 3 TSX component with: WCAG 2.1 ARIA labels, data-testid attribute, TypeScript props interface, Tailwind/CSS module styling, proper event handler typing."""
     res = await component_gen.run(f"Generate Vue 3 TSX component {component_name} using Composition API with requirements: {requirements}. Use data-testid={test_id}.")
     return res.data.code
+
+@frontend_agent.tool
+async def consult_ux(ctx: RunContext[str], design_question: str) -> str:
+    """Consult the UX agent about design choices, WCAG accessibility, or component layout."""
+    return await agent_bus.query("ux_review", design_question)
+
+

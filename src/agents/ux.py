@@ -13,3 +13,6 @@ Highlight any UX bottlenecks or confusing flows in `bottlenecks_identified` and 
     output_type=AgentAdvice,
     defer_model_check=True
 )
+
+from src.a2a import agent_bus
+agent_bus.register("ux", ux_agent, ["ux_review"])

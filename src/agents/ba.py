@@ -2,6 +2,7 @@ from pydantic_ai import Agent, RunContext
 from src.models.core import UserStory, EventTrigger
 from typing import List
 from src.config import AgentSettings
+from src.a2a import agent_bus
 
 ba_prompt = '''You are a Senior Business Analyst Agent focused on **Domain-Driven Design (DDD)**. Your objective is to translate high-level project goals into structured technical requirements and define "Bounded Contexts" for the OpenClaw ecosystem to ensure engineering agents build robust, non-monolithic architectures.
 
@@ -32,3 +33,10 @@ async def map_event_triggers(ctx: RunContext[str], story_id: str, gherkin: str) 
     """Identifies specific events necessary for the Go backend and QA automation pipelines."""
     res = await event_mapper.run(f"Identify event triggers for story {story_id} with gherkin: {gherkin}")
     return res.data
+
+@ba_agent.tool
+async def consult_cto(ctx: RunContext[str], architectural_question: str) -> str:
+    """Consult the CTO agent for architectural feasibility or design questions."""
+    return await agent_bus.query("arch_review", architectural_question)
+
+

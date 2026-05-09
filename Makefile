@@ -8,36 +8,65 @@ ifneq (,$(wildcard .env))
     export
 endif
 
-.PHONY: run run-ba run-backend run-frontend run-test run-sre run-review setup clean
+.PHONY: run run-ba run-backend run-frontend run-test run-sre run-review \
+        run-database run-devops run-docs run-security run-resume run-dry-run setup clean
+
+PROJECT ?= default
 
 run: $(VENV)
-	@echo "=== OpenClaw: Running full agent pipeline ==="
-	$(PYTHON) main.py
-	@echo "=== Pipeline complete. Artifacts in ./generated-app/ ==="
+	@echo "=== Running full agent pipeline for project: $(PROJECT) ==="
+	$(PYTHON) main.py --project $(PROJECT)
+	@echo "=== Pipeline complete. Artifacts in ./generated-app/$(PROJECT)/ ==="
+
+run-resume: $(VENV)
+	@echo "=== Resuming from last checkpoint for project: $(PROJECT) ==="
+	$(PYTHON) main.py --project $(PROJECT) --resume
+	@echo "=== Pipeline complete. Artifacts in ./generated-app/$(PROJECT)/ ==="
 
 run-ba: $(VENV)
-	@echo "=== OpenClaw: BA step ==="
-	$(PYTHON) main.py --step ba
+	@echo "=== BA step ==="
+	$(PYTHON) main.py --project $(PROJECT) --step ba
 
 run-backend: $(VENV)
-	@echo "=== OpenClaw: Backend + Frontend step ==="
-	$(PYTHON) main.py --step backend
+	@echo "=== Backend + Frontend step ==="
+	$(PYTHON) main.py --project $(PROJECT) --step backend
 
 run-frontend: $(VENV)
-	@echo "=== OpenClaw: Frontend step ==="
-	$(PYTHON) main.py --step frontend
+	@echo "=== Frontend step ==="
+	$(PYTHON) main.py --project $(PROJECT) --step frontend
 
 run-test: $(VENV)
-	@echo "=== OpenClaw: Test step ==="
-	$(PYTHON) main.py --step test
+	@echo "=== Test step ==="
+	$(PYTHON) main.py --project $(PROJECT) --step test
 
 run-sre: $(VENV)
-	@echo "=== OpenClaw: SRE step ==="
-	$(PYTHON) main.py --step sre
+	@echo "=== SRE step ==="
+	$(PYTHON) main.py --project $(PROJECT) --step sre
 
 run-review: $(VENV)
-	@echo "=== OpenClaw: Review step ==="
-	$(PYTHON) main.py --step review
+	@echo "=== Review step ==="
+	$(PYTHON) main.py --project $(PROJECT) --step review
+
+run-database: $(VENV)
+	@echo "=== Database step ==="
+	$(PYTHON) main.py --project $(PROJECT) --step database
+
+run-devops: $(VENV)
+	@echo "=== DevOps step ==="
+	$(PYTHON) main.py --project $(PROJECT) --step devops
+
+run-docs: $(VENV)
+	@echo "=== Docs step ==="
+	$(PYTHON) main.py --project $(PROJECT) --step docs
+
+run-security: $(VENV)
+	@echo "=== Security step ==="
+	$(PYTHON) main.py --project $(PROJECT) --step security
+
+run-dry-run: $(VENV)
+	@echo "=== OpenClaw: Dry run (no LLM calls) for project: $(PROJECT) ==="
+	$(PYTHON) main.py --project $(PROJECT) --dry-run --yes
+	@echo "=== Dry run complete ==="
 
 $(VENV):
 	python3 -m venv $(VENV)
@@ -45,10 +74,9 @@ $(VENV):
 	$(PIP) install -r requirements.txt
 
 setup: $(VENV)
-	@echo "=== OpenClaw: Environment ready ==="
+	@echo "=== Environment ready ==="
 	@echo "  Python: $(shell $(PYTHON) --version)"
-	@echo "  To set API keys, copy .env.example to .env and fill in your keys."
-
+	
 clean:
 	@echo "=== Cleaning generated artifacts ==="
 	rm -rf generated-app/

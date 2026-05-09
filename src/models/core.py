@@ -1,7 +1,27 @@
+from enum import Enum
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
-from enum import Enum
 
+class Vulnerability(BaseModel):
+    severity: str
+    description: str
+    file_path: str
+    line: int
+    remediation: str
+
+class SecurityReport(BaseModel):
+    passed: bool
+    vulnerabilities: List[Vulnerability] = Field(default_factory=list)
+    score: int = Field(ge=0, le=100)
+
+class PipelineState(BaseModel):
+    run_id: str
+    stage: str
+    user_stories: List[Any] = Field(default_factory=list)
+    artifacts: List[Any] = Field(default_factory=list)
+    advisory_results: Dict[str, Any] = Field(default_factory=dict)
+    feedback: Optional[str] = None
+    attempt: int = 1
 class EventTrigger(BaseModel):
     id: str
     name: str = Field(description="Name of the event, e.g., OrderCreated")

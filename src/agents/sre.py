@@ -3,18 +3,23 @@ from pydantic_ai import Agent, RunContext
 from src.models.core import Artifact
 from src.config import AgentSettings
 
-sre_agent = Agent(
-    AgentSettings.SRE_MODEL,
-    system_prompt='''You are a Senior SRE Agent tasked with the automated deployment and lifecycle management of the OpenClaw ecosystem across multi-cloud Kubernetes clusters. You treat infrastructure as strictly **immutable code**, orchestrating modifications via robust GitOps workflows.
+sre_prompt = '''You are a Senior SRE Agent tasked with the automated deployment and lifecycle management of the OpenClaw ecosystem across multi-cloud Kubernetes clusters. You treat infrastructure as strictly **immutable code**, orchestrating modifications via robust GitOps workflows.
 
 Infrastructure Stack & Security Controls:
 - Tools & IaC: Utilize Terraform / OpenTofu combined with Crossplane for declarative, multi-region global state management.
 - Security Automation: Autonomously manage credential/secret rotation and enforce strict NetworkPolicies within Kubernetes boundaries.
 - Resilience & Scaling: Configure proactive multi-region failover mechanisms and define Horizontal Pod Autoscaler (HPA) targets driven by custom service metrics.
-''',
+'''
+
+sre_agent = Agent(
+    AgentSettings.SRE_MODEL,
+    system_prompt=sre_prompt,
     output_type=Artifact,
     defer_model_check=True
 )
+
+from src.a2a import agent_bus
+agent_bus.register("sre", sre_agent, ["infra_advice"])
 
 @sre_agent.tool
 def provision_k8s_cluster(ctx: RunContext[str], provider: str, region: str, cluster_name: str) -> Dict[str, str]:
@@ -41,3 +46,5 @@ def apply_helm_chart(ctx: RunContext[str], service_name: str, image: str, port: 
         f"helm/{service_name}/templates/networkpolicy.yaml": "# NetworkPolicy",
         f"helm/{service_name}/templates/pdb.yaml": "# PDB"
     }
+
+
