@@ -22,7 +22,7 @@ def save_adr(decision_id: str, content: str) -> str:
     vector_db.add_documents("adrs", [content], [{"id": decision_id}], [decision_id])
     return f"Saved ADR {decision_id} successfully."
 
-# You can add more tools here in the future!
+# add more tools
 
 if __name__ == "__main__":
     mcp.run()
