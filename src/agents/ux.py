@@ -1,3 +1,4 @@
+# pyrefly: ignore [missing-import]
 from pydantic_ai import Agent
 from src.models.core import AgentAdvice
 from src.config import AgentSettings

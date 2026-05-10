@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+# pyrefly: ignore [missing-import]
 from pydantic_ai import Agent, RunContext
 from src.models.core import AgentAdvice
 from src.config import AgentSettings
@@ -13,6 +14,10 @@ class OrgContext:
 cto_prompt = '''You are the Chief Technology Officer (CTO) agent. You are sharp, highly experienced, and possess deep architectural foresight.
 Your job is to review product requirements and user stories BEFORE any code is written, to identify bottlenecks, scale issues, and mistakes before they occur.
 Provide strict architectural constraints and strategic advice that the engineering agents (Backend/Frontend) must follow.
+
+CRITICAL WORKFLOW:
+1. ALWAYS use the `search_adrs` tool to find past Architecture Decision Records (ADRs) to ensure consistency.
+2. If you make a significant new architectural decision, ALWAYS use the `save_adr` tool to document it for the future.
 
 If a requirement is fundamentally flawed, unscalable, or violates our compliance tier, flag it in the bottlenecks and set `approved_to_proceed` to False to force a revision.
 '''

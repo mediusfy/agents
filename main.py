@@ -34,8 +34,10 @@ DEFAULT_REQUIREMENT = "Build a payment processing service that handles incoming 
 STEP_CHOICES = ["ba", "backend", "frontend", "test", "sre", "review",
                 "database", "devops", "docs", "security", "all"]
 
-async def run_agent(semaphore: asyncio.Semaphore, agent_name: str, agent, prompt: str) -> Any:
+async def run_agent(semaphore: asyncio.Semaphore, agent_name: str, agent, prompt: str, deps: Any = None) -> Any:
     async with semaphore:
+        if deps is not None:
+            return await telemetry.track(agent_name, agent.run, prompt, deps=deps)
         return await telemetry.track(agent_name, agent.run, prompt)
 
 async def main(project: str = "default", step: str = "all", resume: bool = False, auto_yes: bool = False, dry_run: bool = False):
@@ -116,8 +118,11 @@ async def main(project: str = "default", step: str = "all", resume: bool = False
         cto_agent = registry.get("cto")
         ux_agent = registry.get("ux")
 
+        from src.agents.cto import OrgContext
+        org_ctx = OrgContext(tech_stack=["Go", "Vue", "PostgreSQL", "Redis"], compliance_tier="Standard", monthly_cloud_budget=1000.0)
+
         cto_task = run_agent(semaphore, "cto", cto_agent,
-                             f"Review these user stories and provide architectural advice:\n{story_context}")
+                             f"Review these user stories and provide architectural advice:\n{story_context}", deps=org_ctx)
         ux_task = run_agent(semaphore, "ux", ux_agent,
                             f"Review these user stories and provide UX/UI advice:\n{story_context}")
 
@@ -175,9 +180,13 @@ async def main(project: str = "default", step: str = "all", resume: bool = False
 
             logger.info("Running Backend, Frontend, Database agents per story...")
             impl_tasks = []
+            
+            from src.agents.backend import ProjectState
+            project_state = ProjectState(base_path=f"/app/{project}", environment="dev", team_owner="platform-engineering")
+            
             for us in user_stories:
                 impl_tasks.append(run_agent(semaphore, "backend", registry.get("backend"),
-                    f"Implement backend for story {us.id}: {us.title}\n{cto_advice}"))
+                    f"Implement backend for story {us.id}: {us.title}\n{cto_advice}", deps=project_state))
                 impl_tasks.append(run_agent(semaphore, "frontend", registry.get("frontend"),
                     f"Implement frontend for story {us.id}: {us.title}\n{cto_advice}\n{ux_advice}"))
                 impl_tasks.append(run_agent(semaphore, "database", registry.get("database"),
