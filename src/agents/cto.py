@@ -48,7 +48,7 @@ def inject_org_constraints(ctx: RunContext[OrgContext]) -> str:
 async def search_adrs(ctx: RunContext[OrgContext], query: str) -> str:
     """Search existing Architecture Decision Records (ADRs) to ensure new advice doesn't contradict past rulings."""
     from src.vector_db import vector_db
-    results = vector_db.search("adrs", query)
+    results = await vector_db.async_search("adrs", query)
     if not results:
         return f"No ADRs found for query: {query}"
     return "Found past architectural context:\n" + "\n---\n".join(results)
@@ -57,7 +57,7 @@ async def search_adrs(ctx: RunContext[OrgContext], query: str) -> str:
 async def save_adr(ctx: RunContext[OrgContext], decision_id: str, content: str) -> str:
     """Save a new Architecture Decision Record (ADR) to the knowledge base."""
     from src.vector_db import vector_db
-    vector_db.add_documents("adrs", [content], [{"id": decision_id}], [decision_id])
+    await vector_db.async_add_documents("adrs", [content], [{"id": decision_id}], [decision_id])
     return f"Saved ADR {decision_id} successfully."
 
 agent_bus.register("cto", cto_agent, ["arch_review"], lambda: OrgContext(tech_stack=["Go", "Vue", "PostgreSQL", "Redis"], compliance_tier="Standard", monthly_cloud_budget=1000.0))

@@ -27,4 +27,12 @@ class VectorDBManager:
             print(f"[VectorDB] Search failed: {e}")
             return []
 
+    async def async_add_documents(self, collection_name: str, documents: list[str], metadatas: list[dict], ids: list[str]):
+        import asyncio
+        await asyncio.to_thread(self.add_documents, collection_name, documents, metadatas, ids)
+
+    async def async_search(self, collection_name: str, query: str, n_results: int = 3) -> list[str]:
+        import asyncio
+        return await asyncio.to_thread(self.search, collection_name, query, n_results)
+
 vector_db = VectorDBManager()
