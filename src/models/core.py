@@ -64,6 +64,19 @@ class QualityGateResult(BaseModel):
     complexity_score: int = Field(ge=0, le=100, description="0 is simple, 100 is overly complex/over-engineered")
     feedback: List[str]
 
+class ActivityLog(BaseModel):
+    pass_num: int
+    agent_name: str
+    action: str
+    summary: str
+    timestamp: str
+    artifact_ids: List[str] = Field(default_factory=list)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+class ProjectHistory(BaseModel):
+    current_pass: int = 1
+    logs: List[ActivityLog] = Field(default_factory=list)
+
 class AgentAdvice(BaseModel):
     bottlenecks_identified: List[str] = Field(default_factory=list, description="Potential issues or bottlenecks spotted")
     recommendations: List[str] = Field(default_factory=list, description="Actionable advice for downstream agents")

@@ -5,7 +5,6 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
-# Create the MCP server
 mcp = FastMCP("OpenClaw")
 
 @mcp.tool()

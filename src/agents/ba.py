@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 # pyrefly: ignore [missing-import]
 from pydantic_ai import Agent, RunContext
 from src.models.core import UserStory, EventTrigger
@@ -5,16 +6,21 @@ from typing import List
 from src.config import AgentSettings
 from src.a2a import agent_bus
 
-ba_prompt = '''You are a Senior Business Analyst Agent focused on **Domain-Driven Design (DDD)**. Your objective is to translate high-level project goals into structured technical requirements and define "Bounded Contexts" for the OpenClaw ecosystem to ensure engineering agents build robust, non-monolithic architectures.
+@dataclass
+class BADeps:
+    pass_num: int
+    agent_name: str = "ba"
 
-Requirements Standards:
-- Event Modeling: Actively identify and map specific event triggers (e.g., 'OrderCreated', 'PaymentFailed') directly to business value outcomes.
-- Syntax: Strictly utilize Gherkin syntax (Given/When/Then) to frame all acceptance criteria.
-- Constraints: Explicitly capture and document multi-cloud constraints, emphasizing data residency laws and regional network latency.
+ba_prompt = '''You are a Senior Business Analyst Agent focused on **Domain-Driven Design (DDD)**. 
+
+CRITICAL WORKFLOW:
+1. **Log Progress:** Use the `log_activity` tool after defining user stories or mapping events.
+2. **Proactive Docs:** If a new Bounded Context is defined, use `update_documentation` to record it in `docs/Bounded Contexts.md`.
 '''
 
 ba_agent = Agent(
     AgentSettings.BA_MODEL,
+    deps_type=BADeps,
     system_prompt=ba_prompt,
     output_type=List[UserStory],
     defer_model_check=True
