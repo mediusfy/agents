@@ -3,14 +3,14 @@ import argparse
 import os
 import logging
 
-from src.registry import registry
-from src.writer import ArtifactWriter
-from src.config import AgentSettings
-from src.checkpoint import CheckpointManager
-from src.models.core import PipelineState
-from src.telemetry import telemetry
-from src.gates import HumanInTheLoopGate
-from src.validators import CodeValidator
+from openclaw.registry import registry
+from openclaw.writer import ArtifactWriter
+from openclaw.config import AgentSettings
+from openclaw.checkpoint import CheckpointManager
+from openclaw.models.core import PipelineState
+from openclaw.telemetry import telemetry
+from openclaw.gates import HumanInTheLoopGate
+from openclaw.validators import CodeValidator
 
 from typing import List, Any
 
@@ -67,7 +67,7 @@ async def main(project: str = "default", step: str = "all", resume: bool = False
 
     if dry_run:
         logger.info("DRY RUN: Skipping all LLM calls, using mock data.")
-        from src.models.core import UserStory, EventTrigger
+        from openclaw.models.core import UserStory, EventTrigger
         state.user_stories = [
             UserStory(id="US-001", title="Process Payment",
                       gherkin="Given a valid payment request\nWhen the system processes it\nThen it emits PaymentSucceeded",
@@ -118,7 +118,7 @@ async def main(project: str = "default", step: str = "all", resume: bool = False
         cto_agent = registry.get("cto")
         ux_agent = registry.get("ux")
 
-        from src.agents.cto import OrgContext
+        from openclaw.agents.cto import OrgContext
         org_ctx = OrgContext(tech_stack=["Go", "Vue", "PostgreSQL", "Redis"], compliance_tier="Standard", monthly_cloud_budget=1000.0)
 
         cto_task = run_agent(semaphore, "cto", cto_agent,
@@ -153,7 +153,7 @@ async def main(project: str = "default", step: str = "all", resume: bool = False
 
     if dry_run:
         logger.info("DRY RUN: Generating mock artifacts.")
-        from src.models.core import Artifact
+        from openclaw.models.core import Artifact
         state.artifacts = [
             Artifact(agent_name="backend", files={"cmd/server/main.go": "package main\nfunc main() {}\n"},
                      metadata={"user_story_id": "US-001", "language": "go"}),
@@ -181,7 +181,7 @@ async def main(project: str = "default", step: str = "all", resume: bool = False
             logger.info("Running Backend, Frontend, Database agents per story...")
             impl_tasks = []
             
-            from src.agents.backend import ProjectState
+            from openclaw.agents.backend import ProjectState
             project_state = ProjectState(base_path=f"/app/{project}", environment="dev", team_owner="platform-engineering")
             
             for us in user_stories:
