@@ -83,3 +83,6 @@ maxmemory-policy allkeys-lru
 appendonly yes
 appendfsync everysec
 '''
+
+from src.a2a import agent_bus
+agent_bus.register("database", database_agent, ["db_schema", "migrations"], lambda: DatabaseDeps())

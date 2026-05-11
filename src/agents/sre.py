@@ -34,7 +34,7 @@ sre_agent = Agent(
 )
 
 from src.a2a import agent_bus
-agent_bus.register("sre", sre_agent, ["infra_advice"])
+agent_bus.register("sre", sre_agent, ["infra_advice"], lambda: SreDeps())
 
 @sre_agent.tool
 def provision_k8s_cluster(ctx: RunContext[str], provider: str, region: str, cluster_name: str) -> Dict[str, str]:

@@ -10,13 +10,13 @@ logger = logging.getLogger(__name__)
 
 class AgentBus:
     def __init__(self):
-        # Maps agent_name -> (Agent, List[capability])
-        self.registry: Dict[str, Tuple[Agent, List[str]]] = {}
+        # Maps agent_name -> (Agent, List[capability], Callable)
+        self.registry: Dict[str, Tuple[Agent, List[str], Optional[callable]]] = {}
         # Simple cycle detection per conversation_id
         self._active_queries: Dict[str, set] = {}
 
-    def register(self, agent_name: str, agent: Agent, capabilities: List[str]):
-        self.registry[agent_name] = (agent, capabilities)
+    def register(self, agent_name: str, agent: Agent, capabilities: List[str], deps_factory: Optional[callable] = None):
+        self.registry[agent_name] = (agent, capabilities, deps_factory)
 
     async def query(self, capability: str, prompt: str, timeout: int = 30) -> str:
         conversation_id = str(uuid.uuid4())
@@ -24,11 +24,12 @@ class AgentBus:
         
         # Find capable agent
         target_agent: Optional[Agent] = None
-        target_name: Optional[str] = None
-        for name, (agent, caps) in self.registry.items():
+        target_deps_factory: Optional[callable] = None
+        for name, (agent, caps, deps_fac) in self.registry.items():
             if capability in caps:
                 target_agent = agent
                 target_name = name
+                target_deps_factory = deps_fac
                 break
                 
         if not target_agent:
@@ -46,7 +47,11 @@ class AgentBus:
         try:
             # Wrap the call with timeout
             async def _run():
-                res = await target_agent.run(prompt)
+                deps = target_deps_factory() if target_deps_factory else None
+                if deps is not None:
+                    res = await target_agent.run(prompt, deps=deps)
+                else:
+                    res = await target_agent.run(prompt)
                 return str(res.data)
 
             result = await asyncio.wait_for(_run(), timeout=timeout)

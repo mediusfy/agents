@@ -71,7 +71,4 @@ HEALTHCHECK --interval=30s --timeout=3s CMD wget --no-verbose --tries=1 --spider
 ENTRYPOINT ["/server"]
 """
 
-@backend_agent.tool
-async def consult_sre(ctx: RunContext[ProjectState], infra_requirement: str) -> str:
-    """Consult the SRE agent about infrastructure constraints, K8s resources, or scaling strategy."""
-    return await agent_bus.query("infra_advice", infra_requirement)
+agent_bus.register("backend", backend_agent, ["backend_dev", "go_service_scaffolding"], lambda: ProjectState(base_path="/app/default", environment="dev", team_owner="platform-engineering"))

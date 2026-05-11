@@ -60,4 +60,4 @@ async def save_adr(ctx: RunContext[OrgContext], decision_id: str, content: str) 
     vector_db.add_documents("adrs", [content], [{"id": decision_id}], [decision_id])
     return f"Saved ADR {decision_id} successfully."
 
-agent_bus.register("cto", cto_agent, ["arch_review"])
+agent_bus.register("cto", cto_agent, ["arch_review"], lambda: OrgContext(tech_stack=["Go", "Vue", "PostgreSQL", "Redis"], compliance_tier="Standard", monthly_cloud_budget=1000.0))

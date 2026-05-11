@@ -41,9 +41,6 @@ async def map_event_triggers(ctx: RunContext[str], story_id: str, gherkin: str) 
     res = await event_mapper.run(f"Identify event triggers for story {story_id} with gherkin: {gherkin}")
     return res.data
 
-@ba_agent.tool
-async def consult_cto(ctx: RunContext[str], architectural_question: str) -> str:
-    """Consult the CTO agent for architectural feasibility or design questions."""
-    return await agent_bus.query("arch_review", architectural_question)
+agent_bus.register("ba", ba_agent, ["requirements_analysis"], lambda: BADeps(pass_num=1))
 
 

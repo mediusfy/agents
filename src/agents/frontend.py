@@ -45,9 +45,4 @@ async def create_component(ctx: RunContext[str], component_name: str, requiremen
     res = await component_gen.run(f"Generate Vue 3 TSX component {component_name} using Composition API with requirements: {requirements}. Use data-testid={test_id}.")
     return res.data.code
 
-@frontend_agent.tool
-async def consult_ux(ctx: RunContext[str], design_question: str) -> str:
-    """Consult the UX agent about design choices, WCAG accessibility, or component layout."""
-    return await agent_bus.query("ux_review", design_question)
-
-
+agent_bus.register("frontend", frontend_agent, ["frontend_dev", "vue_components"], lambda: FrontendDeps())
