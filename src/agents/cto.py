@@ -10,6 +10,8 @@ class OrgContext:
     tech_stack: list[str]
     compliance_tier: str  # e.g., "SOC2", "HIPAA", "Standard"
     monthly_cloud_budget: float
+    pass_num: int = 1
+    agent_name: str = "cto"
 
 cto_prompt = '''You are the Chief Technology Officer (CTO) agent. You are sharp, highly experienced, and possess deep architectural foresight.
 Your job is to review product requirements and user stories BEFORE any code is written, to identify bottlenecks, scale issues, and mistakes before they occur.

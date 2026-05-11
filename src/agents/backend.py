@@ -11,6 +11,8 @@ class ProjectState:
     base_path: str
     environment: str
     team_owner: str
+    pass_num: int = 1
+    agent_name: str = "backend"
 
 backend_agent = Agent(
     AgentSettings.BACKEND_MODEL,
@@ -22,6 +24,12 @@ Technical Requirements:
 - Messaging: NATS / Kafka integration with idempotent consumer logic to ensure safe and reliable event retries.
 - Observability: Mandatory Prometheus metrics and OpenTelemetry spans for distributed tracing across every service endpoint.
 - Versioning: Enforce strict semantic versioning for all gRPC Protobuf definitions to ensure backward compatibility.
+
+
+CRITICAL WORKFLOW:
+1. **History Review:** Use `query_history` to recall previous architectural and contextual decisions before generating logic.
+2. **Log Progress:** Call `log_activity` after significant actions.
+3. **Proactive Docs:** Keep `docs/` updated via `update_documentation` when implementing major features.
 ''',
     output_type=Artifact,
     defer_model_check=True

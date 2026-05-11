@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Dict
 # pyrefly: ignore [missing-import]
 from pydantic_ai import Agent, RunContext
@@ -10,10 +11,23 @@ Infrastructure Stack & Security Controls:
 - Tools & IaC: Utilize Terraform / OpenTofu combined with Crossplane for declarative, multi-region global state management.
 - Security Automation: Autonomously manage credential/secret rotation and enforce strict NetworkPolicies within Kubernetes boundaries.
 - Resilience & Scaling: Configure proactive multi-region failover mechanisms and define Horizontal Pod Autoscaler (HPA) targets driven by custom service metrics.
+
+
+CRITICAL WORKFLOW:
+1. **History Review:** Use `query_history` to recall previous architectural and contextual decisions before generating logic.
+2. **Log Progress:** Call `log_activity` after significant actions.
+3. **Proactive Docs:** Keep `docs/` updated via `update_documentation` when implementing major features.
 '''
+
+
+@dataclass
+class SreDeps:
+    pass_num: int = 1
+    agent_name: str = "sre"
 
 sre_agent = Agent(
     AgentSettings.SRE_MODEL,
+    deps_type=SreDeps,
     system_prompt=sre_prompt,
     output_type=Artifact,
     defer_model_check=True

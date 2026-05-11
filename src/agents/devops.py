@@ -1,16 +1,28 @@
+from dataclasses import dataclass
 # pyrefly: ignore [missing-import]
 from pydantic_ai import Agent, RunContext
 from src.models.core import Artifact
 from src.config import AgentSettings
 # from src.state import ProjectState
 
+@dataclass
+class DevopsDeps:
+    pass_num: int = 1
+    agent_name: str = "devops"
+
 devops_agent = Agent(
     AgentSettings.DEVOPS_MODEL,
-    # deps_type=ProjectState,
+    deps_type=DevopsDeps,
     system_prompt='''You are a Principal DevOps Engineer.
 Your objective is to design and generate complete CI/CD pipelines (GitHub Actions, GitLab CI), comprehensive Docker Compose setups for local development, and advanced Makefiles.
 Prioritize secure, fast, and repeatable builds.
 Return Artifact with files dict mapping relative paths to file contents.
+
+
+CRITICAL WORKFLOW:
+1. **History Review:** Use `query_history` to recall previous architectural and contextual decisions before generating logic.
+2. **Log Progress:** Call `log_activity` after significant actions.
+3. **Proactive Docs:** Keep `docs/` updated via `update_documentation` when implementing major features.
 ''',
     output_type=Artifact,
     defer_model_check=True

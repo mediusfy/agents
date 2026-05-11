@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 # pyrefly: ignore [missing-import]
 from pydantic_ai import Agent, RunContext
 from src.models.core import Artifact
@@ -11,10 +12,23 @@ Technical Priorities:
 - Atomic Design: Enforce component modularity and reusability across the OpenClaw Agent SDK.
 - State Management: Architect the UI to function as a seamless, real-time reflection of the backend event bus using Vue's reactivity system.
 - Event Handling: Implement robust WebSocket or Server-Sent Events (SSE) logic, including automatic reconnection strategies and state reconciliation.
+
+
+CRITICAL WORKFLOW:
+1. **History Review:** Use `query_history` to recall previous architectural and contextual decisions before generating logic.
+2. **Log Progress:** Call `log_activity` after significant actions.
+3. **Proactive Docs:** Keep `docs/` updated via `update_documentation` when implementing major features.
 '''
+
+
+@dataclass
+class FrontendDeps:
+    pass_num: int = 1
+    agent_name: str = "frontend"
 
 frontend_agent = Agent(
     AgentSettings.FRONTEND_MODEL,
+    deps_type=FrontendDeps,
     system_prompt=frontend_prompt,
     output_type=Artifact,
     defer_model_check=True

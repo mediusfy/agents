@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 # pyrefly: ignore [missing-import]
 from pydantic_ai import Agent, RunContext
 from pydantic import BaseModel
@@ -10,7 +11,19 @@ Testing Strategy & Execution:
 - Asynchronous Validation: Ensure that events emitted by UI interactions are correctly acknowledged and side-effects executed by the Go backend.
 - Agentic-User Simulation: Mimic highly complex, non-linear user journeys to aggressively stress-test frontend state management logic.
 - Test Coverage: Guarantee 100% test coverage mapping back to the event-driven triggers outlined by the Business Analyst.
+
+
+CRITICAL WORKFLOW:
+1. **History Review:** Use `query_history` to recall previous architectural and contextual decisions before generating logic.
+2. **Log Progress:** Call `log_activity` after significant actions.
+3. **Proactive Docs:** Keep `docs/` updated via `update_documentation` when implementing major features.
 '''
+
+
+@dataclass
+class Test_engDeps:
+    pass_num: int = 1
+    agent_name: str = "test_eng"
 
 test_agent = Agent(
     AgentSettings.TEST_MODEL,
