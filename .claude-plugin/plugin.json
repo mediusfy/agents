@@ -1,0 +1,19 @@
+{
+  "name": "openclaw",
+  "version": "0.1.0",
+  "description": "OpenClaw multi-agent SDLC team — BA, CTO, UX, backend (Go), frontend (Vue 3), database, devops, SRE, security, test, quality gate, docs, and final review agents.",
+  "author": {
+    "name": "Drew Jocham",
+    "email": "me@djocham.com"
+  },
+  "homepage": "https://github.com/drewjocham/agents",
+  "keywords": [
+    "agents",
+    "sdlc",
+    "ddd",
+    "hexagonal",
+    "go",
+    "vue",
+    "review"
+  ]
+}

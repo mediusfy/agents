@@ -8,7 +8,11 @@ AGENT_TOOL_CATEGORIES = {
     "review": ["security", "memory", "documentation", "a2a"],
     "security": ["search", "security", "memory", "a2a"],
     "docs": ["web", "documentation", "a2a"],
-    "cto": ["search", "memory", "documentation", "a2a"]
+    "cto": ["search", "memory", "documentation", "a2a"],
+    "price_analyst": ["web", "search", "memory", "a2a", "pricing"],
+    "holiday_planner": ["web", "search", "memory", "a2a", "planning"],
+    "market_shark": ["web", "search", "memory", "a2a", "finance"],
+    "crypto_oracle": ["web", "search", "memory", "finance", "news", "a2a"]
 }
 
 def get_tool_categories(agent_name: str) -> list[str]:

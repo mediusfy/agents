@@ -44,9 +44,24 @@ async def query_history(ctx: RunContext[any], query: str, pass_num: Optional[int
             log = json.loads(res)
             formatted_logs.append(f"Pass {log['pass_num']} | {log['agent_name']} | {log['action']}: {log['summary']}")
         except:
-            formatted_logs.append(res)
             
     return "Relevant Project History:\n" + "\n".join(formatted_logs)
 
+async def read_and_memorize_url(ctx: RunContext[any], url: str) -> str:
+    """Reads a large webpage, splits it into semantic chunks, and saves it directly to memory."""
+    try:
+        return await vector_db.async_ingest_url("knowledge_base", url)
+    except Exception as e:
+        return f"Failed to ingest URL: {e}"
+
+async def read_and_memorize_pdf(ctx: RunContext[any], file_path: str) -> str:
+    """Reads a PDF document, splits it into semantic chunks, and saves it directly to memory."""
+    try:
+        return await vector_db.async_ingest_pdf("knowledge_base", file_path)
+    except Exception as e:
+        return f"Failed to ingest PDF: {e}"
+
 register_tool("log_activity", log_activity, "Logs activity to project memory", ["memory"])
 register_tool("query_history", query_history, "Queries project history", ["memory"])
+register_tool("read_and_memorize_url", read_and_memorize_url, "Scrapes and memorizes large webpages", ["memory", "web", "research", "news"])
+register_tool("read_and_memorize_pdf", read_and_memorize_pdf, "Reads and memorizes PDF documents", ["memory", "research", "documentation"])

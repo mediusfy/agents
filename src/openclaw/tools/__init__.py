@@ -6,4 +6,6 @@ import openclaw.tools.deps
 import openclaw.tools.memory
 import openclaw.tools.docs
 import openclaw.tools.a2a_tools
+import openclaw.tools.travel_finance
+import openclaw.tools.market_tools
 from openclaw.tools.registry import apply_tools
