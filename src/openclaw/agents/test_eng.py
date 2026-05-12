@@ -1,7 +1,7 @@
 from pydantic_ai import Agent, RunContext
 from pydantic import BaseModel
-from src.models.core import Artifact
-from src.config import AgentSettings
+from openclaw.models.core import Artifact
+from openclaw.config import AgentSettings
 
 test_prompt = '''You are a QA Automation Agent specializing in **Behavior-Driven Development (BDD)**. You write Playwright tests to rigorously validate the Frontend application and the underlying OpenClaw agentic flows based exactly on provided Gherkin criteria.
 

@@ -1,7 +1,7 @@
 from typing import Dict
 from pydantic_ai import Agent, RunContext
-from src.models.core import Artifact
-from src.config import AgentSettings
+from openclaw.models.core import Artifact
+from openclaw.config import AgentSettings
 
 backend_agent = Agent(
     AgentSettings.BACKEND_MODEL,
@@ -21,20 +21,20 @@ Technical Requirements:
 def scaffold_go_service(ctx: RunContext[str], service_name: str, bounded_context: str) -> Dict[str, str]:
     """Returns a complete Go project skeleton. The LLM fills in domain-specific logic in its main response."""
     return {
-        f"cmd/server/main.go": f"// Scaffolding for {service_name}\\npackage main\\n\\nfunc main() {{}}",
-        f"internal/domain/{service_name}.go": "package domain\\n",
-        "internal/domain/events.go": "package domain\\n",
-        "internal/ports/repository.go": "package ports\\n",
-        "internal/ports/events.go": "package ports\\n",
-        "internal/adapters/repository/postgres.go": "package repository\\n",
-        "internal/adapters/eventbus/nats.go": "package eventbus\\n",
-        "internal/adapters/handlers/grpc.go": "package handlers\\n",
-        f"api/protobuf/{service_name}.proto": 'syntax="proto3";\\n',
-        "go.mod": f"module {service_name}\\n\\ngo 1.26",
-        "Makefile": "build:\\n\\tgo build -o bin/server cmd/server/main.go"
+        f"cmd/server/main.go": f"// Scaffolding for {service_name}\npackage main\n\nfunc main() {{}}",
+        f"internal/domain/{service_name}.go": "package domain\n",
+        "internal/domain/events.go": "package domain\n",
+        "internal/ports/repository.go": "package ports\n",
+        "internal/ports/events.go": "package ports\n",
+        "internal/adapters/repository/postgres.go": "package repository\n",
+        "internal/adapters/eventbus/nats.go": "package eventbus\n",
+        "internal/adapters/handlers/grpc.go": "package handlers\n",
+        f"api/protobuf/{service_name}.proto": 'syntax="proto3";\n',
+        "go.mod": f"module {service_name}\n\ngo 1.26",
+        "Makefile": "build:\n\\tgo build -o bin/server cmd/server/main.go"
     }
 
 @backend_agent.tool
 def generate_dockerfile(ctx: RunContext[str], service_name: str, port: int) -> str:
     """Returns multi-stage Dockerfile: golang:1.26-alpine build stage, alpine:3.21 runtime, non-root user, health probes."""
-    return f"FROM golang:1.26-alpine AS builder\\n# Build steps...\\nEXPOSE {port}\\n"
+    return f"FROM golang:1.26-alpine AS builder\n# Build steps...\nEXPOSE {port}\n"

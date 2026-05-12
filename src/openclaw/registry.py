@@ -38,7 +38,7 @@ class AgentRegistry:
 
     def autodiscover(self):
         import openclaw.agents
-        package = src.agents
+        package = openclaw.agents
         prefix = package.__name__ + "."
         for _importer, modname, _ispkg in pkgutil.iter_modules(package.__path__, prefix):
             module = importlib.import_module(modname)

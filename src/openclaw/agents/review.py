@@ -1,6 +1,6 @@
 from pydantic_ai import Agent, RunContext
-from src.models.core import ReviewResult
-from src.config import AgentSettings
+from openclaw.models.core import ReviewResult
+from openclaw.config import AgentSettings
 
 review_agent = Agent(
     AgentSettings.REVIEW_MODEL,

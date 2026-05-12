@@ -1,6 +1,6 @@
 from pydantic_ai import Agent, RunContext
-from src.models.core import Artifact
-from src.config import AgentSettings
+from openclaw.models.core import Artifact
+from openclaw.config import AgentSettings
 from pydantic import BaseModel
 
 frontend_prompt = '''You are a Lead Frontend Engineer building Vue 3 interfaces using the Composition API and TSX. You must ensure every interactive element is strictly **WCAG 2.1 compliant** and includes a unique data-testid attribute to facilitate flawless automated simulation by testing agents.

@@ -1,6 +1,6 @@
 from pydantic_ai import Agent
-from src.models.core import AgentAdvice
-from src.config import AgentSettings
+from openclaw.models.core import AgentAdvice
+from openclaw.config import AgentSettings
 
 ux_agent = Agent(
     AgentSettings.REVIEW_MODEL,

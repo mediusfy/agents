@@ -48,3 +48,26 @@ class AgentAdvice(BaseModel):
     bottlenecks_identified: List[str] = Field(default_factory=list, description="Potential issues or bottlenecks spotted")
     recommendations: List[str] = Field(default_factory=list, description="Actionable advice for downstream agents")
     approved_to_proceed: bool = Field(default=True)
+
+class ActivityLog(BaseModel):
+    pass_num: int
+    agent_name: str
+    action: str
+    summary: str
+    timestamp: str
+    artifact_ids: List[str] = Field(default_factory=list)
+
+class SecurityReport(BaseModel):
+    passed: bool
+    score: int
+    feedback: List[str] = Field(default_factory=list)
+
+class PipelineState(BaseModel):
+    run_id: str
+    stage: str
+    attempt: int = 1
+    user_stories: List[UserStory] = Field(default_factory=list)
+    advisory_results: Dict[str, str] = Field(default_factory=dict)
+    artifacts: List[Artifact] = Field(default_factory=list)
+    feedback: Optional[str] = None
+

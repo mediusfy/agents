@@ -1,7 +1,7 @@
 from typing import Dict
 from pydantic_ai import Agent, RunContext
-from src.models.core import Artifact
-from src.config import AgentSettings
+from openclaw.models.core import Artifact
+from openclaw.config import AgentSettings
 
 sre_agent = Agent(
     AgentSettings.SRE_MODEL,
@@ -20,7 +20,7 @@ Infrastructure Stack & Security Controls:
 def provision_k8s_cluster(ctx: RunContext[str], provider: str, region: str, cluster_name: str) -> Dict[str, str]:
     """Returns Terraform/OpenTofu HCL: VPC, EKS/GKE cluster, node groups, IAM roles, OIDC provider, IRSA."""
     return {
-        "terraform/main.tf": f'# Terraform for {provider} in {region}\\nresource "kubernetes_cluster" "main" {{}}',
+        "terraform/main.tf": f'# Terraform for {provider} in {region}\nresource "kubernetes_cluster" "main" {{}}',
         "terraform/vpc.tf": "# VPC + subnets + NAT",
         "terraform/iam.tf": "# IAM roles + OIDC + IRSA",
         "terraform/outputs.tf": "# Cluster endpoint, kubeconfig",
@@ -31,8 +31,8 @@ def provision_k8s_cluster(ctx: RunContext[str], provider: str, region: str, clus
 def apply_helm_chart(ctx: RunContext[str], service_name: str, image: str, port: int) -> Dict[str, str]:
     """Returns Helm chart: Chart.yaml, values.yaml, templates/ with Deployment, Service, Ingress, NetworkPolicy, HPA, ServiceMonitor, PDB."""
     return {
-        f"helm/{service_name}/Chart.yaml": f"name: {service_name}\\nversion: 1.0.0",
-        f"helm/{service_name}/values.yaml": f"image: {image}\\nport: {port}",
+        f"helm/{service_name}/Chart.yaml": f"name: {service_name}\nversion: 1.0.0",
+        f"helm/{service_name}/values.yaml": f"image: {image}\nport: {port}",
         f"helm/{service_name}/templates/deployment.yaml": "# Deployment",
         f"helm/{service_name}/templates/service.yaml": "# Service",
         f"helm/{service_name}/templates/ingress.yaml": "# Ingress",

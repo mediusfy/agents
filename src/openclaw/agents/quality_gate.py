@@ -1,6 +1,6 @@
 from pydantic_ai import Agent
-from src.models.core import QualityGateResult
-from src.config import AgentSettings
+from openclaw.models.core import QualityGateResult
+from openclaw.config import AgentSettings
 
 quality_gate_agent = Agent(
     AgentSettings.REVIEW_MODEL,

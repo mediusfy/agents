@@ -27,6 +27,9 @@ class Telemetry:
             return result
         finally:
             duration = time.time() - start
-            self.log_call(agent_name, duration, success)
+            try:
+                self.log_call(agent_name, duration, success)
+            except Exception:
+                pass
 
 telemetry = Telemetry()

@@ -45,7 +45,6 @@ class CheckpointManager:
                 return PipelineState.parse_obj(data)
         except (json.JSONDecodeError, KeyError, TypeError) as e:
             logger.warning(f"Corrupted checkpoint for stage '{stage}': {e}")
-            os.remove(filepath)
             return None
 
     def clear(self):

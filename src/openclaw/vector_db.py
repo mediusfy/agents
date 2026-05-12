@@ -10,7 +10,6 @@ class VectorDBManager:
     def __init__(self):
         self.persist_directory = os.getenv("VECTOR_DB_DIR", "./.claw-vectordb")
         os.makedirs(self.persist_directory, exist_ok=True)
-        # Use LangChain's HuggingFace embeddings abstraction
         self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
         self._collections = {}
 
@@ -43,7 +42,7 @@ class VectorDBManager:
     async def async_search(self, collection_name: str, query: str, n_results: int = 3) -> List[str]:
         return await asyncio.to_thread(self.search, collection_name, query, n_results)
 
-    # --- New Advanced LangChain Ingestion Capabilities ---
+    # LangChain Ingestion 
     
     def ingest_url(self, collection_name: str, url: str):
         """Allows agents to scrape an entire webpage, split it, and embed it efficiently."""

@@ -7,8 +7,13 @@ from openclaw.tools.registry import register_tool
 
 async def search_codebase(ctx: RunContext[str], pattern: str, path: str = ".", include: str = "*.go") -> list[str]:
     try:
+        base_dir = os.path.realpath(".")
+        full_path = os.path.realpath(path)
+        if not full_path.startswith(base_dir):
+            return ["Error: Path traversal detected. You can only search within the workspace."]
+            
         proc = await asyncio.create_subprocess_exec(
-            "rg", "-l", "--glob", include, pattern, path,
+            "rg", "-l", "--glob", include, pattern, full_path,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )

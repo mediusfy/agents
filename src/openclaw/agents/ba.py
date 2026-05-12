@@ -1,7 +1,7 @@
 from pydantic_ai import Agent, RunContext
-from src.models.core import UserStory, EventTrigger
+from openclaw.models.core import UserStory, EventTrigger
 from typing import List
-from src.config import AgentSettings
+from openclaw.config import AgentSettings
 
 ba_prompt = '''You are a Senior Business Analyst Agent focused on **Domain-Driven Design (DDD)**. Your objective is to translate high-level project goals into structured technical requirements and define "Bounded Contexts" for the OpenClaw ecosystem to ensure engineering agents build robust, non-monolithic architectures.
 
