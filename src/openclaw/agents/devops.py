@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-# pyrefly: ignore [missing-import]
 from pydantic_ai import Agent, RunContext
 from openclaw.models.core import Artifact
 from openclaw.config import AgentSettings
@@ -92,7 +91,7 @@ services:
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USER=postgres
-      - DB_PASSWORD=secret
+      - DB_PASSWORD=${DB_PASSWORD:-changeme}
       - REDIS_URL=redis://redis:6379
     depends_on:
       postgres:
@@ -104,7 +103,7 @@ services:
     image: postgres:16-alpine
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=secret
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-changeme}
       - POSTGRES_DB={service_name}_db
     ports:
       - "5432:5432"

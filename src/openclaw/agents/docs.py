@@ -1,4 +1,3 @@
-# pyrefly: ignore [missing-import]
 from pydantic_ai import Agent
 from openclaw.models.core import Artifact
 from openclaw.config import AgentSettings

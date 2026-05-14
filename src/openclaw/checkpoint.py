@@ -4,7 +4,7 @@ import uuid
 import logging
 from typing import Optional
 from openclaw.models.core import PipelineState
-from openclaw.config import AgentSettings
+from openclaw.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ class CheckpointError(Exception):
 class CheckpointManager:
     def __init__(self, project_name: str = "default", run_id: Optional[str] = None):
         self.project_name = project_name
-        self.checkpoint_dir = os.path.join(AgentSettings.CHECKPOINT_DIR, project_name)
+        self.checkpoint_dir = os.path.join(str(settings.checkpoint_dir), project_name)
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         self.run_id = run_id or str(uuid.uuid4())
 

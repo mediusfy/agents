@@ -1,4 +1,5 @@
 {
     "snyk.advanced.autoSelectOrganization": true,
-    "snyk.advanced.organization": "1bfeadb8-5330-4a6e-94ee-1c41dde211f8"
+    "snyk.advanced.organization": "1bfeadb8-5330-4a6e-94ee-1c41dde211f8",
+    "nuxt.isNuxtApp": false
 }

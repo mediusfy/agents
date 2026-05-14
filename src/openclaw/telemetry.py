@@ -1,7 +1,11 @@
 import time
 import json
 import os
+import logging
 from typing import Optional, Dict, Any
+
+logger = logging.getLogger(__name__)
+
 
 class Telemetry:
     def __init__(self, log_file: str = "telemetry.jsonl"):
@@ -25,11 +29,13 @@ class Telemetry:
             result = await func(*args, **kwargs)
             success = True
             return result
+        except Exception:
+            raise
         finally:
             duration = time.time() - start
             try:
                 self.log_call(agent_name, duration, success)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Telemetry logging failed for %s: %s", agent_name, e)
 
 telemetry = Telemetry()

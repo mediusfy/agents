@@ -1,10 +1,12 @@
 import datetime
 import json
+import os
 from typing import List, Optional
 from pydantic_ai import RunContext
 from openclaw.vector_db import vector_db
 from openclaw.models.core import ActivityLog
 from openclaw.tools.registry import register_tool
+from openclaw.utils import safe_path_join
 
 async def log_activity(ctx: RunContext[any], action: str, summary: str, artifact_ids: Optional[List[str]] = None) -> str:
     """Logs a significant agent activity to the project memory for future spot-checking."""
@@ -58,7 +60,10 @@ async def read_and_memorize_url(ctx: RunContext[any], url: str) -> str:
 async def read_and_memorize_pdf(ctx: RunContext[any], file_path: str) -> str:
     """Reads a PDF document, splits it into semantic chunks, and saves it directly to memory."""
     try:
+        safe_path_join(os.getcwd(), file_path)
         return await vector_db.async_ingest_pdf("knowledge_base", file_path)
+    except ValueError as e:
+        return f"Error: {e}"
     except Exception as e:
         return f"Failed to ingest PDF: {e}"
 

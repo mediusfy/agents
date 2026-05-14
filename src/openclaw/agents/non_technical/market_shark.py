@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from pydantic_ai import Agent
 from openclaw.config import AgentSettings
-from openclaw.a2a import agent_bus
 
 @dataclass
 class MarketSharkDeps:
@@ -25,5 +24,3 @@ market_shark_agent = Agent(
     output_type=str,
     defer_model_check=True
 )
-
-agent_bus.register("market_shark", market_shark_agent, ["finance", "crypto", "stocks", "investing"], lambda: MarketSharkDeps(pass_num=1))

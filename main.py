@@ -17,6 +17,8 @@ from typing import List, Any
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
+from openclaw.settings import settings
+
 def format_artifacts_for_prompt(artifacts: List[Any]) -> str:
     parts = []
     for art in artifacts:
@@ -43,7 +45,12 @@ async def run_agent(semaphore: asyncio.Semaphore, agent_name: str, agent, prompt
 async def main(project: str = "default", step: str = "all", resume: bool = False, auto_yes: bool = False, dry_run: bool = False):
     logger.info(f"--- OpenClaw Multi-Agent Ecosystem Pipeline (Project: {project}) ---")
 
+    from openclaw.healthcheck import assert_startup_checks
+    assert_startup_checks()
+
     registry.autodiscover()
+    from openclaw.agents.registration import register_a2a_agents
+    register_a2a_agents()
     logger.info(f"Discovered agents: {registry.list_agents()}")
 
     raw_requirements = os.getenv("REQUIREMENT", DEFAULT_REQUIREMENT)
@@ -61,7 +68,7 @@ async def main(project: str = "default", step: str = "all", resume: bool = False
         checkpoint_mgr = CheckpointManager(project)
         checkpoint_mgr.clear()
 
-    semaphore = asyncio.Semaphore(AgentSettings.MAX_CONCURRENT_LLM_CALLS)
+    semaphore = asyncio.Semaphore(settings.max_concurrent_llm_calls)
 
     state = PipelineState(run_id=checkpoint_mgr.run_id, stage="init")
 
@@ -149,7 +156,7 @@ async def main(project: str = "default", step: str = "all", resume: bool = False
     cto_advice = state.advisory_results.get("cto", "")
     ux_advice = state.advisory_results.get("ux", "")
 
-    MAX_RETRIES = AgentSettings.MAX_RETRIES if step == "all" else 1
+    MAX_RETRIES = settings.max_retries if step == "all" else 1
 
     if dry_run:
         logger.info("DRY RUN: Generating mock artifacts.")
@@ -332,7 +339,7 @@ async def main(project: str = "default", step: str = "all", resume: bool = False
 
     if dry_run:
         logger.info("DRY RUN: Skipping human-in-the-loop gate, writing to dry-run output.")
-        project_output_dir = os.path.join(AgentSettings.OUTPUT_DIR, project)
+            project_output_dir = os.path.join(str(settings.output_dir), project)
         writer = ArtifactWriter(project_output_dir)
         for art in state.artifacts:
             writer.write(art)
@@ -342,7 +349,7 @@ async def main(project: str = "default", step: str = "all", resume: bool = False
     if state.artifacts:
         proceed = HumanInTheLoopGate.prompt_proceed(state.artifacts, auto_yes)
         if proceed:
-            project_output_dir = os.path.join(AgentSettings.OUTPUT_DIR, project)
+        project_output_dir = os.path.join(str(settings.output_dir), project)
             logger.info(f"Writing {len(state.artifacts)} artifacts to {project_output_dir}...")
             writer = ArtifactWriter(project_output_dir)
             for art in state.artifacts:

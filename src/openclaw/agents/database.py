@@ -1,9 +1,7 @@
 from dataclasses import dataclass
-# pyrefly: ignore [missing-import]
 from pydantic_ai import Agent, RunContext
 from openclaw.models.core import Artifact
 from openclaw.config import AgentSettings
-# rom src.state import ProjectState 
 
 @dataclass
 class DatabaseDeps:
@@ -84,5 +82,3 @@ appendonly yes
 appendfsync everysec
 '''
 
-from openclaw.a2a import agent_bus
-agent_bus.register("database", database_agent, ["db_schema", "migrations"], lambda: DatabaseDeps())

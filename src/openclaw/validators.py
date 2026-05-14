@@ -87,8 +87,4 @@ class CodeValidator:
 
     @staticmethod
     def run_all(artifacts: List[Artifact]) -> bool:
-        loop = asyncio.new_event_loop()
-        try:
-            return loop.run_until_complete(CodeValidator.run_all_async(artifacts))
-        finally:
-            loop.close()
+        return asyncio.run(CodeValidator.run_all_async(artifacts))

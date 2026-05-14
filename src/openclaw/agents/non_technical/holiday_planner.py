@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from pydantic_ai import Agent, RunContext
 from openclaw.config import AgentSettings
-from openclaw.a2a import agent_bus
 
 @dataclass
 class HolidayPlannerDeps:
@@ -19,5 +18,3 @@ holiday_planner_agent = Agent(
     output_type=str,
     defer_model_check=True
 )
-
-agent_bus.register("holiday_planner", holiday_planner_agent, ["planning"], lambda: HolidayPlannerDeps(pass_num=1))

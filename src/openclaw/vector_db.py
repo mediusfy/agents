@@ -5,10 +5,11 @@ from langchain_chroma import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.document_loaders import WebBaseLoader, PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from openclaw.settings import settings
 
 class VectorDBManager:
     def __init__(self):
-        self.persist_directory = os.getenv("VECTOR_DB_DIR", "./.claw-vectordb")
+        self.persist_directory = str(settings.vector_db_dir)
         os.makedirs(self.persist_directory, exist_ok=True)
         self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
         self._collections = {}

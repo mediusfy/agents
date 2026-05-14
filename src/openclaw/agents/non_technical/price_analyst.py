@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from pydantic_ai import Agent, RunContext
 from openclaw.config import AgentSettings
-from openclaw.a2a import agent_bus
 
 @dataclass
 class PriceAnalystDeps:
@@ -22,5 +21,3 @@ price_analyst_agent = Agent(
     output_type=str,
     defer_model_check=True
 )
-
-agent_bus.register("price_analyst", price_analyst_agent, ["pricing", "analysis", "purchasing"], lambda: PriceAnalystDeps(pass_num=1))

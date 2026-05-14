@@ -9,7 +9,9 @@ ifneq (,$(wildcard .env))
 endif
 
 .PHONY: run run-ba run-backend run-frontend run-test run-sre run-review \
-        run-database run-devops run-docs run-security run-resume run-dry-run setup clean
+        run-database run-devops run-docs run-security run-holiday-planner \
+        run-region-analyzer run-asymmetric-reviewer run-current-events \
+        run-weather run-accountant run-resume run-dry-run setup clean
 
 PROJECT ?= default
 
@@ -62,6 +64,30 @@ run-docs: $(VENV)
 run-security: $(VENV)
 	@echo "=== Security step ==="
 	$(PYTHON) main.py --project $(PROJECT) --step security
+
+run-holiday-planner: $(VENV)
+	@echo "=== Holiday Planner step ==="
+	$(PYTHON) main.py --project $(PROJECT) --step holiday_planner
+
+run-region-analyzer: $(VENV)
+	@echo "=== Region Analyzer step ==="
+	$(PYTHON) main.py --project $(PROJECT) --step region_analyzer
+
+run-asymmetric-reviewer: $(VENV)
+	@echo "=== Asymmetric Reviewer step ==="
+	$(PYTHON) main.py --project $(PROJECT) --step asymmetric_reviewer
+
+run-current-events: $(VENV)
+	@echo "=== Current Events step ==="
+	$(PYTHON) main.py --project $(PROJECT) --step current_events
+
+run-weather: $(VENV)
+	@echo "=== Weather step ==="
+	$(PYTHON) main.py --project $(PROJECT) --step weather
+
+run-accountant: $(VENV)
+	@echo "=== Accountant step ==="
+	$(PYTHON) main.py --project $(PROJECT) --step accountant
 
 run-dry-run: $(VENV)
 	@echo "=== OpenClaw: Dry run (no LLM calls) for project: $(PROJECT) ==="

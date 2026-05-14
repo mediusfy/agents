@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from pydantic_ai import Agent
 from openclaw.config import AgentSettings
-from openclaw.a2a import agent_bus
 
 @dataclass
 class CryptoOracleDeps:
@@ -31,5 +30,3 @@ crypto_oracle_agent = Agent(
     output_type=str,
     defer_model_check=True
 )
-
-agent_bus.register("crypto_oracle", crypto_oracle_agent, ["crypto", "policy", "forecasting", "investing"], lambda: CryptoOracleDeps(pass_num=1))
