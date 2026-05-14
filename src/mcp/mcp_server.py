@@ -16,19 +16,14 @@ mcp = FastMCP("OpenClaw Orchestrator")
 
 def create_agent_runner(agent, deps_class, docstring):
     """A factory function to create an MCP tool for running an agent."""
-
-    # This is the actual function that will be decorated as a tool
     async def agent_runner(request: str) -> str:
         deps = deps_class(pass_num=1)
         result = await agent.run(request, deps=deps)
         return result.data
 
-    # Set the docstring for the tool's help text
     agent_runner.__doc__ = docstring
-    # Give the function a unique name
     agent_runner.__name__ = f"run_{agent.name.lower().replace(' ', '_')}" # Assumes agent has a .name attribute
 
-    # Decorate and return the newly created function
     return mcp.tool()(agent_runner)
 
 run_holiday_planner = create_agent_runner(
