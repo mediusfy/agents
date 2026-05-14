@@ -39,7 +39,7 @@ async def daily_crypto_forecast() -> str:
     
     oracle = registry.get("crypto_oracle")
     # In Dagster, we can instantiate deps here
-    from openclaw.agents.non_technial.crypto_oracle import CryptoOracleDeps
+    from openclaw.agents.non_technical.crypto_oracle import CryptoOracleDeps
     deps = CryptoOracleDeps(pass_num=1)
     
     result = await oracle.run("Perform your daily legislative sweep of .gov sites and generate a new market forecast. Save it to memory.", deps=deps)
@@ -49,7 +49,7 @@ async def daily_crypto_forecast() -> str:
 async def daily_market_shark_analysis() -> str:
     """The Market Shark evaluates the top 5 trending tickers mathematically."""
     shark = registry.get("market_shark")
-    from openclaw.agents.non_technial.market_shark import MarketSharkDeps
+    from openclaw.agents.non_technical.market_shark import MarketSharkDeps
     deps = MarketSharkDeps(pass_num=1)
     
     result = await shark.run("Pull the current data and historical charts for BTC-USD and AAPL. Provide a mathematically backed risk/reward analysis.", deps=deps)

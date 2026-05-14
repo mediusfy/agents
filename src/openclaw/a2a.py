@@ -17,9 +17,9 @@ class AgentBus:
     def register(self, agent_name: str, agent: Agent, capabilities: List[str], deps_factory: Optional[callable] = None):
         self.registry[agent_name] = (agent, capabilities, deps_factory)
 
-    async def query(self, capability: str, prompt: str, timeout: int = 30) -> str:
-        conversation_id = str(uuid.uuid4())
-        logger.info(f"A2A Query [{conversation_id}]: Capability '{capability}' requested.")
+    async def query(self, capability: str, prompt: str, timeout: int = 30, caller_id: str = "root") -> str:
+        query_id = f"{caller_id}->{capability}"
+        logger.info(f"A2A Query [{query_id}]: Capability '{capability}' requested.")
         
         # Find capable agent
         target_agent: Optional[Agent] = None
@@ -36,12 +36,12 @@ class AgentBus:
             logger.warning(msg)
             return f"Error: {msg}"
             
-        if capability in self._active_queries.get(conversation_id, set()):
-            msg = f"Cyclic A2A call detected for capability '{capability}'"
+        if capability in self._active_queries.get(caller_id, set()):
+            msg = f"Cyclic A2A call detected for capability '{capability}' (already active for caller '{caller_id}')"
             logger.error(msg)
             return f"Error: {msg}"
             
-        self._active_queries.setdefault(conversation_id, set()).add(capability)
+        self._active_queries.setdefault(caller_id, set()).add(capability)
         
         try:
             # Wrap the call with timeout
@@ -64,9 +64,11 @@ class AgentBus:
             logger.error(msg)
             return f"Error: {msg}"
         finally:
-            self._active_queries[conversation_id].remove(capability)
-            if not self._active_queries[conversation_id]:
-                del self._active_queries[conversation_id]
+            active = self._active_queries.get(caller_id)
+            if active:
+                active.discard(capability)
+                if not active:
+                    del self._active_queries[caller_id]
 
 # Global bus instance to be used across the application
 agent_bus = AgentBus()

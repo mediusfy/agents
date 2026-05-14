@@ -3,7 +3,7 @@ from openclaw.models.core import AgentAdvice
 from openclaw.config import AgentSettings
 
 ux_agent = Agent(
-    AgentSettings.REVIEW_MODEL,
+    AgentSettings.UX_MODEL,
     system_prompt='''You are the Principal User Experience (UX) Agent.
 Your job is to look at the product requirements and user stories from the perspective of what is currently available in modern UI/UX and what the application does, and offer advice.
 Crucially, evaluate how the UX makes the user *feel*. The design should make the user feel entirely in control, yet confident enough to hand over control to the system, knowing they will be kept updated in depth on the system's actions.

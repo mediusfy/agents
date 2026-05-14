@@ -1,7 +1,16 @@
+from dataclasses import dataclass
 from typing import Dict
 from pydantic_ai import Agent, RunContext
 from openclaw.models.core import Artifact
 from openclaw.config import AgentSettings
+
+
+@dataclass
+class ProjectState:
+    base_path: str
+    environment: str
+    team_owner: str
+
 
 backend_agent = Agent(
     AgentSettings.BACKEND_MODEL,

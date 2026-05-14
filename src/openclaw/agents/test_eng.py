@@ -11,7 +11,7 @@ Testing Strategy & Execution:
 - Test Coverage: Guarantee 100% test coverage mapping back to the event-driven triggers outlined by the Business Analyst.
 '''
 
-test_agent = Agent(
+test_eng_agent = Agent(
     AgentSettings.TEST_MODEL,
     system_prompt=test_prompt,
     output_type=Artifact,
@@ -24,7 +24,7 @@ class TestOutput(BaseModel):
 
 test_gen = Agent(AgentSettings.TEST_MODEL, system_prompt=test_prompt, output_type=TestOutput, defer_model_check=True)
 
-@test_agent.tool
+@test_eng_agent.tool
 async def generate_test_suite(ctx: RunContext[str], user_story_gherkin: str) -> str:
     """Converts Gherkin to Playwright TypeScript tests: data-testid selectors, async/await, page object pattern, backend event validation."""
     res = await test_gen.run(f"Write a playwright test for {user_story_gherkin}.")

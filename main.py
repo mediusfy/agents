@@ -19,8 +19,11 @@ logger = logging.getLogger(__name__)
 
 from openclaw.settings import settings
 
+MAX_PROMPT_CHARS = 80_000
+
 def format_artifacts_for_prompt(artifacts: List[Any]) -> str:
     parts = []
+    total_len = 0
     for art in artifacts:
         if isinstance(art, Exception):
             parts.append(f"[Error] {art}")
@@ -28,7 +31,17 @@ def format_artifacts_for_prompt(artifacts: List[Any]) -> str:
         story_id = art.metadata.get("user_story_id", "N/A")
         parts.append(f"=== Agent: {art.agent_name} | Story: {story_id} ===")
         for path, content in art.files.items():
-            parts.append(f"--- {path} ---\n{content}")
+            snippet = f"--- {path} ---\n{content}"
+            if total_len + len(snippet) > MAX_PROMPT_CHARS:
+                remaining = MAX_PROMPT_CHARS - total_len
+                snippet = snippet[:remaining] + "\n... (truncated)"
+            parts.append(snippet)
+            total_len += len(snippet)
+            if total_len >= MAX_PROMPT_CHARS:
+                break
+        if total_len >= MAX_PROMPT_CHARS:
+            parts.append("... (artifact output truncated, review continues on remaining items)")
+            break
     return "\n\n".join(parts)
 
 DEFAULT_REQUIREMENT = "Build a payment processing service that handles incoming payments and emits 'PaymentSucceeded' or 'PaymentFailed' events."

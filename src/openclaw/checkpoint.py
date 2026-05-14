@@ -5,11 +5,9 @@ import logging
 from typing import Optional
 from openclaw.models.core import PipelineState
 from openclaw.settings import settings
+from openclaw.exceptions import CheckpointError
 
 logger = logging.getLogger(__name__)
-
-class CheckpointError(Exception):
-    pass
 
 class CheckpointManager:
     def __init__(self, project_name: str = "default", run_id: Optional[str] = None):

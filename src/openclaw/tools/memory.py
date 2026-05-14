@@ -1,18 +1,22 @@
 import datetime
 import json
 import os
-from typing import List, Optional
+from typing import List, Optional, Any
 from pydantic_ai import RunContext
 from openclaw.vector_db import vector_db
 from openclaw.models.core import ActivityLog
 from openclaw.tools.registry import register_tool
 from openclaw.utils import safe_path_join
 
-async def log_activity(ctx: RunContext[any], action: str, summary: str, artifact_ids: Optional[List[str]] = None) -> str:
+# A real system might have a global state or a way to track the current pass and agent globally,
+# but passing it through context dependencies is the idiomatic way in pydantic-ai.
+# We'll enhance the robustness of extracting these values.
+
+async def log_activity(ctx: RunContext[Any], action: str, summary: str, artifact_ids: Optional[List[str]] = None) -> str:
     """Logs a significant agent activity to the project memory for future spot-checking."""
-    # In a real system, we'd get pass_num from ctx.deps or a global state
-    pass_num = getattr(ctx.deps, "pass_num", 0)
-    agent_name = getattr(ctx.deps, "agent_name", "unknown")
+    # Robustly extract pass_num and agent_name from deps, defaulting if not provided
+    pass_num = getattr(ctx.deps, "pass_num", 0) if ctx.deps else 0
+    agent_name = getattr(ctx.deps, "agent_name", "system") if ctx.deps else "system"
     
     log_entry = ActivityLog(
         pass_num=pass_num,
@@ -34,7 +38,7 @@ async def log_activity(ctx: RunContext[any], action: str, summary: str, artifact
     )
     return f"Activity logged successfully: {action}"
 
-async def query_history(ctx: RunContext[any], query: str, pass_num: Optional[int] = None) -> str:
+async def query_history(ctx: RunContext[Any], query: str, pass_num: Optional[int] = None) -> str:
     """Queries the project history to find past decisions or actions."""
     results = await vector_db.async_search("activity_logs", query, n_results=5)
     if not results:
@@ -50,14 +54,14 @@ async def query_history(ctx: RunContext[any], query: str, pass_num: Optional[int
             
     return "Relevant Project History:\n" + "\n".join(formatted_logs)
 
-async def read_and_memorize_url(ctx: RunContext[any], url: str) -> str:
+async def read_and_memorize_url(ctx: RunContext[Any], url: str) -> str:
     """Reads a large webpage, splits it into semantic chunks, and saves it directly to memory."""
     try:
         return await vector_db.async_ingest_url("knowledge_base", url)
     except Exception as e:
         return f"Failed to ingest URL: {e}"
 
-async def read_and_memorize_pdf(ctx: RunContext[any], file_path: str) -> str:
+async def read_and_memorize_pdf(ctx: RunContext[Any], file_path: str) -> str:
     """Reads a PDF document, splits it into semantic chunks, and saves it directly to memory."""
     try:
         safe_path_join(os.getcwd(), file_path)

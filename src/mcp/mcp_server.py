@@ -14,7 +14,7 @@ from openclaw.agents.accountant import accountant_agent, AccountantDeps
 
 mcp = FastMCP("OpenClaw Orchestrator")
 
-def create_agent_runner(agent, deps_class, docstring):
+def create_agent_runner(agent, deps_class, tool_name: str, docstring: str):
     """A factory function to create an MCP tool for running an agent."""
     async def agent_runner(request: str) -> str:
         deps = deps_class(pass_num=1)
@@ -22,27 +22,27 @@ def create_agent_runner(agent, deps_class, docstring):
         return result.data
 
     agent_runner.__doc__ = docstring
-    agent_runner.__name__ = f"run_{agent.name.lower().replace(' ', '_')}" # Assumes agent has a .name attribute
+    agent_runner.__name__ = tool_name
 
-    return mcp.tool()(agent_runner)
+    return mcp.tool(name=tool_name)(agent_runner)
 
 run_holiday_planner = create_agent_runner(
-    holiday_planner_agent, HolidayPlannerDeps, "Invokes the Holiday Planner Agent."
+    holiday_planner_agent, HolidayPlannerDeps, "run_holiday_planner", "Invokes the Holiday Planner Agent."
 )
 run_region_analyzer = create_agent_runner(
-    region_analyzer_agent, RegionAnalyzerDeps, "Invokes the Region Analyzer Agent."
+    region_analyzer_agent, RegionAnalyzerDeps, "run_region_analyzer", "Invokes the Region Analyzer Agent."
 )
 run_asymmetric_reviewer = create_agent_runner(
-    asymmetric_reviewer_agent, AsymmetricReviewerDeps, "Invokes the Asymmetric Reviewer Agent (law & corporate tricks for travel savings)."
+    asymmetric_reviewer_agent, AsymmetricReviewerDeps, "run_asymmetric_reviewer", "Invokes the Asymmetric Reviewer Agent (law & corporate tricks for travel savings)."
 )
 run_current_events = create_agent_runner(
-    current_events_agent, CurrentEventsDeps, "Invokes the Current Events Agent (history buff)."
+    current_events_agent, CurrentEventsDeps, "run_current_events", "Invokes the Current Events Agent (history buff)."
 )
 run_weather = create_agent_runner(
-    weather_agent, WeatherDeps, "Invokes the Weather Agent."
+    weather_agent, WeatherDeps, "run_weather", "Invokes the Weather Agent."
 )
 run_accountant = create_agent_runner(
-    accountant_agent, AccountantDeps, "Invokes the Accountant Agent."
+    accountant_agent, AccountantDeps, "run_accountant", "Invokes the Accountant Agent."
 )
 
 
@@ -76,54 +76,16 @@ def scaffold_and_build_service(service_name: str, bounded_context: str) -> str:
         final_state = ckpt.load("03_post_hook_verified")
 
         if final_state:
-            return f"Success! Pipeline finished. Generated Code Artifacts:\n{final_state.data.get('generated_artifact')}"
+            artifact_summary = "\n".join(
+                f"  - {art.agent_name}: {', '.join(art.files.keys())}"
+                for art in final_state.artifacts
+            ) if final_state.artifacts else "  (no artifacts)"
+            return f"Success! Pipeline finished. Generated Code Artifacts:\n{artifact_summary}"
         else:
             return "Pipeline ran, but could not load the final checkpoint. Check Dagster logs."
 
     except subprocess.CalledProcessError as e:
         return f"Pipeline failed during execution. Error logs:\n{e.stderr}"
-
-@mcp.tool()
-async def run_holiday_planner(request: str) -> str:
-    """Invokes the Holiday Planner Agent."""
-    deps = HolidayPlannerDeps(pass_num=1)
-    result = await holiday_planner_agent.run(request, deps=deps)
-    return result.data
-
-@mcp.tool()
-async def run_region_analyzer(request: str) -> str:
-    """Invokes the Region Analyzer Agent."""
-    deps = RegionAnalyzerDeps(pass_num=1)
-    result = await region_analyzer_agent.run(request, deps=deps)
-    return result.data
-
-@mcp.tool()
-async def run_asymmetric_reviewer(request: str) -> str:
-    """Invokes the Asymmetric Reviewer Agent (law & corporate tricks for travel savings)."""
-    deps = AsymmetricReviewerDeps(pass_num=1)
-    result = await asymmetric_reviewer_agent.run(request, deps=deps)
-    return result.data
-
-@mcp.tool()
-async def run_current_events(request: str) -> str:
-    """Invokes the Current Events Agent (history buff)."""
-    deps = CurrentEventsDeps(pass_num=1)
-    result = await current_events_agent.run(request, deps=deps)
-    return result.data
-
-@mcp.tool()
-async def run_weather(request: str) -> str:
-    """Invokes the Weather Agent."""
-    deps = WeatherDeps(pass_num=1)
-    result = await weather_agent.run(request, deps=deps)
-    return result.data
-
-@mcp.tool()
-async def run_accountant(request: str) -> str:
-    """Invokes the Accountant Agent."""
-    deps = AccountantDeps(pass_num=1)
-    result = await accountant_agent.run(request, deps=deps)
-    return result.data
 
 if __name__ == "__main__":
     mcp.run()

@@ -1,6 +1,6 @@
 import time
 import json
-import os
+import asyncio
 import logging
 from typing import Optional, Dict, Any
 
@@ -11,7 +11,7 @@ class Telemetry:
     def __init__(self, log_file: str = "telemetry.jsonl"):
         self.log_file = log_file
 
-    def log_call(self, agent_name: str, duration: float, success: bool, metadata: Optional[Dict[str, Any]] = None):
+    async def log_call(self, agent_name: str, duration: float, success: bool, metadata: Optional[Dict[str, Any]] = None):
         entry = {
             "timestamp": time.time(),
             "agent": agent_name,
@@ -19,8 +19,13 @@ class Telemetry:
             "success": success,
             "metadata": metadata or {}
         }
+        line = json.dumps(entry) + "\n"
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, self._write_line, line)
+
+    def _write_line(self, line: str):
         with open(self.log_file, "a") as f:
-            f.write(json.dumps(entry) + "\n")
+            f.write(line)
 
     async def track(self, agent_name: str, func, *args, **kwargs):
         start = time.time()
@@ -34,7 +39,7 @@ class Telemetry:
         finally:
             duration = time.time() - start
             try:
-                self.log_call(agent_name, duration, success)
+                await self.log_call(agent_name, duration, success)
             except Exception as e:
                 logger.warning("Telemetry logging failed for %s: %s", agent_name, e)
 

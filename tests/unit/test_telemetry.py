@@ -6,10 +6,10 @@ from pathlib import Path
 from openclaw.telemetry import Telemetry
 
 
-def test_log_call_writes_jsonl(tmp_path):
+async def test_log_call_writes_jsonl(tmp_path):
     log_file = tmp_path / "test.jsonl"
     t = Telemetry(str(log_file))
-    t.log_call("test-agent", 1.5, True, {"key": "value"})
+    await t.log_call("test-agent", 1.5, True, {"key": "value"})
     lines = log_file.read_text().strip().splitlines()
     assert len(lines) == 1
     entry = json.loads(lines[0])
@@ -19,19 +19,19 @@ def test_log_call_writes_jsonl(tmp_path):
     assert entry["metadata"]["key"] == "value"
 
 
-def test_log_call_rounds_duration(tmp_path):
+async def test_log_call_rounds_duration(tmp_path):
     log_file = tmp_path / "round.jsonl"
     t = Telemetry(str(log_file))
-    t.log_call("fast", 0.12345, True)
+    await t.log_call("fast", 0.12345, True)
     entry = json.loads(log_file.read_text().strip())
     assert entry["duration_sec"] == 0.12345
 
 
-def test_multiple_logs(tmp_path):
+async def test_multiple_logs(tmp_path):
     log_file = tmp_path / "multi.jsonl"
     t = Telemetry(str(log_file))
-    t.log_call("a", 0.1, True)
-    t.log_call("b", 0.2, False)
+    await t.log_call("a", 0.1, True)
+    await t.log_call("b", 0.2, False)
     lines = log_file.read_text().strip().splitlines()
     assert len(lines) == 2
 

@@ -39,12 +39,22 @@ class TestValidateDirectories:
             errors = validate_directories()
             assert len(errors) == 0
 
-    def test_creates_missing_directories(self, tmp_path):
-        out_dir = tmp_path / "does-not-exist" / "yet"
+    def test_missing_directory_parent_reported(self, tmp_path):
+        deep_dir = tmp_path / "does-not-exist" / "yet"
         with patch("openclaw.healthcheck.settings") as mock:
-            mock.output_dir = out_dir
+            mock.output_dir = deep_dir
+            mock.checkpoint_dir = tmp_path / "ckpt"
+            mock.vector_db_dir = tmp_path / "vdb"
+            errors = validate_directories()
+            assert any("does not exist or is not writable" in e for e in errors)
+
+    def test_missing_dir_with_writable_parent_passes(self, tmp_path):
+        parent = tmp_path / "exists"
+        parent.mkdir()
+        child = parent / "newdir"
+        with patch("openclaw.healthcheck.settings") as mock:
+            mock.output_dir = child
             mock.checkpoint_dir = tmp_path / "ckpt"
             mock.vector_db_dir = tmp_path / "vdb"
             errors = validate_directories()
             assert len(errors) == 0
-            assert out_dir.parent.exists()

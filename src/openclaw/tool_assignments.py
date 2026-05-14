@@ -12,7 +12,14 @@ AGENT_TOOL_CATEGORIES = {
     "price_analyst": ["web", "search", "memory", "a2a", "pricing"],
     "holiday_planner": ["web", "search", "memory", "a2a", "planning"],
     "market_shark": ["web", "search", "memory", "a2a", "finance"],
-    "crypto_oracle": ["web", "search", "memory", "finance", "news", "a2a"]
+    "crypto_oracle": ["web", "search", "memory", "finance", "news", "a2a"],
+    "database": ["web", "search", "memory", "a2a"],
+    "devops": ["web", "search", "memory", "a2a"],
+    "accountant": ["web", "search", "memory", "a2a"],
+    "asymmetric_reviewer": ["web", "search", "memory", "a2a"],
+    "current_events": ["web", "search", "memory", "a2a"],
+    "region_analyzer": ["web", "search", "memory", "a2a"],
+    "weather": ["web", "search", "memory", "a2a"]
 }
 
 def get_tool_categories(agent_name: str) -> list[str]:

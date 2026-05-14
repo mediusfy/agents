@@ -47,7 +47,7 @@ def validate_api_keys() -> list[str]:
 
 
 def validate_directories() -> list[str]:
-    """Ensure output/checkpoint/vector-db directories are accessible."""
+    """Ensure output/checkpoint/vector-db directories are writable (read-only check, no FS mutation)."""
     errors: list[str] = []
     for name, path in [
         ("OUTPUT_DIR", settings.output_dir),
@@ -60,7 +60,9 @@ def validate_directories() -> list[str]:
                 if not os.access(str(resolved), os.W_OK):
                     errors.append(f"{name} ({resolved}) exists but is not writable")
             else:
-                resolved.parent.mkdir(parents=True, exist_ok=True)
+                parent = resolved.parent
+                if not parent.exists() or not os.access(str(parent), os.W_OK):
+                    errors.append(f"{name} ({resolved}) parent directory does not exist or is not writable")
         except (OSError, PermissionError) as e:
             errors.append(f"{name}={path}: {e}")
     return errors
