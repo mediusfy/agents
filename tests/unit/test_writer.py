@@ -1,0 +1,48 @@
+"""Tests for the artifact writer."""
+
+import pytest
+from pathlib import Path
+from openclaw.writer import ArtifactWriter
+from openclaw.models.core import Artifact
+from openclaw.exceptions import PathTraversalError
+
+
+def test_writes_files(tmp_path):
+    writer = ArtifactWriter(str(tmp_path))
+    art = Artifact(
+        agent_name="backend",
+        files={"main.go": "package main", "go.mod": "module test"},
+    )
+    writer.write(art)
+    assert (tmp_path / "backend" / "main.go").read_text() == "package main"
+    assert (tmp_path / "backend" / "go.mod").read_text() == "module test"
+
+
+def test_creates_directories(tmp_path):
+    writer = ArtifactWriter(str(tmp_path))
+    art = Artifact(
+        agent_name="frontend",
+        files={"src/components/App.vue": "<template><div/></template>"},
+    )
+    writer.write(art)
+    assert (tmp_path / "frontend" / "src" / "components" / "App.vue").exists()
+
+
+def test_path_traversal_prevention(tmp_path):
+    writer = ArtifactWriter(str(tmp_path))
+    art = Artifact(
+        agent_name="hacker",
+        files={"../../etc/passwd": "root:x:0:0:root:/root:/bin/bash"},
+    )
+    with pytest.raises(PathTraversalError, match="Path traversal"):
+        writer.write(art)
+
+
+def test_path_traversal_absolute(tmp_path):
+    writer = ArtifactWriter(str(tmp_path))
+    art = Artifact(
+        agent_name="hacker",
+        files={"/etc/passwd": "root:x:0:0:"},
+    )
+    with pytest.raises(PathTraversalError, match="Path traversal"):
+        writer.write(art)

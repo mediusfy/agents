@@ -14,6 +14,43 @@ from openclaw.agents.accountant import accountant_agent, AccountantDeps
 
 mcp = FastMCP("OpenClaw Orchestrator")
 
+def create_agent_runner(agent, deps_class, docstring):
+    """A factory function to create an MCP tool for running an agent."""
+
+    # This is the actual function that will be decorated as a tool
+    async def agent_runner(request: str) -> str:
+        deps = deps_class(pass_num=1)
+        result = await agent.run(request, deps=deps)
+        return result.data
+
+    # Set the docstring for the tool's help text
+    agent_runner.__doc__ = docstring
+    # Give the function a unique name
+    agent_runner.__name__ = f"run_{agent.name.lower().replace(' ', '_')}" # Assumes agent has a .name attribute
+
+    # Decorate and return the newly created function
+    return mcp.tool()(agent_runner)
+
+run_holiday_planner = create_agent_runner(
+    holiday_planner_agent, HolidayPlannerDeps, "Invokes the Holiday Planner Agent."
+)
+run_region_analyzer = create_agent_runner(
+    region_analyzer_agent, RegionAnalyzerDeps, "Invokes the Region Analyzer Agent."
+)
+run_asymmetric_reviewer = create_agent_runner(
+    asymmetric_reviewer_agent, AsymmetricReviewerDeps, "Invokes the Asymmetric Reviewer Agent (law & corporate tricks for travel savings)."
+)
+run_current_events = create_agent_runner(
+    current_events_agent, CurrentEventsDeps, "Invokes the Current Events Agent (history buff)."
+)
+run_weather = create_agent_runner(
+    weather_agent, WeatherDeps, "Invokes the Weather Agent."
+)
+run_accountant = create_agent_runner(
+    accountant_agent, AccountantDeps, "Invokes the Accountant Agent."
+)
+
+
 @mcp.tool()
 def scaffold_and_build_service(service_name: str, bounded_context: str) -> str:
     """

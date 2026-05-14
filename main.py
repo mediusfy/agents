@@ -339,7 +339,7 @@ async def main(project: str = "default", step: str = "all", resume: bool = False
 
     if dry_run:
         logger.info("DRY RUN: Skipping human-in-the-loop gate, writing to dry-run output.")
-            project_output_dir = os.path.join(str(settings.output_dir), project)
+        project_output_dir = os.path.join(str(settings.output_dir), project)
         writer = ArtifactWriter(project_output_dir)
         for art in state.artifacts:
             writer.write(art)
@@ -349,7 +349,7 @@ async def main(project: str = "default", step: str = "all", resume: bool = False
     if state.artifacts:
         proceed = HumanInTheLoopGate.prompt_proceed(state.artifacts, auto_yes)
         if proceed:
-        project_output_dir = os.path.join(str(settings.output_dir), project)
+            project_output_dir = os.path.join(str(settings.output_dir), project)
             logger.info(f"Writing {len(state.artifacts)} artifacts to {project_output_dir}...")
             writer = ArtifactWriter(project_output_dir)
             for art in state.artifacts:
