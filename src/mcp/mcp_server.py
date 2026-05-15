@@ -88,4 +88,5 @@ def scaffold_and_build_service(service_name: str, bounded_context: str) -> str:
         return f"Pipeline failed during execution. Error logs:\n{e.stderr}"
 
 if __name__ == "__main__":
+    print("Starting MCP server...")
     mcp.run()

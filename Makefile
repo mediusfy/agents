@@ -15,6 +15,10 @@ endif
 
 PROJECT ?= default
 
+
+mcp: $(VENV)
+	./.venv/bin/python3 src/mcp/mcp_server.py
+
 run: $(VENV)
 	@echo "=== Running full agent pipeline for project: $(PROJECT) ==="
 	$(PYTHON) main.py --project $(PROJECT)

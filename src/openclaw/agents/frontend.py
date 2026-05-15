@@ -21,7 +21,10 @@ frontend_agent = Agent(
 class ComponentOutput(BaseModel):
     code: str
 
-component_gen = Agent(AgentSettings.FRONTEND_MODEL, system_prompt=frontend_prompt, output_type=ComponentOutput, defer_model_check=True)
+component_gen = Agent(AgentSettings.FRONTEND_MODEL,
+                      system_prompt=frontend_prompt,
+                      output_type=ComponentOutput,
+                      defer_model_check=True)
 
 @frontend_agent.tool
 async def create_component(ctx: RunContext[str], component_name: str, requirements: str, test_id: str) -> str:
