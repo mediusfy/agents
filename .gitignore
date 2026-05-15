@@ -9,3 +9,6 @@ telemetry.jsonl
 dist/
 build/
 .DS_Store
+.idea
+.claw-vectordb
+.vscode
