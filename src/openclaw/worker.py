@@ -6,6 +6,7 @@ from openclaw.task_queue import task_queue
 from openclaw.registry import registry
 from openclaw.memory import long_term_memory
 from openclaw.tools.validators import lint_python_file
+from openclaw.critical_actions import CRITICAL_CAPABILITIES
 
 logfire.configure()
 logging.basicConfig(level=logging.INFO)
@@ -24,6 +25,13 @@ async def main():
         with logfire.span("worker.process_task", task_id=task.id, capability=task.capability) as span:
             logging.info(f"Processing task {task.id} for capability '{task.capability}'")
             
+            # Human-in-the-Loop Approval Gate
+            if task.capability in CRITICAL_CAPABILITIES:
+                logging.warning(f"Task {task.id} requires approval. Publishing to pending_approval queue.")
+                task_queue.publish_for_approval(task)
+                span.set_attribute("status", "pending_approval")
+                continue
+
             target_agent = None
             deps = None
             for agent_name, (agent, caps, deps_fac) in registry.items():
@@ -64,7 +72,6 @@ async def main():
 
                     result_str = str(res.data)
                     
-                    # Self-correction loop
                     if task.capability == 'backend_dev' and result_str.endswith('.py'):
                         file_path = result_str
                         if os.path.exists(file_path):
@@ -74,21 +81,21 @@ async def main():
                                 with open(file_path, 'r') as f:
                                     code = f.read()
                                 prompt = f"The following code has linting errors:\n\n{code}\n\nErrors:\n{lint_errors}\n\nPlease fix the code."
-                                continue # Go to the next attempt
+                                continue
 
                     updated_wm = task.working_memory.model_dump_json()
                     log_content = f"Task: {task.prompt}\nResponse: {result_str}\nWorking Memory: {updated_wm}"
                     await long_term_memory.add_memory(log_content)
                     
                     logging.info(f"Task {task.id} completed successfully.")
-                    break # Exit the correction loop
+                    break
 
                 except Exception as e:
                     logging.error(f"Task {task.id} failed on attempt {attempt + 1}: {e}")
                     span.set_attribute("error", str(e))
                     if attempt == MAX_CORRECTION_ATTEMPTS - 1:
                         logging.error(f"Task {task.id} failed after {MAX_CORRECTION_ATTEMPTS} attempts.")
-                        break # Exit the correction loop
+                        break
 
 if __name__ == "__main__":
     asyncio.run(main())
