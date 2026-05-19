@@ -53,5 +53,25 @@ async def run_openclaw_pipeline(project_name: str, requirement: str) -> str:
     return f"Pipeline completed for {project_name}. Artifacts written to disk."
 
 
+@mcp.tool()
+async def plan_and_execute(goal: str) -> str:
+    """Creates a plan to achieve a high-level goal and dispatches the tasks."""
+    from openclaw.agents.planner_agent import planner_agent
+    from openclaw.a2a import agent_bus
+    
+    # 1. Create the plan
+    plan_response = await planner_agent.run(f"Create a plan to achieve this goal: {goal}")
+    plan = plan_response.data
+    
+    # 2. Dispatch the tasks
+    for task in plan.tasks:
+        # For now, we'll dispatch all tasks without dependencies.
+        # A more advanced implementation would use a DAG execution engine.
+        if not task.dependencies:
+            agent_bus.dispatch_task(task.capability, task.prompt)
+            
+    return f"Plan created and initial tasks dispatched. Plan: {plan.model_dump_json(indent=2)}"
+
+
 if __name__ == "__main__":
     mcp.run()
