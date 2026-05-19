@@ -1,5 +1,3 @@
-"""Shared utility functions for the OpenClaw ecosystem."""
-
 import os
 from pathlib import Path
 from openclaw.exceptions import PathTraversalError
