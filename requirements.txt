@@ -1,1 +1,11 @@
--e ".[dev]"
+openai
+anthropic
+google-generativeai
+pydantic-ai
+fastapi
+uvicorn
+dagster
+dagster-webserver
+chromadb
+beautifulsoup4
+pypdf
