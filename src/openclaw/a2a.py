@@ -4,14 +4,13 @@ import logging
 from typing import Dict, Tuple, List, Optional
 
 from pydantic_ai import Agent
+from openclaw.memory import long_term_memory
 
 logger = logging.getLogger(__name__)
 
 class AgentBus:
     def __init__(self):
-        # Maps agent_name -> (Agent, List[capability], Callable)
         self.registry: Dict[str, Tuple[Agent, List[str], Optional[callable]]] = {}
-        # Simple cycle detection per conversation_id
         self._active_queries: Dict[str, set] = {}
 
     def register(self, agent_name: str, agent: Agent, capabilities: List[str], deps_factory: Optional[callable] = None):
@@ -20,10 +19,19 @@ class AgentBus:
     async def query(self, capability: str, prompt: str, timeout: int = 30, caller_id: str = "root") -> str:
         query_id = f"{caller_id}->{capability}"
         logger.info(f"A2A Query [{query_id}]: Capability '{capability}' requested.")
-        
-        # Find capable agent
+
+        relevant_memories = await long_term_memory.get_relevant_memories(prompt)
+        if relevant_memories:
+            context = "Relevant information from past activities:\n"
+            for mem in relevant_memories:
+                context += f"- {mem.content}\n"
+            prompt_with_context = f"{context}\n---\nOriginal Task:\n{prompt}"
+        else:
+            prompt_with_context = prompt
+            
         target_agent: Optional[Agent] = None
         target_deps_factory: Optional[callable] = None
+        target_name = ""
         for name, (agent, caps, deps_fac) in self.registry.items():
             if capability in caps:
                 target_agent = agent
@@ -44,16 +52,16 @@ class AgentBus:
         self._active_queries.setdefault(caller_id, set()).add(capability)
         
         try:
-            # Wrap the call with timeout
             async def _run():
                 deps = target_deps_factory() if target_deps_factory else None
                 if deps is not None:
-                    res = await target_agent.run(prompt, deps=deps)
+                    res = await target_agent.run(prompt_with_context, deps=deps)
                 else:
-                    res = await target_agent.run(prompt)
+                    res = await target_agent.run(prompt_with_context)
                 return str(res.data)
 
             result = await asyncio.wait_for(_run(), timeout=timeout)
+            await long_term_memory.add_memory(f"Task: {prompt}\nResponse: {result}")
             return result
         except asyncio.TimeoutError:
             msg = f"A2A query to '{target_name}' timed out after {timeout}s"
@@ -70,5 +78,4 @@ class AgentBus:
                 if not active:
                     del self._active_queries[caller_id]
 
-# Global bus instance to be used across the application
 agent_bus = AgentBus()

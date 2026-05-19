@@ -12,11 +12,11 @@ from openclaw.settings import settings
 logger = logging.getLogger(__name__)
 
 
-PLACEHOLDER_PATTERNS = [
+PLACEHOLDER = [
     "sk-...",
     "sk-ant-...",
-    "YOUR_API_KEY_HERE",
-    "your-api-key",
+    "API_KEY",
+    "api-key",
 ]
 
 
@@ -24,7 +24,7 @@ def _is_placeholder(value: str | None) -> bool:
     if not value:
         return False
     stripped = value.strip()
-    return any(p in stripped for p in PLACEHOLDER_PATTERNS)
+    return any(p in stripped for p in PLACEHOLDER)
 
 
 def validate_api_keys() -> list[str]:
