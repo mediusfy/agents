@@ -20,12 +20,12 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # ── LLM Provider API Keys 
+    #  LLM Provider API Keys
     openai_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
     gemini_api_key: Optional[str] = None
 
-    # ── Agent Model Overrides 
+    # Agent Model Overrides
     ba_model: str = "gpt-4o-mini"
     backend_model: str = "claude-sonnet-4-20250514"
     frontend_model: str = "gpt-4o"
