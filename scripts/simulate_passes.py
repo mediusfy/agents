@@ -57,7 +57,6 @@ async def simulate_review_spot_check(pass_num: int):
         print("Reviewer: ALERT - Could not find architectural context from Pass 1!")
 
 async def run_simulation():
-    # Pass 1: Initial setup
     await simulate_ba_work(pass_num=1)
     
     # Skip some time...
