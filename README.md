@@ -74,3 +74,10 @@ main.py
 ## Customizing
 
 Each `agents/*.md` is a standalone subagent. Edit the system prompt freely; the YAML frontmatter (`name`, `description`, `tools`, `model`) controls how Claude Code discovers and routes to it. Restrict `tools` further if you want a stricter sandbox per agent.
+
+
+```shell
+    source venv/bin/activate
+    pip install --upgrade certifi
+    export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+```

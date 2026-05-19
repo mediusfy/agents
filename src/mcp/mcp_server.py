@@ -2,7 +2,6 @@ from mcp.server.fastmcp import FastMCP
 import subprocess
 import json
 import uuid
-import asyncio
 from openclaw.checkpoint import CheckpointManager
 
 from openclaw.agents.non_technical.holiday_planner import holiday_planner_agent, HolidayPlannerDeps

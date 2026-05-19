@@ -25,7 +25,7 @@ async def main():
         with logfire.span("worker.process_task", task_id=task.id, capability=task.capability) as span:
             logging.info(f"Processing task {task.id} for capability '{task.capability}'")
             
-            # Human-in-the-Loop Approval Gate
+            # Human Approval Gate
             if task.capability in CRITICAL_CAPABILITIES:
                 logging.warning(f"Task {task.id} requires approval. Publishing to pending_approval queue.")
                 task_queue.publish_for_approval(task)

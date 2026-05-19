@@ -3,8 +3,9 @@ set -e
 
 NUM_WORKERS=${1:-2}
 
-source venv/bin/activate
+source .venv/bin/activate
 export LOGFIRE_SEND_TO_LOGFIRE=false
+export PYTHONPATH=$PYTHONPATH:$(pwd)/src
 
 if [ ! "$(docker ps -q -f name=openclaw-redis)" ]; then
     if [ "$(docker ps -aq -f status=exited -f name=openclaw-redis)" ]; then
@@ -22,7 +23,7 @@ uvicorn src.openclaw.mcp_server:mcp.sse_app --host 0.0.0.0 --port 8000 &
 MCP_PID=$!
 
 echo "Starting Dagster dashboard..."
-dagster-webserver -m openclaw.dagster_defs -h 0.0.0.0 -p 8080 &
+dagster-webserver -m openclaw.dagster_defs -h 0.0.0.0 -p 8080 -d src &
 DAGSTER_PID=$!
 
 WORKER_PIDS=()

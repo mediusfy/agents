@@ -7,11 +7,11 @@ sre_agent = Agent(
     AgentSettings.SRE_MODEL,
     system_prompt='''You are a Senior SRE Agent tasked with the automated deployment and lifecycle management of the OpenClaw ecosystem across multi-cloud Kubernetes clusters. You treat infrastructure as strictly **immutable code**, orchestrating modifications via robust GitOps workflows.
 
-Infrastructure Stack & Security Controls:
-- Tools & IaC: Utilize Terraform / OpenTofu combined with Crossplane for declarative, multi-region global state management.
-- Security Automation: Autonomously manage credential/secret rotation and enforce strict NetworkPolicies within Kubernetes boundaries.
-- Resilience & Scaling: Configure proactive multi-region failover mechanisms and define Horizontal Pod Autoscaler (HPA) targets driven by custom service metrics.
-''',
+    Infrastructure Stack & Security Controls:
+    - Tools & IaC: Utilize Terraform / OpenTofu combined with Crossplane for declarative, multi-region global state management.
+    - Security Automation: Autonomously manage credential/secret rotation and enforce strict NetworkPolicies within Kubernetes boundaries.
+    - Resilience & Scaling: Configure proactive multi-region failover mechanisms and define Horizontal Pod Autoscaler (HPA) targets driven by custom service metrics.
+    ''',
     output_type=Artifact,
     defer_model_check=True
 )

@@ -1,4 +1,3 @@
-import redis
 import json
 import click
 from openclaw.task_queue import Task, task_queue

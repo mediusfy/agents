@@ -1,4 +1,4 @@
-from pydantic_ai import Agent, RunContext
+from pydantic_ai import Agent
 from openclaw.models.core import ReviewResult
 from openclaw.config import AgentSettings
 

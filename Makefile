@@ -2,6 +2,8 @@ VENV = .venv
 PYTHON = $(VENV)/bin/python3
 PIP = $(VENV)/bin/pip
 
+
+
 # Load .env file if it exists
 ifneq (,$(wildcard .env))
     include .env
@@ -106,7 +108,7 @@ $(VENV):
 setup: $(VENV)
 	@echo "=== Environment ready ==="
 	@echo "  Python: $(shell $(PYTHON) --version)"
-	
+
 clean:
 	@echo "=== Cleaning generated artifacts ==="
 	rm -rf generated-app/

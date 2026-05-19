@@ -13,3 +13,9 @@ pypdf
 redis
 pyflakes
 click
+pip-system-certs
+langchain-community
+langchain-huggingface
+langchain-text-splitters
+sentence-transformers
+yfinance
