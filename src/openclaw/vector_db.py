@@ -43,8 +43,7 @@ class VectorDBManager:
     async def async_search(self, collection_name: str, query: str, n_results: int = 3) -> List[str]:
         return await asyncio.to_thread(self.search, collection_name, query, n_results)
 
-    # LangChain Ingestion 
-    
+    # LangChain Ingestion
     def ingest_url(self, collection_name: str, url: str):
         """Allows agents to scrape an entire webpage, split it, and embed it efficiently."""
         loader = WebBaseLoader(url)

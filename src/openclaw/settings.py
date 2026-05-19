@@ -20,12 +20,12 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # ── LLM Provider API Keys ──────────────────────────────────────────
+    # ── LLM Provider API Keys 
     openai_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
     gemini_api_key: Optional[str] = None
 
-    # ── Agent Model Overrides ──────────────────────────────────────────
+    # ── Agent Model Overrides 
     ba_model: str = "gpt-4o-mini"
     backend_model: str = "claude-sonnet-4-20250514"
     frontend_model: str = "gpt-4o"
@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     market_shark_model: str = "gemini-2.0-pro"
     crypto_oracle_model: str = "gemini-2.0-pro"
 
-    # ── Pipeline Configuration ─────────────────────────────────────────
+    # ── Pipeline Configuration
     output_dir: Path = Path("./generated-app")
     max_retries: int = 2
     max_concurrent_llm_calls: int = 5
@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     vector_db_dir: Path = Path("./.claw-vectordb")
     agent_config_path: str = ""
 
-    # ── Pipeline Runtime ───────────────────────────────────────────────
+    # ── Pipeline Runtime
     requirement: Optional[str] = None
 
 

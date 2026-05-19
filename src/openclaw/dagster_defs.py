@@ -3,7 +3,6 @@ import asyncio
 from openclaw.registry import registry
 from openclaw.config import AgentSettings
 
-# Auto-discover all agents (including your new Crypto Oracle and Market Shark)
 registry.autodiscover()
 
 class RequirementConfig(Config):
@@ -55,7 +54,6 @@ async def daily_market_shark_analysis() -> str:
     result = await shark.run("Pull the current data and historical charts for BTC-USD and AAPL. Provide a mathematically backed risk/reward analysis.", deps=deps)
     return result.data
 
-# A Dagster schedule to trigger the finance agents every morning at 8:00 AM
 finance_schedule = ScheduleDefinition(
     name="daily_finance_sweep",
     cron_schedule="0 8 * * *",

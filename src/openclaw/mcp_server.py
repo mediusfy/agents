@@ -28,7 +28,7 @@ def save_adr(decision_id: str, content: str) -> str:
 @mcp.tool()
 async def delegate_to_openclaw_agent(capability: str, context: str, task: str) -> str:
     """
-    Delegate a heavy-lifting engineering task to the OpenClaw autonomous agent ecosystem.
+    Delegate a heavy-lifting engineering task to the OpenClaw autonomous agents.
     Available capabilities: 'requirements_analysis', 'arch_review', 'backend_dev', 'frontend_dev', 'infra_advice', 'db_schema', etc.
     """
     from openclaw.a2a import agent_bus

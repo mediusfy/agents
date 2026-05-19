@@ -8,10 +8,6 @@ from openclaw.models.core import ActivityLog
 from openclaw.tools.registry import register_tool
 from openclaw.utils import safe_path_join
 
-# A real system might have a global state or a way to track the current pass and agent globally,
-# but passing it through context dependencies is the idiomatic way in pydantic-ai.
-# We'll enhance the robustness of extracting these values.
-
 async def log_activity(ctx: RunContext[Any], action: str, summary: str, artifact_ids: Optional[List[str]] = None) -> str:
     """Logs a significant agent activity to the project memory for future spot-checking."""
     # Robustly extract pass_num and agent_name from deps, defaulting if not provided
