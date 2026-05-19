@@ -3,6 +3,10 @@ from typing import List, Dict, Any
 from pydantic import BaseModel, Field
 from openclaw.vector_db import vector_db
 
+class WorkingMemory(BaseModel):
+    thoughts: List[str] = Field(default_factory=list)
+    intermediate_results: Dict[str, Any] = Field(default_factory=dict)
+
 class Memory(BaseModel):
     content: str
     timestamp: str = Field(default_factory=lambda: datetime.datetime.now().isoformat())

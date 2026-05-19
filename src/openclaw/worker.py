@@ -21,9 +21,12 @@ async def main():
             logging.info(f"Processing task {task.id} for capability '{task.capability}'")
             
             target_agent = None
+            deps = None
             for agent_name, (agent, caps, deps_fac) in registry.items():
                 if task.capability in caps:
                     target_agent = agent
+                    if deps_fac:
+                        deps = deps_fac()
                     break
             
             if not target_agent:
@@ -43,14 +46,24 @@ async def main():
             span.set_attribute("context_size", len(prompt_with_context))
             
             try:
-                res = await target_agent.run(prompt_with_context)
+                # Add working memory to the dependencies
+                if deps is None:
+                    deps = {}
+                deps['working_memory'] = task.working_memory
+
+                res = await target_agent.run(prompt_with_context, deps=deps)
                 
                 if res.usage:
                     span.set_attribute("prompt_tokens", res.usage.prompt_tokens)
                     span.set_attribute("completion_tokens", res.usage.completion_tokens)
 
                 result_str = str(res.data)
-                await long_term_memory.add_memory(f"Task: {task.prompt}\nResponse: {result_str}")
+                
+                # Log the final state of the working memory
+                updated_wm = task.working_memory.model_dump_json()
+                log_content = f"Task: {task.prompt}\nResponse: {result_str}\nWorking Memory: {updated_wm}"
+                await long_term_memory.add_memory(log_content)
+                
                 logging.info(f"Task {task.id} completed successfully.")
 
             except Exception as e:

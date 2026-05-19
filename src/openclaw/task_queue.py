@@ -3,12 +3,15 @@ import json
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
 
+from openclaw.memory import WorkingMemory
+
 class Task(BaseModel):
     id: str
     capability: str
     prompt: str
     caller_id: Optional[str] = "root"
-    context: Optional[Dict[str, Any]] = None
+    working_memory: WorkingMemory = Field(default_factory=WorkingMemory)
+
 
 class TaskQueue:
     def __init__(self, host: str = 'localhost', port: int = 6379, db: int = 0):
