@@ -6,8 +6,11 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from mcp.server.fastmcp import FastMCP
 from openclaw.vector_db import vector_db
 import logging
+import logfire
 
+logfire.configure()
 logging.basicConfig(level=logging.INFO)
+logfire.instrument_fastapi(mcp.app)
 
 mcp = FastMCP("OpenClaw")
 

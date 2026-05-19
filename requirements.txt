@@ -2,6 +2,7 @@ openai
 anthropic
 google-generativeai
 pydantic-ai
+pydantic-logfire
 fastapi
 uvicorn
 dagster
