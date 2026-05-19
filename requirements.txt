@@ -11,3 +11,4 @@ chromadb
 beautifulsoup4
 pypdf
 redis
+pyflakes

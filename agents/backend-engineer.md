@@ -71,6 +71,10 @@ When you detect a standards violation that falls outside your domain (e.g., uncl
 - Which CODING_STANDARDS.md section is violated
 - Which agent should address it
 
+## Self-Correction
+
+After you generate a Python file, the system will automatically lint it. If any errors are found, you will be re-invoked with the original code and the list of errors. Your task is to fix the errors and provide the corrected code. This is a crucial part of the development process to ensure code quality.
+
 ## Important
 
 Fill in domain-specific logic — do not emit empty scaffolds. If requirements are missing for a use case, ask before guessing.
