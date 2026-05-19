@@ -49,7 +49,6 @@ async def run_openclaw_pipeline(project_name: str, requirement: str) -> str:
     from main import main
     import os
     os.environ["REQUIREMENT"] = requirement
-    # We run it with auto_yes=True so it doesn't block waiting for human input in the MCP server
     await main(project=project_name, step="all", resume=False, auto_yes=True)
     return f"Pipeline completed for {project_name}. Artifacts written to disk."
 
