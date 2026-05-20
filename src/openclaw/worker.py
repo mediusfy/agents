@@ -1,31 +1,23 @@
-# Standard Library
 import asyncio
 import logging
-import os
 import signal
 from types import FrameType
 from typing import Any, Callable, Coroutine, Optional, Tuple
 
-# Third-Party
 import logfire
-
-# Local Application
 from openclaw.config import settings
 from openclaw.critical_actions import CRITICAL_CAPABILITIES
 from openclaw.exceptions import AgentExecutionError, AgentNotFoundError
 from openclaw.memory import long_term_memory
-from openclaw.models.agent import Agent, AgentResponse, AgentUsage
-from openclaw.models.task import Task
+from pydantic_ai import Agent
 from openclaw.registry import registry
-from openclaw.task_queue import task_queue
-from openclaw.tools.validators import lint_python_file
+from openclaw.task_queue import task_queue, Task
 
-# Configure structured logging
-logfire.configure()
+logfire.configure(send_to_logfire=False)
+logfire.instrument_pydantic()
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-# --- Event for handling graceful shutdown ---
 shutdown_event = asyncio.Event()
 
 
@@ -74,12 +66,12 @@ class Worker:
                 return
 
             try:
-                agent, deps, post_process_hook = self._find_agent_for_task(task)
+                agent, post_process_hook = self._find_agent_for_task(task)
 
                 prompt = await self._enrich_prompt_with_memory(task.prompt, span)
 
                 result, usage = await self._run_and_validate_with_retries(
-                    agent, prompt, deps, task, post_process_hook
+                    agent, prompt, task, post_process_hook
                 )
 
                 await self._handle_success(task, result, usage, span)
@@ -110,21 +102,18 @@ class Worker:
 
     def _find_agent_for_task(
         self, task: Task
-    ) -> Tuple[
-        Agent,
-        dict[str, Any],
-        Optional[Callable[[str], Coroutine[Any, Any, None]]],
-    ]:
+    ) -> Tuple[Agent, Optional[Callable[[str], Coroutine[Any, Any, None]]]]:
         """Finds a registered agent and its dependencies for a given task."""
         for agent_name, (
-            agent,
+            agent_class,
             caps,
             deps_fac,
             post_hook,
         ) in registry.items():
             if task.capability in caps:
                 dependencies = deps_fac() if deps_fac else {}
-                return agent, dependencies, post_hook
+                agent = agent_class(dependencies=dependencies)
+                return agent, post_hook
         raise AgentNotFoundError(f"No agent found for capability '{task.capability}'")
 
     async def _enrich_prompt_with_memory(self, prompt: str, span) -> str:
@@ -135,7 +124,9 @@ class Worker:
 
         context = "Relevant information from past activities:\n"
         context += "\n".join(f"- {mem.content}" for mem in relevant_memories)
-        prompt_with_context = f"{context}\n---\nOriginal Task:\n{prompt}"
+        prompt_with_context = (
+            f"{context}\n---\nOriginal Task:\n{prompt}"
+        )
 
         span.set_attribute("context_size", len(prompt_with_context))
         return prompt_with_context
@@ -144,10 +135,9 @@ class Worker:
         self,
         agent: Agent,
         prompt: str,
-        deps: dict[str, Any],
         task: Task,
         post_process_hook: Optional[Callable[[str], Coroutine[Any, Any, None]]],
-    ) -> Tuple[str, Optional[AgentUsage]]:
+    ) -> Tuple[str, Optional[dict]]:
         """
         Executes the agent and runs validation, retrying on failure.
         """
@@ -157,21 +147,23 @@ class Worker:
                 "worker.attempt_task", attempt=attempt + 1
             ) as attempt_span:
                 try:
-                    deps["working_memory"] = task.working_memory
-                    res: AgentResponse = await agent.run(prompt, deps=deps)
-                    result_str = str(res.data)
+                    res = await agent.run(prompt)
+                    result_str = str(res)
 
                     if post_process_hook:
                         await post_process_hook(result_str)
 
-                    return result_str, res.usage
+                    return result_str, agent.token_usage
 
                 except AgentExecutionError as e:
                     last_error = e
                     self._handle_failure(task, e, attempt, attempt_span)
                     if not e.is_retryable:
                         break
-                    prompt = f"The previous attempt failed with this error: {e}. Please correct the issue and try again."
+                    prompt = (
+                        f"The previous attempt failed with this error: {e}. "
+                        "Please correct the issue and try again."
+                    )
 
         raise AgentExecutionError(
             f"Task failed after {settings.max_correction_attempts} attempts. Last error: {last_error}"
@@ -193,13 +185,13 @@ class Worker:
         self,
         task: Task,
         result: str,
-        usage: Optional[AgentUsage],
+        usage: Optional[dict],
         span,
     ):
         """Logs success and adds the interaction to long-term memory."""
         if usage:
-            span.set_attribute("prompt_tokens", usage.prompt_tokens)
-            span.set_attribute("completion_tokens", usage.completion_tokens)
+            span.set_attribute("prompt_tokens", usage.get("prompt_tokens"))
+            span.set_attribute("completion_tokens", usage.get("completion_tokens"))
 
         updated_wm = task.working_memory.model_dump_json()
         log_content = f"Task: {task.prompt}\nResponse: {result}\nWorking Memory: {updated_wm}"
@@ -209,13 +201,13 @@ class Worker:
 
 
 def handle_shutdown_signal(signum: int, frame: Optional[FrameType]):
-    """Sets the shutdown event when a signal is received."""
+    """Handles graceful shutdown of the worker."""
     log.info(f"Received signal {signum}, shutting down gracefully...")
     shutdown_event.set()
 
 
 async def main():
-    """Entry point for the worker process."""
+    """Initializes and runs the worker."""
     worker = Worker()
     await worker.main_loop()
 

@@ -9,6 +9,7 @@ import logging
 import logfire
 
 logfire.configure(send_to_logfire=False)
+logfire.instrument_pydantic()
 logging.basicConfig(level=logging.INFO)
 
 mcp = FastMCP("OpenClaw")
