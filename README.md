@@ -76,8 +76,12 @@ main.py
 Each `agents/*.md` is a standalone subagent. Edit the system prompt freely; the YAML frontmatter (`name`, `description`, `tools`, `model`) controls how Claude Code discovers and routes to it. Restrict `tools` further if you want a stricter sandbox per agent.
 
 
-```shell
-    source venv/bin/activate
-    pip install --upgrade certifi
-    export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+## Troubleshooting
+
+### Clear Cache
+
+If you encounter a `WARNING: Cache entry deserialization failed, entry ignored` error, you can clear the cache by running the following script from the project root:
+
+```bash
+./scripts/clear_cache.sh
 ```

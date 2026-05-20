@@ -19,11 +19,11 @@ if [ ! "$(docker ps -q -f name=openclaw-redis)" ]; then
 fi
 
 echo "Starting MCP server..."
-uvicorn src.openclaw.mcp_server:mcp.sse_app --host 0.0.0.0 --port 8000 &
+uvicorn src.openclaw.mcp_server:mcp.sse_app --host 0.0.0.0 --port 8001 &
 MCP_PID=$!
 
 echo "Starting Dagster dashboard..."
-dagster-webserver -m openclaw.dagster_defs -h 0.0.0.0 -p 8080 -d src &
+dagster-webserver -m openclaw.dagster_defs -h 0.0.0.0 -p 8081 -d src &
 DAGSTER_PID=$!
 
 WORKER_PIDS=()
@@ -33,8 +33,8 @@ for i in $(seq 1 $NUM_WORKERS); do
     WORKER_PIDS+=($!)
 done
 
-echo "MCP Server running on port 8000 (PID: $MCP_PID)"
-echo "Dagster dashboard running on port 8080 (PID: $DAGSTER_PID)"
+echo "MCP Server running on port 8001 (PID: $MCP_PID)"
+echo "Dagster dashboard running on port 8081 (PID: $DAGSTER_PID)"
 echo "Agent workers running with PIDs: ${WORKER_PIDS[@]}"
 
 cleanup() {
