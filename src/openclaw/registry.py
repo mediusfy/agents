@@ -5,13 +5,22 @@ from pydantic_ai import Agent
 
 class AgentRegistry:
     def __init__(self):
-        self._agents: Dict[str, Tuple[Agent, List[str], Optional[Callable]]] = {}
+        self._agents: Dict[
+            str, Tuple[Agent, List[str], Optional[Callable], Optional[Callable]]
+        ] = {}
         self._initialized: Set[str] = set()
 
-    def register(self, name: str, agent: Agent, capabilities: List[str], deps_factory: Optional[Callable] = None):
+    def register(
+        self,
+        name: str,
+        agent: Agent,
+        capabilities: List[str],
+        deps_factory: Optional[Callable] = None,
+        post_process_hook: Optional[Callable] = None,
+    ):
         if name in self._agents:
             raise ValueError(f"Agent '{name}' is already registered.")
-        self._agents[name] = (agent, capabilities, deps_factory)
+        self._agents[name] = (agent, capabilities, deps_factory, post_process_hook)
 
     def unregister(self, name: str):
         self._agents.pop(name, None)

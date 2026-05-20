@@ -1,101 +1,226 @@
-import logging
+# Standard Library
 import asyncio
-import logfire
+import logging
 import os
-from openclaw.task_queue import task_queue
-from openclaw.registry import registry
-from openclaw.memory import long_term_memory
-from openclaw.tools.validators import lint_python_file
-from openclaw.critical_actions import CRITICAL_CAPABILITIES
+import signal
+from types import FrameType
+from typing import Any, Callable, Coroutine, Optional, Tuple
 
+# Third-Party
+import logfire
+
+# Local Application
+from openclaw.config import settings
+from openclaw.critical_actions import CRITICAL_CAPABILITIES
+from openclaw.exceptions import AgentExecutionError, AgentNotFoundError
+from openclaw.memory import long_term_memory
+from openclaw.models.agent import Agent, AgentResponse, AgentUsage
+from openclaw.models.task import Task
+from openclaw.registry import registry
+from openclaw.task_queue import task_queue
+from openclaw.tools.validators import lint_python_file
+
+# Configure structured logging
 logfire.configure()
+log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-MAX_CORRECTION_ATTEMPTS = 3
+# --- Event for handling graceful shutdown ---
+shutdown_event = asyncio.Event()
+
+
+class Worker:
+    """
+    An asynchronous worker that consumes tasks, delegates them to registered agents,
+    and handles the lifecycle of task execution, including retries and validation.
+    """
+
+    def __init__(self):
+        registry.autodiscover()
+        log.info(
+            "Worker initialized",
+            extra={"autodiscovered_agents": registry.list_agents()},
+        )
+
+    async def main_loop(self):
+        """The primary loop to consume and process tasks."""
+        while not shutdown_event.is_set():
+            try:
+                task = task_queue.consume_task()
+                if not task:
+                    await asyncio.sleep(0.1)  # prevent busy-waiting
+                    continue  # No task, loop again
+
+                asyncio.create_task(self.process_task(task))
+
+            except Exception:
+                log.exception("Unhandled exception in main worker loop")
+                # Avoid rapid-fire loops on unexpected errors
+                await asyncio.sleep(1)
+
+    async def process_task(self, task: Task):
+        """
+        Orchestrates the processing of a single task.
+        """
+        with logfire.span(
+            "worker.process_task", task_id=task.id, capability=task.capability
+        ) as span:
+            log.info(
+                "Processing task",
+                extra={"task_id": task.id, "capability": task.capability},
+            )
+
+            if self._is_pending_approval(task, span):
+                return
+
+            try:
+                agent, deps, post_process_hook = self._find_agent_for_task(task)
+
+                prompt = await self._enrich_prompt_with_memory(task.prompt, span)
+
+                result, usage = await self._run_and_validate_with_retries(
+                    agent, prompt, deps, task, post_process_hook
+                )
+
+                await self._handle_success(task, result, usage, span)
+
+            except AgentNotFoundError as e:
+                span.set_attribute("error", str(e))
+                log.error(
+                    "Agent not found for task",
+                    extra={"capability": task.capability, "task_id": task.id},
+                )
+            except Exception as e:
+                span.set_attribute("error", str(e))
+                log.exception(
+                    "Unexpected error processing task", extra={"task_id": task.id}
+                )
+
+    def _is_pending_approval(self, task: Task, span) -> bool:
+        """Checks for and handles tasks requiring human approval."""
+        if task.capability in CRITICAL_CAPABILITIES:
+            log.warning(
+                "Task requires approval",
+                extra={"task_id": task.id, "capability": task.capability},
+            )
+            task_queue.publish_for_approval(task)
+            span.set_attribute("status", "pending_approval")
+            return True
+        return False
+
+    def _find_agent_for_task(
+        self, task: Task
+    ) -> Tuple[
+        Agent,
+        dict[str, Any],
+        Optional[Callable[[str], Coroutine[Any, Any, None]]],
+    ]:
+        """Finds a registered agent and its dependencies for a given task."""
+        for agent_name, (
+            agent,
+            caps,
+            deps_fac,
+            post_hook,
+        ) in registry.items():
+            if task.capability in caps:
+                dependencies = deps_fac() if deps_fac else {}
+                return agent, dependencies, post_hook
+        raise AgentNotFoundError(f"No agent found for capability '{task.capability}'")
+
+    async def _enrich_prompt_with_memory(self, prompt: str, span) -> str:
+        """Retrieves relevant memories and prepends them to the prompt."""
+        relevant_memories = await long_term_memory.get_relevant_memories(prompt)
+        if not relevant_memories:
+            return prompt
+
+        context = "Relevant information from past activities:\n"
+        context += "\n".join(f"- {mem.content}" for mem in relevant_memories)
+        prompt_with_context = f"{context}\n---\nOriginal Task:\n{prompt}"
+
+        span.set_attribute("context_size", len(prompt_with_context))
+        return prompt_with_context
+
+    async def _run_and_validate_with_retries(
+        self,
+        agent: Agent,
+        prompt: str,
+        deps: dict[str, Any],
+        task: Task,
+        post_process_hook: Optional[Callable[[str], Coroutine[Any, Any, None]]],
+    ) -> Tuple[str, Optional[AgentUsage]]:
+        """
+        Executes the agent and runs validation, retrying on failure.
+        """
+        last_error = None
+        for attempt in range(settings.max_correction_attempts):
+            with logfire.span(
+                "worker.attempt_task", attempt=attempt + 1
+            ) as attempt_span:
+                try:
+                    deps["working_memory"] = task.working_memory
+                    res: AgentResponse = await agent.run(prompt, deps=deps)
+                    result_str = str(res.data)
+
+                    if post_process_hook:
+                        await post_process_hook(result_str)
+
+                    return result_str, res.usage
+
+                except AgentExecutionError as e:
+                    last_error = e
+                    self._handle_failure(task, e, attempt, attempt_span)
+                    if not e.is_retryable:
+                        break
+                    prompt = f"The previous attempt failed with this error: {e}. Please correct the issue and try again."
+
+        raise AgentExecutionError(
+            f"Task failed after {settings.max_correction_attempts} attempts. Last error: {last_error}"
+        )
+
+    def _handle_failure(self, task: Task, e: Exception, attempt: int, span):
+        """Logs and records details of a failed attempt."""
+        log.warning(
+            "Task attempt failed",
+            extra={
+                "task_id": task.id,
+                "attempt": f"{attempt + 1}/{settings.max_correction_attempts}",
+                "error": str(e),
+            },
+        )
+        span.set_attribute("error", str(e))
+
+    async def _handle_success(
+        self,
+        task: Task,
+        result: str,
+        usage: Optional[AgentUsage],
+        span,
+    ):
+        """Logs success and adds the interaction to long-term memory."""
+        if usage:
+            span.set_attribute("prompt_tokens", usage.prompt_tokens)
+            span.set_attribute("completion_tokens", usage.completion_tokens)
+
+        updated_wm = task.working_memory.model_dump_json()
+        log_content = f"Task: {task.prompt}\nResponse: {result}\nWorking Memory: {updated_wm}"
+        await long_term_memory.add_memory(log_content)
+
+        log.info("Task completed successfully", extra={"task_id": task.id})
+
+
+def handle_shutdown_signal(signum: int, frame: Optional[FrameType]):
+    """Sets the shutdown event when a signal is received."""
+    log.info(f"Received signal {signum}, shutting down gracefully...")
+    shutdown_event.set()
+
 
 async def main():
-    registry.autodiscover()
-    logging.info(f"Worker started. Autodiscovered agents: {registry.list_agents()}")
-    
-    while True:
-        task = task_queue.consume_task()
-        if not task:
-            continue
+    """Entry point for the worker process."""
+    worker = Worker()
+    await worker.main_loop()
 
-        with logfire.span("worker.process_task", task_id=task.id, capability=task.capability) as span:
-            logging.info(f"Processing task {task.id} for capability '{task.capability}'")
-            
-            # Human Approval Gate
-            if task.capability in CRITICAL_CAPABILITIES:
-                logging.warning(f"Task {task.id} requires approval. Publishing to pending_approval queue.")
-                task_queue.publish_for_approval(task)
-                span.set_attribute("status", "pending_approval")
-                continue
-
-            target_agent = None
-            deps = None
-            for agent_name, (agent, caps, deps_fac) in registry.items():
-                if task.capability in caps:
-                    target_agent = agent
-                    if deps_fac:
-                        deps = deps_fac()
-                    break
-            
-            if not target_agent:
-                logging.error(f"No agent found for capability '{task.capability}' in task {task.id}")
-                span.set_attribute("error", "No agent found")
-                continue
-
-            prompt = task.prompt
-            for attempt in range(MAX_CORRECTION_ATTEMPTS):
-                relevant_memories = await long_term_memory.get_relevant_memories(prompt)
-                if relevant_memories:
-                    context = "Relevant information from past activities:\n"
-                    for mem in relevant_memories:
-                        context += f"- {mem.content}\n"
-                    prompt_with_context = f"{context}\n---\nOriginal Task:\n{prompt}"
-                else:
-                    prompt_with_context = prompt
-                
-                span.set_attribute("context_size", len(prompt_with_context))
-                
-                try:
-                    if deps is None:
-                        deps = {}
-                    deps['working_memory'] = task.working_memory
-
-                    res = await target_agent.run(prompt_with_context, deps=deps)
-                    
-                    if res.usage:
-                        span.set_attribute("prompt_tokens", res.usage.prompt_tokens)
-                        span.set_attribute("completion_tokens", res.usage.completion_tokens)
-
-                    result_str = str(res.data)
-                    
-                    if task.capability == 'backend_dev' and result_str.endswith('.py'):
-                        file_path = result_str
-                        if os.path.exists(file_path):
-                            lint_errors = lint_python_file(file_path)
-                            if "No issues found." not in lint_errors:
-                                logging.warning(f"Lint errors found in {file_path} on attempt {attempt + 1}. Re-invoking agent.")
-                                with open(file_path, 'r') as f:
-                                    code = f.read()
-                                prompt = f"The following code has linting errors:\n\n{code}\n\nErrors:\n{lint_errors}\n\nPlease fix the code."
-                                continue
-
-                    updated_wm = task.working_memory.model_dump_json()
-                    log_content = f"Task: {task.prompt}\nResponse: {result_str}\nWorking Memory: {updated_wm}"
-                    await long_term_memory.add_memory(log_content)
-                    
-                    logging.info(f"Task {task.id} completed successfully.")
-                    break
-
-                except Exception as e:
-                    logging.error(f"Task {task.id} failed on attempt {attempt + 1}: {e}")
-                    span.set_attribute("error", str(e))
-                    if attempt == MAX_CORRECTION_ATTEMPTS - 1:
-                        logging.error(f"Task {task.id} failed after {MAX_CORRECTION_ATTEMPTS} attempts.")
-                        break
 
 if __name__ == "__main__":
+    signal.signal(signal.SIGINT, handle_shutdown_signal)
+    signal.signal(signal.SIGTERM, handle_shutdown_signal)
     asyncio.run(main())
