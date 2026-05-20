@@ -8,7 +8,7 @@ from openclaw.vector_db import vector_db
 import logging
 import logfire
 
-logfire.configure()
+logfire.configure(send_to_logfire=False)
 logging.basicConfig(level=logging.INFO)
 
 mcp = FastMCP("OpenClaw")
@@ -55,7 +55,7 @@ async def run_openclaw_pipeline(project_name: str, requirement: str) -> str:
 
 @mcp.tool()
 async def plan_and_execute(goal: str) -> str:
-    """Creates a plan to achieve a high-level goal and dispatches the tasks."""
+    """Creates a plan to achieve a high-level goal and dispatches the tasks"""
     from openclaw.agents.planner_agent import planner_agent
     from openclaw.a2a import agent_bus
 

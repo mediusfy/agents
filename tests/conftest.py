@@ -1,5 +1,3 @@
-"""Shared test fixtures for the OpenClaw test suite."""
-
 import os
 import json
 from pathlib import Path
@@ -19,8 +17,6 @@ from openclaw.models.core import (
     RiskLevel,
 )
 
-
-# ── Sample Data Fixtures ───────────────────────────────────────────────────
 
 @pytest.fixture
 def sample_user_story() -> UserStory:

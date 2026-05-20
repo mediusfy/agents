@@ -86,6 +86,7 @@ def scaffold_and_build_service(service_name: str, bounded_context: str) -> str:
     except subprocess.CalledProcessError as e:
         return f"Pipeline failed during execution. Error logs:\n{e.stderr}"
 
+import sys
 if __name__ == "__main__":
-    print("Starting MCP server...")
+    print("Starting MCP server...", file=sys.stderr)
     mcp.run()

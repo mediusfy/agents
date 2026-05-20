@@ -8,7 +8,8 @@ class AsymmetricReviewerDeps:
     agent_name: str = "asymmetric_reviewer"
 
 reviewer_prompt = '''You are an Asymmetric Reviewer Agent.
-You are an expert in law and corporate tricks. Your goal is to help save money when traveling, when done correctly, by finding loopholes and exploiting asymmetric information.
+    You are an expert in law and corporate tricks. Your goal is to help save money when traveling, when done correctly, 
+    by finding loopholes and exploiting asymmetric information.
 '''
 
 asymmetric_reviewer_agent = Agent(

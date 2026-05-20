@@ -8,8 +8,8 @@ logger = logging.getLogger(__name__)
 
 class AgentBus:
     def __init__(self):
-        # This registry might be deprecated in favor of a service discovery mechanism
-        # but for now, it can be used by workers to load the agent code.
+        #TODO TECHNICAL DEBT
+        #TODO used by workers to load the agent code but will deprecated and replaced by service discovery
         self.registry: Dict[str, Tuple[Agent, List[str], Optional[callable]]] = {}
 
     def register(self, agent_name: str, agent: Agent, capabilities: List[str], deps_factory: Optional[callable] = None):
