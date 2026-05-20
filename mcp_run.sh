@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+cd "$(dirname "$0")"
+
 NUM_WORKERS=${1:-2}
 
 source .venv/bin/activate

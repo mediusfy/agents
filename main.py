@@ -3,9 +3,10 @@ import argparse
 import os
 import logging
 
+import logfire
+
 from openclaw.registry import registry
 from openclaw.writer import ArtifactWriter
-from openclaw.config import AgentSettings
 from openclaw.checkpoint import CheckpointManager
 from openclaw.models.core import PipelineState
 from openclaw.telemetry import telemetry
@@ -14,6 +15,8 @@ from openclaw.validators import CodeValidator
 
 from typing import List, Any
 
+logfire.configure(send_to_logfire=False)
+logfire.instrument_pydantic()
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
@@ -61,10 +64,9 @@ async def main(project: str = "default", step: str = "all", resume: bool = False
     from openclaw.healthcheck import assert_startup_checks
     assert_startup_checks()
 
-    registry.autodiscover()
-    from openclaw.agents.registration import register_a2a_agents
-    register_a2a_agents()
-    logger.info(f"Discovered agents: {registry.list_agents()}")
+    from openclaw.agents.registration import register_pipeline_agents
+    register_pipeline_agents()
+    logger.info(f"Registered agents: {registry.list_agents()}")
 
     raw_requirements = os.getenv("REQUIREMENT", DEFAULT_REQUIREMENT)
 

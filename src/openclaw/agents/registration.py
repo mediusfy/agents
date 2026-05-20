@@ -5,6 +5,41 @@ as module-level side effects in individual agent files.
 """
 
 from openclaw.a2a import agent_bus
+from openclaw.registry import registry
+
+
+def register_pipeline_agents():
+    """Register all agents on the pipeline registry for orchestrated runs."""
+    from openclaw.agents.ba import ba_agent
+    from openclaw.agents.cto import cto_agent
+    from openclaw.agents.backend import backend_agent
+    from openclaw.agents.frontend import frontend_agent
+    from openclaw.agents.frontend import component_gen
+    from openclaw.agents.database import database_agent
+    from openclaw.agents.devops import devops_agent
+    from openclaw.agents.docs import docs_agent
+    from openclaw.agents.sre import sre_agent
+    from openclaw.agents.test_eng import test_eng_agent, test_gen
+    from openclaw.agents.review import review_agent
+    from openclaw.agents.security import security_agent
+    from openclaw.agents.ux import ux_agent
+    from openclaw.agents.quality_gate import quality_gate_agent
+
+    registry.register("ba", ba_agent, ["ba", "requirements"])
+    registry.register("cto", cto_agent, ["cto", "architecture", "advisory"])
+    registry.register("backend", backend_agent, ["backend", "implementation"])
+    registry.register("frontend", frontend_agent, ["frontend", "implementation"])
+    registry.register("frontend_component", component_gen, ["frontend_component"])
+    registry.register("database", database_agent, ["database", "db_schema", "migrations"])
+    registry.register("devops", devops_agent, ["devops", "ci_cd", "deployment"])
+    registry.register("docs", docs_agent, ["docs", "documentation"])
+    registry.register("sre", sre_agent, ["sre", "infrastructure"])
+    registry.register("test_eng", test_eng_agent, ["test", "testing"])
+    registry.register("test_gen", test_gen, ["test_gen", "test_generation"])
+    registry.register("review", review_agent, ["review", "code_review"])
+    registry.register("security", security_agent, ["security", "audit"])
+    registry.register("ux", ux_agent, ["ux", "design"])
+    registry.register("quality_gate", quality_gate_agent, ["quality_gate", "review"])
 
 
 def register_a2a_agents():
