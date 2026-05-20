@@ -6,6 +6,11 @@ NUM_WORKERS=${1:-2}
 source .venv/bin/activate
 export LOGFIRE_SEND_TO_LOGFIRE=false
 export PYTHONPATH=$PYTHONPATH:$(pwd)/src
+export DAGSTER_HOME=$(pwd)/.dagmem
+
+mkdir -p "$DAGSTER_HOME"
+
+
 
 if [ ! "$(docker ps -q -f name=openclaw-redis)" ]; then
     if [ "$(docker ps -aq -f status=exited -f name=openclaw-redis)" ]; then
