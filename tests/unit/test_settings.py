@@ -1,6 +1,3 @@
-"""Tests for the settings module."""
-
-import os
 from pathlib import Path
 from openclaw.settings import Settings
 

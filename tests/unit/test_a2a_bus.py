@@ -1,5 +1,3 @@
-"""Extended tests for the A2A agent bus."""
-
 import pytest
 import asyncio
 from unittest.mock import MagicMock

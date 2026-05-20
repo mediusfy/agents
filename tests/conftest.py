@@ -1,7 +1,5 @@
-import os
-import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import List
 from unittest.mock import MagicMock, AsyncMock
 
 import pytest
@@ -17,7 +15,6 @@ from openclaw.models.core import (
     RiskLevel,
 )
 
-
 @pytest.fixture
 def sample_user_story() -> UserStory:
     return UserStory(
@@ -28,7 +25,6 @@ def sample_user_story() -> UserStory:
             EventTrigger(id="evt-1", name="PaymentSucceeded", description="Payment processed successfully"),
         ],
     )
-
 
 @pytest.fixture
 def sample_user_stories(sample_user_story) -> List[UserStory]:
@@ -43,7 +39,6 @@ def sample_artifact() -> Artifact:
         metadata={"user_story_id": "US-001", "language": "go", "service_name": "payment", "framework": "net/http"},
     )
 
-
 @pytest.fixture
 def sample_artifacts(sample_artifact) -> List[Artifact]:
     return [sample_artifact]
@@ -57,7 +52,6 @@ def sample_pipeline_state() -> PipelineState:
         attempt=1,
     )
 
-
 @pytest.fixture
 def sample_review_result_approved() -> ReviewResult:
     return ReviewResult(
@@ -66,7 +60,6 @@ def sample_review_result_approved() -> ReviewResult:
         security_score=85,
         risk_level=RiskLevel.LOW,
     )
-
 
 @pytest.fixture
 def sample_review_result_rejected() -> ReviewResult:
@@ -77,7 +70,6 @@ def sample_review_result_rejected() -> ReviewResult:
         risk_level=RiskLevel.HIGH,
     )
 
-
 @pytest.fixture
 def sample_quality_gate_passed() -> QualityGateResult:
     return QualityGateResult(
@@ -85,7 +77,6 @@ def sample_quality_gate_passed() -> QualityGateResult:
         complexity_score=25,
         feedback=[],
     )
-
 
 @pytest.fixture
 def sample_quality_gate_failed() -> QualityGateResult:
@@ -95,7 +86,6 @@ def sample_quality_gate_failed() -> QualityGateResult:
         feedback=["Over-engineered: unnecessary abstraction layer"],
     )
 
-
 @pytest.fixture
 def sample_security_report_passed() -> SecurityReport:
     return SecurityReport(
@@ -104,7 +94,6 @@ def sample_security_report_passed() -> SecurityReport:
         feedback=[],
     )
 
-
 @pytest.fixture
 def sample_agent_advice() -> AgentAdvice:
     return AgentAdvice(
@@ -112,9 +101,6 @@ def sample_agent_advice() -> AgentAdvice:
         recommendations=["Use NATS with JetStream for persistence"],
         approved_to_proceed=True,
     )
-
-
-# ── Mock LLM Agent Fixtures ────────────────────────────────────────────────
 
 @pytest.fixture
 def mock_agent():
@@ -132,8 +118,6 @@ def mock_agent_result(mock_agent, sample_artifact):
     mock_agent.run.return_value = mock_result
     return mock_agent
 
-
-# ── Temp Directory Fixtures ────────────────────────────────────────────────
 
 @pytest.fixture
 def temp_output_dir(tmp_path) -> Path:

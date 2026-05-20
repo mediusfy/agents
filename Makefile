@@ -2,9 +2,6 @@ VENV = .venv
 PYTHON = $(VENV)/bin/python3
 PIP = $(VENV)/bin/pip
 
-
-
-# Load .env file if it exists
 ifneq (,$(wildcard .env))
     include .env
     export

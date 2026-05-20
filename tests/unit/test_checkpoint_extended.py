@@ -1,6 +1,3 @@
-"""Extended tests for the checkpoint manager."""
-
-import json
 import time
 from pathlib import Path
 import pytest

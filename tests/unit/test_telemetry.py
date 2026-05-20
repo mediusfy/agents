@@ -1,8 +1,5 @@
-"""Tests for the telemetry module."""
-
 import json
 import pytest
-from pathlib import Path
 from openclaw.telemetry import Telemetry
 
 

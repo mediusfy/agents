@@ -15,6 +15,27 @@ class AgentBus:
     def register(self, agent_name: str, agent: Agent, capabilities: List[str], deps_factory: Optional[callable] = None):
         self.registry[agent_name] = (agent, capabilities, deps_factory)
 
+    async def query(self, capability: str, prompt: str, timeout: Optional[float] = None, deps: Optional[dict] = None) -> str:
+        """Directly query an agent by capability (backward-compatible synchronous-style API)."""
+        import asyncio
+        for agent_name, (agent, caps, deps_factory) in self.registry.items():
+            if capability in caps:
+                try:
+                    resolved_deps = deps or {}
+                    if deps_factory and not deps:
+                        resolved_deps = deps_factory() if callable(deps_factory) else {}
+                    if timeout:
+                        result = await asyncio.wait_for(agent.run(prompt, deps=resolved_deps), timeout=timeout)
+                    else:
+                        result = await agent.run(prompt, deps=resolved_deps)
+                    return str(result.data) if hasattr(result, 'data') else str(result)
+                except asyncio.TimeoutError:
+                    return f"Agent '{agent_name}' timed out for capability '{capability}'"
+                except Exception as e:
+                    logger.warning(f"Agent '{agent_name}' failed for capability '{capability}': {e}")
+                    return f"Agent error: {e}"
+        return f"No agent found for capability '{capability}'"
+
     def dispatch_task(self, capability: str, prompt: str, caller_id: str = "root") -> str:
         """
         Creates a task and publishes it to the message queue.

@@ -1,4 +1,3 @@
-import pytest
 import asyncio
 from openclaw.models.core import Artifact
 from openclaw.validators import CodeValidator

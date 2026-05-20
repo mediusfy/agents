@@ -36,5 +36,11 @@ class AgentSettings:
     UX_MODEL = _settings.ux_model
     WEATHER_MODEL = _settings.weather_model
 
+    # Pipeline config
+    MAX_RETRIES = _settings.max_retries
+    MAX_CONCURRENT_LLM_CALLS = _settings.max_concurrent_llm_calls
+    CHECKPOINT_DIR = str(_settings.checkpoint_dir)
+    OUTPUT_DIR = str(_settings.output_dir)
+
 
 settings = WorkerSettings()
