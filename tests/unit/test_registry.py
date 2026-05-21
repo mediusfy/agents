@@ -46,7 +46,7 @@ def test_autodiscover_imports_agents():
     """Minimal test: autodiscover imports agent modules without raising."""
     registry = AgentRegistry()
     # Autodiscover imports all agent modules (side-effect: instantiates Agent objects).
-    # Registration is handled separately via registration.register_a2a_agents().
+    # Registration is handled separately via registration.register_all_agents().
     registry.autodiscover()
     # Agents are accessible via their module-level variables, not self-registered.
     from openclaw.agents.accountant import accountant_agent

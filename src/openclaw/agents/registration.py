@@ -1,14 +1,18 @@
 """Centralized agent registration.
 
-All agent_bus.register() and registry.register() calls are collected here
-instead of living as module-level side effects in individual agent files.
+All registry.register() calls are collected here instead of living
+as module-level side effects in individual agent files.
 """
 
 from openclaw.registry import registry
 
 
-def register_pipeline_agents():
-    """Register all agents on the pipeline registry for orchestrated runs."""
+def register_all_agents():
+    """Register all agents (pipeline + travel/finance) on the unified registry.
+
+    This is the single registration entry point for the entire ecosystem.
+    """
+    # ── SDLC Pipeline Agents ──────────────────────────────────────────────
     from openclaw.agents.ba import ba_agent
     from openclaw.agents.backend import backend_agent
     from openclaw.agents.cto import cto_agent
@@ -25,7 +29,6 @@ def register_pipeline_agents():
     from openclaw.agents.test_eng import go_test_agent, test_eng_agent, test_gen
     from openclaw.agents.ux import ux_agent
 
-    # Pipeline agents
     registry.register("ba", ba_agent, ["ba", "requirements"])
     registry.register("cto", cto_agent, ["cto", "architecture", "advisory"])
     registry.register("backend", backend_agent, ["backend", "implementation"])
@@ -47,10 +50,7 @@ def register_pipeline_agents():
     )
     registry.register("planner", planner_agent, ["plan", "planning"])
 
-
-def register_a2a_agents():
-    """Register travel/finance agents on the unified registry for A2A delegation."""
-
+    # ── Travel & Finance Agents ───────────────────────────────────────────
     from openclaw.agents.accountant import AccountantDeps, accountant_agent
     from openclaw.agents.asymmetric_reviewer import AsymmetricReviewerDeps, asymmetric_reviewer_agent
     from openclaw.agents.current_events import CurrentEventsDeps, current_events_agent

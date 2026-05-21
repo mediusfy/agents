@@ -1,3 +1,4 @@
+import asyncio
 import os
 import sys
 
@@ -89,11 +90,10 @@ async def delegate_to_openclaw_agent(capability: str, context: str, task: str) -
     'go_test' (Go table-driven tests), 'quality_gate' (over-engineering check), etc.
     For modifying existing code, prefer the 'modify_existing_code' tool.
     """
-    from openclaw.agents.registration import register_a2a_agents, register_pipeline_agents
+    from openclaw.agents.registration import register_all_agents
     from openclaw.registry import registry
 
-    register_pipeline_agents()
-    register_a2a_agents()
+    register_all_agents()
 
     full_prompt = f"Context from IDE:\n{context}\n\nTask:\n{task}"
     return await registry.query(capability, full_prompt)
@@ -111,18 +111,40 @@ async def run_openclaw_pipeline(project_name: str, requirement: str) -> str:
 
 @mcp.tool()
 async def plan_and_execute(goal: str) -> str:
-    """Creates a plan to achieve a high-level goal and dispatches the tasks"""
+    """Creates a plan to achieve a high-level goal and executes all tasks in dependency order."""
     from openclaw.agents.planner_agent import planner_agent
     from openclaw.registry import registry
 
     plan_response = await planner_agent.run(f"Create a plan to achieve this goal: {goal}")
     plan = plan_response.data
 
-    for task in plan.tasks:
-        if not task.dependencies:
-            registry.dispatch_task(task.capability, task.prompt)
+    completed: set[str] = set()
+    results: dict[str, str] = {}
 
-    return f"Plan created and initial tasks dispatched. Plan: {plan.model_dump_json(indent=2)}"
+    while len(completed) < len(plan.tasks):
+        batch = [t for t in plan.tasks if t.id not in completed and all(dep in completed for dep in t.dependencies)]
+        if not batch:
+            return f"Plan execution stuck — possible circular dependency.\nPlan: {plan.model_dump_json(indent=2)}"
+
+        async def _run_task(t):
+            try:
+                result = await registry.query(t.capability, t.prompt)
+                results[t.id] = result
+            except Exception as e:
+                results[t.id] = f"ERROR: {e}"
+
+        await asyncio.gather(*[_run_task(t) for t in batch])
+
+        for t in batch:
+            completed.add(t.id)
+
+    summary_lines = [f"## Plan Execution: {goal}", ""]
+    for t in plan.tasks:
+        status = "✓" if "ERROR" not in results.get(t.id, "") else "✗"
+        summary_lines.append(f"  {status} {t.id} ({t.capability}): {t.prompt[:80]}...")
+        summary_lines.append(f"     → {results.get(t.id, 'no result')[:200]}")
+
+    return "\n".join(summary_lines)
 
 
 @mcp.tool()
@@ -140,10 +162,10 @@ async def modify_existing_code(change_description: str, codebase_path: str = "")
             to the ProcessMessage handler in internal/service/message.go")
         codebase_path: Path to the existing codebase root. Leave empty to auto-detect.
     """
-    from openclaw.agents.registration import register_pipeline_agents
+    from openclaw.agents.registration import register_all_agents
     from openclaw.existing_code_handler import format_result_summary, run_existing_code_pipeline
 
-    register_pipeline_agents()
+    register_all_agents()
 
     result = await run_existing_code_pipeline(
         change_description=change_description,

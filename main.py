@@ -258,8 +258,8 @@ async def main(project: str = "default", step: str = "all", resume: bool = False
     from openclaw.healthcheck import assert_startup_checks
     assert_startup_checks()
 
-    from openclaw.agents.registration import register_pipeline_agents
-    register_pipeline_agents()
+    from openclaw.agents.registration import register_all_agents
+    register_all_agents()
     logger.info(f"Registered agents: {registry.list_agents()}")
 
     raw_requirements = os.getenv("REQUIREMENT", DEFAULT_REQUIREMENT)

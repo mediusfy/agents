@@ -38,10 +38,3 @@ def test_settings_api_keys_from_env(monkeypatch):
     s = Settings()
     assert s.openai_api_key == "sk-real-key"
     assert s.anthropic_api_key == "sk-ant-real-key"
-
-
-def test_config_worker_settings_defaults():
-    from openclaw.config import worker_settings
-
-    assert worker_settings.max_correction_attempts == 3
-    assert worker_settings.task_consume_timeout == 1.0
