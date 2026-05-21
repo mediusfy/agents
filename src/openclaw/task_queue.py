@@ -35,5 +35,4 @@ class TaskQueue:
             return Task(**json.loads(task_json))
         return None
 
-
 task_queue = TaskQueue()
