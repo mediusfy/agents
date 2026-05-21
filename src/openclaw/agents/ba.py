@@ -1,7 +1,7 @@
 from pydantic_ai import Agent, RunContext
 
-from openclaw.config import AgentSettings
 from openclaw.models.core import EventTrigger, UserStory
+from openclaw.settings import settings
 
 ba_prompt = """You are a Senior Business Analyst Agent focused on **Domain-Driven Design (DDD)**. Your objective is to translate high-level project goals into structured technical requirements and define "Bounded Contexts" for the OpenClaw ecosystem to ensure engineering agents build robust, non-monolithic architectures.
 
@@ -11,12 +11,10 @@ Requirements Standards:
 - Constraints: Explicitly capture and document multi-cloud constraints, emphasizing data residency laws and regional network latency.
 """
 
-ba_agent = Agent(AgentSettings.BA_MODEL, system_prompt=ba_prompt, output_type=list[UserStory], defer_model_check=True)
+ba_agent = Agent(settings.ba_model, system_prompt=ba_prompt, output_type=list[UserStory], defer_model_check=True)
 
-extractor = Agent(AgentSettings.BA_MODEL, system_prompt=ba_prompt, output_type=list[UserStory], defer_model_check=True)
-event_mapper = Agent(
-    AgentSettings.BA_MODEL, system_prompt=ba_prompt, output_type=list[EventTrigger], defer_model_check=True
-)
+extractor = Agent(settings.ba_model, system_prompt=ba_prompt, output_type=list[UserStory], defer_model_check=True)
+event_mapper = Agent(settings.ba_model, system_prompt=ba_prompt, output_type=list[EventTrigger], defer_model_check=True)
 
 
 @ba_agent.tool

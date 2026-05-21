@@ -1,8 +1,15 @@
+import asyncio
 import importlib
+import logging
 import pkgutil
+import uuid
 from collections.abc import Callable
 
 from pydantic_ai import Agent
+
+from openclaw.task_queue import Task, task_queue
+
+logger = logging.getLogger(__name__)
 
 
 class AgentRegistry:
@@ -58,6 +65,36 @@ class AgentRegistry:
         prefix = package.__name__ + "."
         for _importer, modname, _ispkg in pkgutil.iter_modules(package.__path__, prefix):
             importlib.import_module(modname)
+
+    # ── Unified query / dispatch (merged from AgentBus) ────────────────
+
+    async def query(self, capability: str, prompt: str, timeout: float | None = None, deps: dict | None = None) -> str:
+        """Query an agent by capability, returning its response as a string."""
+        for _agent_name, (agent, caps, deps_factory, _post_hook) in self._agents.items():
+            if capability in caps:
+                try:
+                    resolved_deps = deps or {}
+                    if deps_factory and not deps:
+                        resolved_deps = deps_factory() if callable(deps_factory) else {}
+                    if timeout:
+                        result = await asyncio.wait_for(agent.run(prompt, deps=resolved_deps), timeout=timeout)
+                    else:
+                        result = await agent.run(prompt, deps=resolved_deps)
+                    return str(result.data) if hasattr(result, "data") else str(result)
+                except TimeoutError:
+                    return f"Agent '{_agent_name}' timed out for capability '{capability}'"
+                except Exception as e:
+                    logger.warning("Agent '%s' failed for capability '%s': %s", _agent_name, capability, e)
+                    return f"Agent error: {e}"
+        return f"No agent found for capability '{capability}'"
+
+    def dispatch_task(self, capability: str, prompt: str, caller_id: str = "root") -> str:
+        """Create a task and publish it to the queue. Returns the task ID."""
+        task_id = str(uuid.uuid4())
+        task = Task(id=task_id, capability=capability, prompt=prompt, caller_id=caller_id)
+        task_queue.publish_task(task)
+        logger.info("Dispatched task %s for capability '%s'.", task_id, capability)
+        return task_id
 
 
 registry = AgentRegistry()

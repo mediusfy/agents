@@ -8,7 +8,7 @@ from openclaw.models.core import PipelineState
 
 @pytest.fixture
 def temp_checkpoint_dir(tmp_path, monkeypatch):
-    monkeypatch.setattr("openclaw.config.AgentSettings.CHECKPOINT_DIR", str(tmp_path))
+    monkeypatch.setattr("openclaw.checkpoint.settings.checkpoint_dir", tmp_path)
     return tmp_path
 
 

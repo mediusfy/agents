@@ -8,7 +8,7 @@ from typing import Any
 import logfire
 from pydantic_ai import Agent
 
-from openclaw.config import settings
+from openclaw.config import worker_settings
 from openclaw.critical_actions import CRITICAL_CAPABILITIES
 from openclaw.exceptions import AgentExecutionError, AgentNotFoundError
 from openclaw.memory import long_term_memory
@@ -96,18 +96,11 @@ class Worker:
             return True
         return False
 
-    def _find_agent_for_task(self, task: Task) -> tuple[Agent, Callable[[str], Coroutine[Any, Any, None]] | None]:
-        """Finds a registered agent and its dependencies for a given task."""
-        for agent_name, (
-            agent_class,
-            caps,
-            deps_fac,
-            post_hook,
-        ) in registry.items():
+    def _find_agent_for_task(self, task: Task) -> tuple[Agent, Callable | None]:
+        """Finds a registered agent for a given task by capability match."""
+        for _agent_name, (agent_instance, caps, _deps_fac, post_hook) in registry.items():
             if task.capability in caps:
-                dependencies = deps_fac() if deps_fac else {}
-                agent = agent_class(dependencies=dependencies)
-                return agent, post_hook
+                return agent_instance, post_hook
         raise AgentNotFoundError(f"No agent found for capability '{task.capability}'")
 
     async def _enrich_prompt_with_memory(self, prompt: str, span) -> str:
@@ -134,7 +127,7 @@ class Worker:
         Executes the agent and runs validation, retrying on failure.
         """
         last_error = None
-        for attempt in range(settings.max_correction_attempts):
+        for attempt in range(worker_settings.max_correction_attempts):
             with logfire.span("worker.attempt_task", attempt=attempt + 1) as attempt_span:
                 try:
                     res = await agent.run(prompt)
@@ -143,7 +136,7 @@ class Worker:
                     if post_process_hook:
                         await post_process_hook(result_str)
 
-                    return result_str, agent.token_usage
+                    return result_str, getattr(agent, "token_usage", None)
 
                 except AgentExecutionError as e:
                     last_error = e
@@ -155,7 +148,7 @@ class Worker:
                     )
 
         raise AgentExecutionError(
-            f"Task failed after {settings.max_correction_attempts} attempts. Last error: {last_error}"
+            f"Task failed after {worker_settings.max_correction_attempts} attempts. Last error: {last_error}"
         )
 
     def _handle_failure(self, task: Task, e: Exception, attempt: int, span):
@@ -164,7 +157,7 @@ class Worker:
             "Task attempt failed",
             extra={
                 "task_id": task.id,
-                "attempt": f"{attempt + 1}/{settings.max_correction_attempts}",
+                "attempt": f"{attempt + 1}/{worker_settings.max_correction_attempts}",
                 "error": str(e),
             },
         )
@@ -189,7 +182,7 @@ class Worker:
         log.info("Task completed successfully", extra={"task_id": task.id})
 
 
-def handle_shutdown_signal(signum: int, frame: FrameType | None):
+def handle_shutdown_signal(signum: int, _frame: FrameType | None):
     """Handles graceful shutdown of the worker."""
     log.info(f"Received signal {signum}, shutting down gracefully...")
     shutdown_event.set()

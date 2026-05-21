@@ -40,10 +40,8 @@ def test_settings_api_keys_from_env(monkeypatch):
     assert s.anthropic_api_key == "sk-ant-real-key"
 
 
-def test_backward_compatible_agentsettings():
-    """AgentSettings class should mirror the new Settings."""
-    from openclaw.config import AgentSettings
+def test_config_worker_settings_defaults():
+    from openclaw.config import worker_settings
 
-    assert AgentSettings.BA_MODEL == "gpt-4o-mini"
-    assert AgentSettings.MAX_RETRIES == 2
-    assert AgentSettings.MAX_CONCURRENT_LLM_CALLS == 5
+    assert worker_settings.max_correction_attempts == 3
+    assert worker_settings.task_consume_timeout == 1.0

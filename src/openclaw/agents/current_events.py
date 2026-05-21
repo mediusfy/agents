@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from pydantic_ai import Agent
 
-from openclaw.config import AgentSettings
+from openclaw.settings import settings
 
 
 @dataclass
@@ -16,7 +16,7 @@ Your job is to provide context on current events, blending modern news with hist
 """
 
 current_events_agent = Agent(
-    AgentSettings.CURRENT_EVENTS_MODEL,
+    settings.current_events_model,
     deps_type=CurrentEventsDeps,
     system_prompt=events_prompt,
     output_type=str,

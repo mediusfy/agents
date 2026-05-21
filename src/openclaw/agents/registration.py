@@ -1,10 +1,9 @@
-"""Centralized A2A agent registration.
+"""Centralized agent registration.
 
-All agent_bus.register() calls are collected here instead of living
-as module-level side effects in individual agent files.
+All agent_bus.register() and registry.register() calls are collected here
+instead of living as module-level side effects in individual agent files.
 """
 
-from openclaw.a2a import agent_bus
 from openclaw.registry import registry
 
 
@@ -17,6 +16,7 @@ def register_pipeline_agents():
     from openclaw.agents.devops import devops_agent
     from openclaw.agents.docs import docs_agent
     from openclaw.agents.frontend import component_gen, frontend_agent
+    from openclaw.agents.planner_agent import planner_agent
     from openclaw.agents.quality_gate import quality_gate_agent
     from openclaw.agents.review import review_agent
     from openclaw.agents.security import security_agent
@@ -25,6 +25,7 @@ def register_pipeline_agents():
     from openclaw.agents.test_eng import go_test_agent, test_eng_agent, test_gen
     from openclaw.agents.ux import ux_agent
 
+    # Pipeline agents
     registry.register("ba", ba_agent, ["ba", "requirements"])
     registry.register("cto", cto_agent, ["cto", "architecture", "advisory"])
     registry.register("backend", backend_agent, ["backend", "implementation"])
@@ -44,15 +45,15 @@ def register_pipeline_agents():
     registry.register(
         "service_engineer", service_engineer_agent, ["service_engineer", "existing_code", "implementation"]
     )
+    registry.register("planner", planner_agent, ["plan", "planning"])
 
 
 def register_a2a_agents():
-    """Register all agents on the A2A bus for inter-agent delegation."""
+    """Register travel/finance agents on the unified registry for A2A delegation."""
 
     from openclaw.agents.accountant import AccountantDeps, accountant_agent
     from openclaw.agents.asymmetric_reviewer import AsymmetricReviewerDeps, asymmetric_reviewer_agent
     from openclaw.agents.current_events import CurrentEventsDeps, current_events_agent
-    from openclaw.agents.database import DatabaseDeps, database_agent
     from openclaw.agents.non_technical.crypto_oracle import CryptoOracleDeps, crypto_oracle_agent
     from openclaw.agents.non_technical.holiday_planner import HolidayPlannerDeps, holiday_planner_agent
     from openclaw.agents.non_technical.market_shark import MarketSharkDeps, market_shark_agent
@@ -60,33 +61,34 @@ def register_a2a_agents():
     from openclaw.agents.region_analyzer import RegionAnalyzerDeps, region_analyzer_agent
     from openclaw.agents.weather import WeatherDeps, weather_agent
 
-    agent_bus.register("accountant", accountant_agent, ["finance"], lambda: AccountantDeps(pass_num=1))
-    agent_bus.register(
+    registry.register("accountant", accountant_agent, ["finance"], lambda: AccountantDeps(pass_num=1))
+    registry.register(
         "asymmetric_reviewer",
         asymmetric_reviewer_agent,
         ["legal", "finance"],
         lambda: AsymmetricReviewerDeps(pass_num=1),
     )
-    agent_bus.register(
+    registry.register(
         "current_events", current_events_agent, ["news", "history"], lambda: CurrentEventsDeps(pass_num=1)
     )
-    agent_bus.register("database", database_agent, ["db_schema", "migrations"], lambda: DatabaseDeps())
-    agent_bus.register("region_analyzer", region_analyzer_agent, ["analysis"], lambda: RegionAnalyzerDeps(pass_num=1))
-    agent_bus.register("weather", weather_agent, ["weather"], lambda: WeatherDeps(pass_num=1))
-
-    agent_bus.register(
+    registry.register("region_analyzer", region_analyzer_agent, ["analysis"], lambda: RegionAnalyzerDeps(pass_num=1))
+    registry.register("weather", weather_agent, ["weather"], lambda: WeatherDeps(pass_num=1))
+    registry.register(
         "crypto_oracle", crypto_oracle_agent, ["finance", "news", "research"], lambda: CryptoOracleDeps(pass_num=1)
     )
-    agent_bus.register(
-        "holiday_planner", holiday_planner_agent, ["planning", "travel"], lambda: HolidayPlannerDeps(pass_num=1)
+    registry.register(
+        "holiday_planner",
+        holiday_planner_agent,
+        ["planning", "travel"],
+        lambda: HolidayPlannerDeps(pass_num=1),
     )
-    agent_bus.register(
+    registry.register(
         "market_shark",
         market_shark_agent,
         ["finance", "crypto", "stocks", "investing"],
         lambda: MarketSharkDeps(pass_num=1),
     )
-    agent_bus.register(
+    registry.register(
         "price_analyst",
         price_analyst_agent,
         ["pricing", "analysis", "purchasing"],

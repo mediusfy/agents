@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 
 from openclaw.models.core import Artifact
 from openclaw.registry import registry
+from openclaw.utils import format_artifacts
 
 logger = logging.getLogger(__name__)
 
@@ -26,22 +27,6 @@ class ExistingCodeResult:
     review_approved: bool = False
     review_risk: str = ""
     errors: list[str] = field(default_factory=list)
-
-
-def format_artifact_preview(artifacts: list[Artifact], max_chars: int = 30_000) -> str:
-    """Format artifacts for downstream agent prompts (quality gate, review)."""
-    parts = []
-    total = 0
-    for art in artifacts:
-        for path, content in art.files.items():
-            snippet = f"--- {path} ---\n{content}"
-            if total + len(snippet) > max_chars:
-                snippet = snippet[: max_chars - total] + "\n... (truncated)"
-            parts.append(snippet)
-            total += len(snippet)
-            if total >= max_chars:
-                break
-    return "\n\n".join(parts)
 
 
 async def run_existing_code_pipeline(
@@ -101,7 +86,7 @@ async def run_existing_code_pipeline(
         logger.info("Step 2: Test Engineer — generating tests...")
         try:
             test_eng = registry.get("test_eng")
-            test_preview = format_artifact_preview(result.artifacts, max_chars=15_000)
+            test_preview = format_artifacts(result.artifacts, max_chars=15_000, include_agent_header=False)
             test_prompt = (
                 f"Using the generate_go_table_driven_tests tool, write tests for "
                 f"the changed functions in these files:\n\n{test_preview}\n\n"
@@ -123,7 +108,7 @@ async def run_existing_code_pipeline(
         logger.info("Step 3: Quality Gate — checking over-engineering...")
         try:
             quality_gate = registry.get("quality_gate")
-            qg_preview = format_artifact_preview(result.artifacts, max_chars=30_000)
+            qg_preview = format_artifacts(result.artifacts, max_chars=30_000, include_agent_header=False)
             qg_prompt = (
                 f"Perform a quality gate check on these code changes. "
                 f"Check for over-engineering, premature abstraction, "
@@ -153,7 +138,7 @@ async def run_existing_code_pipeline(
         logger.info("Step 4: Board of Review — final approval...")
         try:
             review = registry.get("review")
-            review_preview = format_artifact_preview(result.artifacts, max_chars=40_000)
+            review_preview = format_artifacts(result.artifacts, max_chars=40_000, include_agent_header=False)
             review_prompt = (
                 f"Review these code changes for production readiness. "
                 f"Check for correctness, security issues, architecture fit, "

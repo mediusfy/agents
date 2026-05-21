@@ -2,8 +2,8 @@ from dataclasses import dataclass
 
 from pydantic_ai import Agent
 
-from openclaw.config import AgentSettings
 from openclaw.models.core import AgentAdvice
+from openclaw.settings import settings
 
 
 @dataclass
@@ -14,7 +14,7 @@ class OrgContext:
 
 
 cto_agent = Agent(
-    AgentSettings.CTO_MODEL,
+    settings.cto_model,
     system_prompt="""You are the Chief Technology Officer (CTO) agent. You are sharp, highly experienced, and possess deep architectural foresight.
     Your job is to review product requirements and user stories BEFORE any code is written, to identify bottlenecks, scale issues, and mistakes before they occur.
     Provide strict architectural constraints and strategic advice that the engineering agents (Backend/Frontend) must follow.

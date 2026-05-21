@@ -55,10 +55,6 @@ class Settings(BaseSettings):
     max_concurrent_llm_calls: int = 5
     checkpoint_dir: Path = Path("./.claw-checkpoints")
     vector_db_dir: Path = Path("./.claw-vectordb")
-    agent_config_path: str = ""
-
-    # ── Pipeline Runtime
-    requirement: str | None = None
 
 
 settings = Settings()

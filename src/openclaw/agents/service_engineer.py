@@ -3,11 +3,11 @@ from pathlib import Path
 
 from pydantic_ai import Agent, RunContext
 
-from openclaw.config import AgentSettings
 from openclaw.models.core import Artifact
+from openclaw.settings import settings
 
 service_engineer_agent = Agent(
-    AgentSettings.BACKEND_MODEL,
+    settings.backend_model,
     system_prompt="""You are a Go Backend Service Engineer specializing in modifying EXISTING codebases. You are NOT a scaffolder.
 
 Your goal is surgical, minimal changes to code that is already deployed and running.

@@ -8,6 +8,12 @@ import logging
 import logfire
 from mcp.server.fastmcp import FastMCP
 
+from openclaw.agents.accountant import AccountantDeps, accountant_agent
+from openclaw.agents.asymmetric_reviewer import AsymmetricReviewerDeps, asymmetric_reviewer_agent
+from openclaw.agents.current_events import CurrentEventsDeps, current_events_agent
+from openclaw.agents.non_technical.holiday_planner import HolidayPlannerDeps, holiday_planner_agent
+from openclaw.agents.region_analyzer import RegionAnalyzerDeps, region_analyzer_agent
+from openclaw.agents.weather import WeatherDeps, weather_agent
 from openclaw.vector_db import vector_db
 
 logfire.configure()
@@ -17,6 +23,44 @@ logging.basicConfig(level=logging.INFO)
 mcp = FastMCP("OpenClaw")
 if hasattr(mcp, "app"):
     logfire.instrument_fastapi(mcp.app)
+
+
+def create_agent_runner(agent, deps_class, tool_name: str, docstring: str):
+    """Factory to create an MCP tool for running an agent."""
+
+    async def agent_runner(request: str) -> str:
+        deps = deps_class(pass_num=1)
+        result = await agent.run(request, deps=deps)
+        return result.data
+
+    agent_runner.__doc__ = docstring
+    agent_runner.__name__ = tool_name
+    return mcp.tool(name=tool_name)(agent_runner)
+
+
+# ── Travel & Finance Agent Tools ──────────────────────────────────────
+
+run_holiday_planner = create_agent_runner(
+    holiday_planner_agent, HolidayPlannerDeps, "run_holiday_planner", "Invokes the Holiday Planner Agent."
+)
+run_region_analyzer = create_agent_runner(
+    region_analyzer_agent, RegionAnalyzerDeps, "run_region_analyzer", "Invokes the Region Analyzer Agent."
+)
+run_asymmetric_reviewer = create_agent_runner(
+    asymmetric_reviewer_agent,
+    AsymmetricReviewerDeps,
+    "run_asymmetric_reviewer",
+    "Invokes the Asymmetric Reviewer Agent (law & corporate tricks for travel savings).",
+)
+run_current_events = create_agent_runner(
+    current_events_agent, CurrentEventsDeps, "run_current_events", "Invokes the Current Events Agent (history buff)."
+)
+run_weather = create_agent_runner(weather_agent, WeatherDeps, "run_weather", "Invokes the Weather Agent.")
+run_accountant = create_agent_runner(
+    accountant_agent, AccountantDeps, "run_accountant", "Invokes the Accountant Agent."
+)
+
+# ── SDLC / Existing Code Tools ───────────────────────────────────────
 
 
 @mcp.tool()
@@ -45,31 +89,19 @@ async def delegate_to_openclaw_agent(capability: str, context: str, task: str) -
     'go_test' (Go table-driven tests), 'quality_gate' (over-engineering check), etc.
     For modifying existing code, prefer the 'modify_existing_code' tool.
     """
-    from openclaw.a2a import agent_bus
-    from openclaw.agents.registration import register_pipeline_agents
+    from openclaw.agents.registration import register_a2a_agents, register_pipeline_agents
     from openclaw.registry import registry
 
     register_pipeline_agents()
+    register_a2a_agents()
 
     full_prompt = f"Context from IDE:\n{context}\n\nTask:\n{task}"
-
-    result = await agent_bus.query(capability, full_prompt)
-    if "No agent found" not in result:
-        return result
-
-    try:
-        agent = registry.get(capability)
-        res = await agent.run(full_prompt)
-        return str(res.data) if hasattr(res, "data") else str(res)
-    except ValueError:
-        return f"No agent found for capability '{capability}'"
+    return await registry.query(capability, full_prompt)
 
 
 @mcp.tool()
 async def run_openclaw_pipeline(project_name: str, requirement: str) -> str:
     """Run the entire multi-agent OpenClaw pipeline end-to-end for a given project requirement."""
-    import os
-
     from main import main
 
     os.environ["REQUIREMENT"] = requirement
@@ -80,15 +112,15 @@ async def run_openclaw_pipeline(project_name: str, requirement: str) -> str:
 @mcp.tool()
 async def plan_and_execute(goal: str) -> str:
     """Creates a plan to achieve a high-level goal and dispatches the tasks"""
-    from openclaw.a2a import agent_bus
     from openclaw.agents.planner_agent import planner_agent
+    from openclaw.registry import registry
 
     plan_response = await planner_agent.run(f"Create a plan to achieve this goal: {goal}")
     plan = plan_response.data
 
     for task in plan.tasks:
         if not task.dependencies:
-            agent_bus.dispatch_task(task.capability, task.prompt)
+            registry.dispatch_task(task.capability, task.prompt)
 
     return f"Plan created and initial tasks dispatched. Plan: {plan.model_dump_json(indent=2)}"
 
@@ -109,13 +141,9 @@ async def modify_existing_code(change_description: str, codebase_path: str = "")
         codebase_path: Path to the existing codebase root. Leave empty to auto-detect.
     """
     from openclaw.agents.registration import register_pipeline_agents
+    from openclaw.existing_code_handler import format_result_summary, run_existing_code_pipeline
 
     register_pipeline_agents()
-
-    from openclaw.existing_code_handler import (
-        format_result_summary,
-        run_existing_code_pipeline,
-    )
 
     result = await run_existing_code_pipeline(
         change_description=change_description,
@@ -126,6 +154,20 @@ async def modify_existing_code(change_description: str, codebase_path: str = "")
     )
 
     return format_result_summary(result)
+
+
+@mcp.tool()
+async def scaffold_and_build_service(service_name: str, bounded_context: str, requirement: str = "") -> str:
+    """
+    Scaffold and build a new backend service from scratch using the full OpenClaw pipeline.
+    This runs the BA → Advisory → Implementation → Test → SRE → Review pipeline.
+    """
+    from main import main
+
+    requirement = requirement or f"Build a {service_name} service for {bounded_context} bounded context."
+    os.environ["REQUIREMENT"] = requirement
+    await main(project=service_name, step="all", resume=False, auto_yes=True)
+    return f"Service '{service_name}' scaffolding pipeline completed. Artifacts in generated-app/{service_name}/."
 
 
 if __name__ == "__main__":

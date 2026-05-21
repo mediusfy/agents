@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from openclaw.a2a import AgentBus
+from openclaw.registry import AgentRegistry
 
 
 class MockAgent:
@@ -17,8 +18,17 @@ class MockAgent:
 
 
 @pytest.fixture
-def bus():
-    return AgentBus()
+def fresh_registry():
+    """Return an isolated AgentRegistry for testing."""
+    return AgentRegistry()
+
+
+@pytest.fixture
+def bus(fresh_registry):
+    """Return an AgentBus backed by an isolated registry."""
+    bus = AgentBus()
+    bus.registry = fresh_registry
+    return bus
 
 
 @pytest.fixture
@@ -29,15 +39,20 @@ def populated_bus(bus):
 
 
 class TestAgentBusRegistration:
-    def test_register_agent(self, bus):
-        bus.register("test", MockAgent(), ["cap"])
-        assert "test" in bus.registry
+    def test_register_agent(self, bus, fresh_registry):
+        bus.register("test_agent", MockAgent(), ["cap"])
+        assert fresh_registry.list_agents() == ["test_agent"]
 
-    def test_register_with_deps_factory(self, bus):
+    def test_register_with_deps_factory(self, bus, fresh_registry):
         factory = lambda: object()  # noqa: E731
-        bus.register("test", MockAgent(), ["cap"], factory)
-        name, (agent, caps, fac) = "test", bus.registry["test"]
+        bus.register("test_factory", MockAgent(), ["cap"], factory)
+        _name, (agent, caps, fac, hook) = list(fresh_registry.items())[0]
         assert fac is factory
+
+    def test_register_duplicate_raises(self, bus):
+        bus.register("dup_agent", MockAgent(), ["cap1"])
+        with pytest.raises(ValueError, match="already registered"):
+            bus.register("dup_agent", MockAgent(), ["cap2"])
 
 
 class TestAgentBusQuery:
@@ -72,12 +87,11 @@ class TestAgentBusQuery:
         agent = MockAgent("deps-result")
 
         async def run_with_deps(prompt, deps=None):
-            nonlocal deps_factory_called
             mock = MagicMock()
             mock.data = f"deps={deps}"
             return mock
 
         agent.run = run_with_deps
         bus.register("deps_agent", agent, ["needs_deps"], deps_factory)
-        result = asyncio.run(bus.query("needs_deps", "test"))
+        asyncio.run(bus.query("needs_deps", "test"))
         assert deps_factory_called

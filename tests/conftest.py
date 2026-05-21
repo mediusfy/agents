@@ -140,7 +140,7 @@ def temp_output_dir(tmp_path) -> Path:
 def temp_checkpoint_dir(tmp_path, monkeypatch) -> Path:
     ckpt_dir = tmp_path / ".claw-checkpoints"
     ckpt_dir.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setattr("openclaw.config.AgentSettings.CHECKPOINT_DIR", str(ckpt_dir))
+    monkeypatch.setattr("openclaw.checkpoint.settings.checkpoint_dir", ckpt_dir)
     return ckpt_dir
 
 

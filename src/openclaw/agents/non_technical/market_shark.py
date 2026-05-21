@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from pydantic_ai import Agent
 
-from openclaw.config import AgentSettings
+from openclaw.settings import settings
 
 
 @dataclass
@@ -22,7 +22,7 @@ You MUST:
 """
 
 market_shark_agent = Agent(
-    AgentSettings.MARKET_SHARK_MODEL,
+    settings.market_shark_model,
     deps_type=MarketSharkDeps,
     system_prompt=shark_prompt,
     output_type=str,

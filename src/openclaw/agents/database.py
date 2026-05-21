@@ -2,8 +2,8 @@ from dataclasses import dataclass
 
 from pydantic_ai import Agent, RunContext
 
-from openclaw.config import AgentSettings
 from openclaw.models.core import Artifact
+from openclaw.settings import settings
 
 
 @dataclass
@@ -13,7 +13,7 @@ class DatabaseDeps:
 
 
 database_agent = Agent(
-    AgentSettings.DATABASE_MODEL,
+    settings.database_model,
     deps_type=DatabaseDeps,
     system_prompt="""You are a Senior Database Engineer.
 Your objective is to generate optimal SQL migrations, schema DDL, Redis/Cache configurations, and data seeding scripts.
@@ -72,7 +72,7 @@ def generate_seed_script(ctx: RunContext[str], table_name: str) -> str:
     """Returns a template for a PostgreSQL data seeding script."""
     return f"""-- Seed data for {table_name}
 INSERT INTO {table_name} (id, created_at, updated_at /* add columns */)
-VALUES 
+VALUES
     (gen_random_uuid(), NOW(), NOW()),
     (gen_random_uuid(), NOW(), NOW())
 ON CONFLICT (id) DO NOTHING;

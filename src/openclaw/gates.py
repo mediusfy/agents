@@ -1,4 +1,8 @@
+import logging
+
 from openclaw.models.core import Artifact
+
+logger = logging.getLogger(__name__)
 
 
 class HumanInTheLoopGate:
@@ -11,7 +15,7 @@ class HumanInTheLoopGate:
         for art in artifacts:
             story_id = art.metadata.get("user_story_id", "N/A")
             print(f"- Agent: {art.agent_name} | Story: {story_id}")
-            for filepath in art.files.keys():
+            for filepath in art.files:
                 print(f"  └── {filepath}")
         print("=========================\\n")
 

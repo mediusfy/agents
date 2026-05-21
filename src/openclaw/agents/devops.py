@@ -2,8 +2,8 @@ from dataclasses import dataclass
 
 from pydantic_ai import Agent, RunContext
 
-from openclaw.config import AgentSettings
 from openclaw.models.core import Artifact
+from openclaw.settings import settings
 
 
 @dataclass
@@ -13,7 +13,7 @@ class DevopsDeps:
 
 
 devops_agent = Agent(
-    AgentSettings.DEVOPS_MODEL,
+    settings.devops_model,
     deps_type=DevopsDeps,
     system_prompt="""You are a Principal DevOps Engineer.
 Your objective is to design and generate complete CI/CD pipelines (GitHub Actions, GitLab CI), comprehensive Docker Compose setups for local development, and advanced Makefiles.
@@ -96,7 +96,7 @@ services:
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USER=postgres
-      - DB_PASSWORD=${DB_PASSWORD:-changeme}
+      - DB_PASSWORD=${{DB_PASSWORD:-changeme}}
       - REDIS_URL=redis://redis:6379
     depends_on:
       postgres:
@@ -108,7 +108,7 @@ services:
     image: postgres:16-alpine
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-changeme}
+      - POSTGRES_PASSWORD=${{DB_PASSWORD:-changeme}}
       - POSTGRES_DB={service_name}_db
     ports:
       - "5432:5432"

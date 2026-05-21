@@ -46,7 +46,7 @@ async def query_history(ctx: RunContext[Any], query: str, pass_num: int | None =
         try:
             log = json.loads(res)
             formatted_logs.append(f"Pass {log['pass_num']} | {log['agent_name']} | {log['action']}: {log['summary']}")
-        except:
+        except Exception:
             formatted_logs.append(res)
 
     return "Relevant Project History:\n" + "\n".join(formatted_logs)

@@ -1,10 +1,10 @@
 from pydantic_ai import Agent
 
-from openclaw.config import AgentSettings
 from openclaw.models.core import ReviewResult
+from openclaw.settings import settings
 
 review_agent = Agent(
-    AgentSettings.REVIEW_MODEL,
+    settings.review_model,
     system_prompt="""You represent the final governance layer. Your role is to act as a **Qualified Security Assessor (QSA)**, analyzing artifacts from all other agents (Go code, Terraform, Test results) to ensure they meet production-readiness standards. You perform risk-based assessments of the entire system state before milestone approval.
 
 Review Logic (The "Logic Gate"):

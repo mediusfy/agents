@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from pydantic_ai import Agent
 
-from openclaw.config import AgentSettings
+from openclaw.settings import settings
 
 
 @dataclass
@@ -19,7 +19,7 @@ Be extremely analytical, citing variables you are considering, calculating proje
 """
 
 price_analyst_agent = Agent(
-    AgentSettings.PRICE_ANALYST_MODEL,
+    settings.price_analyst_model,
     deps_type=PriceAnalystDeps,
     system_prompt=analyst_prompt,
     output_type=str,

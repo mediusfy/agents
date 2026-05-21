@@ -25,7 +25,7 @@ class PipelineError(OpenClawError):
     """Pipeline-level failure that should abort the current run."""
 
 
-class PipelineStepFailed(PipelineError):
+class PipelineStepFailedError(PipelineError):
     """A specific pipeline step failed and cannot be retried."""
 
 

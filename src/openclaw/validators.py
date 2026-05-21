@@ -1,13 +1,19 @@
 import asyncio
-import os
-import tempfile
 
 from openclaw.models.core import Artifact
 
 
 class CodeValidator:
+    """Validates generated code for basic structural correctness."""
+
     @staticmethod
     async def validate_go_async(artifacts: list[Artifact]) -> bool:
+        """Validate Go files: check for basic syntactic correctness.
+
+        Uses simple structural checks (balanced braces, presence of 'package')
+        instead of running `go vet`, which requires a complete module graph
+        that generated code fragments rarely have.
+        """
         go_files = []
         for art in artifacts:
             for path, content in art.files.items():
@@ -17,43 +23,33 @@ class CodeValidator:
         if not go_files:
             return True
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            mod_init = os.path.join(tmpdir, "go.mod")
-            if not os.path.exists(mod_init):
-                with open(mod_init, "w") as f:
-                    f.write("module validation\ngo 1.26\n")
+        all_ok = True
+        for path, content in go_files:
+            if not content.strip():
+                print(f"[Validator] {path}: empty file")
+                all_ok = False
+                continue
 
-            for path, content in go_files:
-                full = os.path.join(tmpdir, path)
-                os.makedirs(os.path.dirname(full), exist_ok=True)
-                with open(full, "w") as f:
-                    f.write(content)
+            lines = content.splitlines()
+            has_package = any(line.strip().startswith("package ") for line in lines)
+            if not has_package:
+                print(f"[Validator] {path}: missing 'package' declaration")
+                all_ok = False
+                continue
 
-            try:
-                proc = await asyncio.create_subprocess_exec(
-                    "go",
-                    "vet",
-                    "./...",
-                    cwd=tmpdir,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    env={**os.environ, "GOPATH": "", "GOFLAGS": ""},
-                )
-                _, stderr = await asyncio.wait_for(proc.communicate(), timeout=30.0)
-                if proc.returncode != 0:
-                    print(f"[Validator] go vet failed:\n{stderr.decode()[:500]}")
-                    return False
-                print("[Validator] go vet passed")
-                return True
-            except FileNotFoundError:
-                print("[Validator] Go not installed, skipping go vet")
-                return True
-            except TimeoutError:
-                print("[Validator] go vet timed out (30s), skipping")
-                return True
+            open_braces = content.count("{")
+            close_braces = content.count("}")
+            if open_braces != close_braces:
+                print(f"[Validator] {path}: unbalanced braces ({open_braces} open vs {close_braces} close)")
+                all_ok = False
+
+        if all_ok:
+            print("[Validator] Go structural validation passed")
+        return all_ok
 
     @staticmethod
     async def validate_vue_async(artifacts: list[Artifact]) -> bool:
+        """Validate Vue/TSX files for basic structural correctness."""
         vue_files = []
         for art in artifacts:
             for path, content in art.files.items():

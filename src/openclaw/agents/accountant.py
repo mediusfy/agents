@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from pydantic_ai import Agent
 
-from openclaw.config import AgentSettings
+from openclaw.settings import settings
 
 
 @dataclass
@@ -16,7 +16,7 @@ Your job is to manage budgets, calculate expenses, and provide financial advice 
 """
 
 accountant_agent = Agent(
-    AgentSettings.ACCOUNTANT_MODEL,
+    settings.accountant_model,
     deps_type=AccountantDeps,
     system_prompt=accountant_prompt,
     output_type=str,
