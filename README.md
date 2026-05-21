@@ -1,12 +1,16 @@
 # openclaw
 
-A Claude Code plugin that adds a 13-agent SDLC team — from business analysis through architecture, implementation, testing, security, and final governance review, alongside specialized Travel & Finance agents.
+A multi-agent SDLC ecosystem with three layers:
 
-The original Python implementation (pydantic-ai based) still lives under `src/openclaw/` and `main.py`. The Claude Code plugin lives under `.claude-plugin/` and `agents/`. We also provide an MCP server in `src/mcp/mcp_server.py`.
+1. **Claude Code plugin** (`agents/*.md`, `.claude-plugin/`) — 13 SDLC agents + Travel/Finance domain assistants
+2. **opencode agents** (`.opencode/agents/`) — primary/subagent definitions with self-check and cross-review
+3. **pydantic_ai Python agents** (`src/openclaw/agents/`) — runtime agents with structured outputs, tools, and MCP exposure
+
+All AI traffic flows through Logfire for metrics, tracing, and token accounting at https://logfire-eu.pydantic.dev/drew/argus.
 
 ## Agents
 
-### SDLC Agents
+### SDLC Agents (Claude Code + openclaw pipeline)
 | Agent | When to use |
 | --- | --- |
 | `business-analyst` | Convert raw requirements to user stories, bounded contexts, event triggers |
@@ -23,6 +27,22 @@ The original Python implementation (pydantic-ai based) still lives under `src/op
 | `code-reviewer` | Final governance: drift detection against prior ADRs, risk ranking |
 | `docs-writer` | OpenAPI specs, READMEs, runbooks |
 
+### Existing Code Agents (opencode primary + Claude Code rules)
+| Agent / Rule | When to use |
+| --- | --- |
+| `service-coder` (opencode primary) | Modify EXISTING Go services — self-checks, delegates to library-curator, test-generator, code-inspector, functional-tester, architect |
+| `code-inspector` (opencode subagent) | Cross-check: over-engineering, DRY, library misuse, CODING_STANDARDS compliance, pattern drift |
+| `existing-code-workflow` (Claude rule) | Rule activated when modifying existing Go handlers, wiring, or refactoring |
+| `code-inspection` (Claude rule) | Rule activated on "review this code" / "audit" / "quality check" |
+
+### pydantic_ai Runtime Agents (MCP-accessible)
+| Agent | Capability | Description |
+| --- | --- | --- |
+| `service_engineer` | `existing_code`, `implementation` | Modifies existing Go code with read_file/list_directory/gofmt tools. Library-first, DRY, YAGNI. |
+| `go_test_agent` | `go_test`, `go_testing` | Generates table-driven Go tests with testify, mockery, t.Parallel(). |
+| `quality_gate` | `quality_gate`, `review` | Complexity scoring, over-engineering detection. |
+| `review` | `review`, `code_review` | Final governance: security, architecture fit, standards compliance. |
+
 ### Travel & Finance Agents
 | Agent | When to use |
 | --- | --- |
@@ -33,14 +53,29 @@ The original Python implementation (pydantic-ai based) still lives under `src/op
 | `weather` | Accurate weather forecasts, climate summaries, and travel-related weather advice |
 | `accountant` | Manage budgets, calculate expenses, and provide financial advice for travel and general purposes |
 
+## Pipelines
+
+### Scaffold a new service
+```
+main.py --project my-service --requirement "Build a payment processing service"
+```
+Runs: BA → CTO/UX advisory → Backend + Frontend + Database → Test → Security → Quality Gate → Review
+
+### Modify existing code
+```
+modify_existing_code(
+    change_description="Add tracing to ProcessMessage handler in internal/service/message.go",
+    codebase_path="/path/to/service"
+)
+```
+Available as an MCP tool via `openclaw-agents` MCP server, or select the `service-coder` agent in opencode.
+
+Runs: service_engineer → test_eng → quality_gate → review (each validates the previous step)
+
 ## Install
 
-This plugin is a local directory plugin. Two ways to use it:
-
-### Per-project (recommended for trying it out)
-
-Add to the project's `.claude/settings.json`:
-
+### Claude Code plugin
+Add to `~/.claude/settings.json`:
 ```json
 {
   "plugins": {
@@ -51,37 +86,66 @@ Add to the project's `.claude/settings.json`:
 }
 ```
 
-### Globally for all your projects
+### opencode agents
+Project-local agents in `.opencode/agents/` are auto-discovered. Global agents in `~/.config/opencode/agents/` are also supported.
 
-Add to `~/.claude/settings.json` under the same `plugins` key.
+### MCP server
+The `openclaw-agents` MCP server is configured in `~/.config/opencode/opencode.json` and `~/.claude/settings.json`. It exposes `modify_existing_code`, `delegate_to_openclaw_agent`, `run_openclaw_pipeline`, etc.
 
-After installing, restart Claude Code and the subagents appear in `/agents`. Invoke one with e.g. `@backend-engineer scaffold a payments service` or let Claude auto-route based on the `description` field.
+### Environment
+```bash
+# Required for LLM calls
+OPENAI_API_KEY="sk-..."
+ANTHROPIC_API_KEY="sk-ant-..."
+GEMINI_API_KEY="..."
+
+# Required for metrics and tracing
+LOGFIRE_TOKEN="pylf_v2_eu_..."
+
+# Optional overrides
+LOGFIRE_SEND_TO_LOGFIRE=true    # default: true when LOGFIRE_TOKEN is set
+```
 
 ## Layout
 
 ```
 .claude-plugin/
-  plugin.json          # plugin manifest
+  plugin.json                # plugin manifest
+.claude/rules/
+  existing-code-workflow.md  # Claude Code rules for existing code
+  code-inspection.md
+.opencode/agents/
+  service-coder.md           # opencode primary agent for existing code
+  code-inspector.md          # opencode subagent for cross-check
 agents/
-  business-analyst.md  # 13 SDLC subagent definitions
+  business-analyst.md        # 14 SDLC subagent definitions (Claude Code)
   backend-engineer.md
   ...
-src/openclaw/          # original Python pydantic-ai implementation
-src/mcp/               # FastMCP server integrating openclaw via individual entrypoints or Dagster
-main.py
+src/openclaw/                # Python pydantic-ai implementation
+  agents/
+    service_engineer.py      # pydantic_ai agent for existing Go code
+    test_eng.py              # Go table-driven test agent + Playwright agent
+    registration.py          # Centralized agent registration
+  existing_code_handler.py   # Pipeline orchestrator
+  mcp_server.py              # MCP tool: modify_existing_code
+src/mcp/                     # FastMCP server (legacy)
+main.py                      # CLI pipeline entry point
 ```
 
-## Customizing 
+## Logfire Observability
 
-Each `agents/*.md` is a standalone subagent. Edit the system prompt freely; the YAML frontmatter (`name`, `description`, `tools`, `model`) controls how Claude Code discovers and routes to it. Restrict `tools` further if you want a stricter sandbox per agent.
+All pydantic_ai agent runs are auto-instrumented. Every `agent.run()` call produces spans with:
+- Token counts (prompt + completion)
+- Latency per call
+- Model name
+- Structured input/output
+- Error tracking
 
+View at https://logfire-eu.pydantic.dev/drew/argus
 
 ## Troubleshooting
 
 ### Clear Cache
-
-If you encounter a `WARNING: Cache entry deserialization failed, entry ignored` error, you can clear the cache by running the following script from the project root:
-
 ```bash
 ./scripts/clear_cache.sh
 ```
