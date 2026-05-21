@@ -40,17 +40,29 @@ async def delegate_to_openclaw_agent(capability: str, context: str, task: str) -
     """
     Delegate a heavy-lifting engineering task to the OpenClaw autonomous agents.
     Available capabilities: 'requirements_analysis', 'arch_review', 'backend_dev',
-    'frontend_dev', 'infra_advice', 'db_schema', 'service_engineer' (existing code modification),
+    'frontend_dev', 'infra_advice', 'db_schema',
+    'service_engineer' (existing code mods, use modify_existing_code tool instead),
     'go_test' (Go table-driven tests), 'quality_gate' (over-engineering check), etc.
+    For modifying existing code, prefer the 'modify_existing_code' tool.
     """
     from openclaw.a2a import agent_bus
+    from openclaw.agents.registration import register_pipeline_agents
     from openclaw.registry import registry
 
-    registry.autodiscover()
+    register_pipeline_agents()
 
     full_prompt = f"Context from IDE:\n{context}\n\nTask:\n{task}"
+
     result = await agent_bus.query(capability, full_prompt)
-    return result
+    if "No agent found" not in result:
+        return result
+
+    try:
+        agent = registry.get(capability)
+        res = await agent.run(full_prompt)
+        return str(res.data) if hasattr(res, "data") else str(res)
+    except ValueError:
+        return f"No agent found for capability '{capability}'"
 
 
 @mcp.tool()
