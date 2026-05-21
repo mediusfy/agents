@@ -27,12 +27,23 @@ DEFAULT_REQUIREMENT = "Build a payment processing service that handles incoming 
 STEP_CHOICES = ["ba", "backend", "frontend", "test", "sre", "review",
                 "database", "devops", "docs", "security", "all"]
 
+DEFAULT_AGENT_TIMEOUT = 300.0  # seconds
 
-async def run_agent(semaphore: asyncio.Semaphore, agent_name: str, agent, prompt: str, deps: Any = None) -> Any:
+
+async def run_agent(
+    semaphore: asyncio.Semaphore,
+    agent_name: str,
+    agent,
+    prompt: str,
+    deps: Any = None,
+    timeout: float = DEFAULT_AGENT_TIMEOUT,
+) -> Any:
     async with semaphore:
-        if deps is not None:
-            return await telemetry.track(agent_name, agent.run, prompt, deps=deps)
-        return await telemetry.track(agent_name, agent.run, prompt)
+        async def _run():
+            coro = agent.run(prompt, deps=deps) if deps is not None else agent.run(prompt)
+            return await asyncio.wait_for(coro, timeout=timeout)
+
+        return await telemetry.track(agent_name, _run)
 
 
 async def run_ba_stage(semaphore, state: PipelineState, raw_requirements: str, checkpoint_mgr) -> PipelineState:
@@ -106,39 +117,48 @@ async def run_implementation_stage(semaphore, user_stories, max_retries, cto_adv
         logger.info(f"--- Implementation attempt {attempt + 1}/{max_retries} ---")
         artifacts: list[Any] = []
 
-        logger.info("Running Backend, Frontend, Database agents per story...")
-        impl_tasks = []
-
         from openclaw.agents.backend import ProjectState
+        from openclaw.models.core import Artifact
+
         project_state = ProjectState(base_path="/app/default", environment="dev", team_owner="platform-engineering")
 
+        async def run_tagged(sem, agent, prompt, story_id=None, deps=None):
+            try:
+                res = await run_agent(sem, agent, registry.get(agent), prompt, deps=deps)
+                res.data.metadata["user_story_id"] = story_id or "global"
+                return res.data
+            except TimeoutError:
+                logger.error(f"Agent '{agent}' timed out for story {story_id or 'global'}")
+                return None
+            except Exception as e:
+                logger.error(f"Agent '{agent}' failed for story {story_id or 'global'}: {e}")
+                return None
+
+        per_story_tasks = []
         for us in user_stories:
-            impl_tasks.append(run_agent(semaphore, "backend", registry.get("backend"),
-                f"Implement backend for story {us.id}: {us.title}\n{cto_advice}", deps=project_state))
-            impl_tasks.append(run_agent(semaphore, "frontend", registry.get("frontend"),
-                f"Implement frontend for story {us.id}: {us.title}\n{cto_advice}\n{ux_advice}"))
-            impl_tasks.append(run_agent(semaphore, "database", registry.get("database"),
-                f"Generate database schema/migrations for story {us.id}: {us.title}"))
+            per_story_tasks.append(run_tagged(semaphore, "backend",
+                f"Implement backend for story {us.id}: {us.title}\n{cto_advice}",
+                story_id=us.id, deps=project_state))
+            per_story_tasks.append(run_tagged(semaphore, "frontend",
+                f"Implement frontend for story {us.id}: {us.title}\n{cto_advice}\n{ux_advice}",
+                story_id=us.id))
+            per_story_tasks.append(run_tagged(semaphore, "database",
+                f"Generate database schema/migrations for story {us.id}: {us.title}",
+                story_id=us.id))
 
-        impl_tasks.append(run_agent(semaphore, "devops", registry.get("devops"),
-            "Generate CI/CD pipelines and Docker Compose configurations"))
-        impl_tasks.append(run_agent(semaphore, "docs", registry.get("docs"),
-            f"Generate API docs and README for: {raw_requirements}"))
+        global_tasks = [
+            run_tagged(semaphore, "devops", "Generate CI/CD pipelines and Docker Compose configurations"),
+            run_tagged(semaphore, "docs", f"Generate API docs and README for: {raw_requirements}"),
+        ]
 
-        impl_results = await asyncio.gather(*impl_tasks, return_exceptions=True)
+        per_story_results = await asyncio.gather(*per_story_tasks, return_exceptions=True)
+        global_results = await asyncio.gather(*global_tasks, return_exceptions=True)
 
-        story_count = len(user_stories)
-        per_story_count = 3
-        for i, res in enumerate(impl_results):
-            if isinstance(res, Exception):
-                logger.error(f"Implementation agent failed at index {i}: {res}")
-                continue
-            if i < story_count * per_story_count:
-                story_idx = i // per_story_count
-                res.data.metadata["user_story_id"] = user_stories[story_idx].id
-            else:
-                res.data.metadata["user_story_id"] = "global"
-            artifacts.append(res.data)
+        for r in per_story_results + global_results:
+            if isinstance(r, Artifact):
+                artifacts.append(r)
+            elif isinstance(r, Exception):
+                logger.error(f"Implementation task raised: {r}")
 
         logger.info("Running Test agents per story...")
         test_tasks = [
@@ -252,7 +272,14 @@ async def write_artifacts(artifacts, project: str, auto_yes: bool = False, check
         logger.info("User aborted write. Artifacts preserved in checkpoint.")
 
 
-async def main(project: str = "default", step: str = "all", resume: bool = False, auto_yes: bool = False, dry_run: bool = False):
+async def main(
+    project: str = "default",
+    step: str = "all",
+    resume: bool = False,
+    auto_yes: bool = False,
+    dry_run: bool = False,
+    requirement: str | None = None,
+):
     logger.info(f"--- OpenClaw Multi-Agent Ecosystem Pipeline (Project: {project}) ---")
 
     from openclaw.healthcheck import assert_startup_checks
@@ -262,7 +289,7 @@ async def main(project: str = "default", step: str = "all", resume: bool = False
     register_all_agents()
     logger.info(f"Registered agents: {registry.list_agents()}")
 
-    raw_requirements = os.getenv("REQUIREMENT", DEFAULT_REQUIREMENT)
+    raw_requirements = requirement or os.getenv("REQUIREMENT") or DEFAULT_REQUIREMENT
 
     if resume:
         checkpoint_mgr = CheckpointManager(project)
@@ -380,7 +407,4 @@ if __name__ == "__main__":
                         help="Run pipeline with mock data (no LLM calls)")
     args = parser.parse_args()
 
-    if args.requirement:
-        os.environ["REQUIREMENT"] = args.requirement
-
-    asyncio.run(main(args.project, args.step, args.resume, args.yes, args.dry_run))
+    asyncio.run(main(args.project, args.step, args.resume, args.yes, args.dry_run, requirement=args.requirement))

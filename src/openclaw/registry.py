@@ -2,12 +2,9 @@ import asyncio
 import importlib
 import logging
 import pkgutil
-import uuid
 from collections.abc import Callable
 
 from pydantic_ai import Agent
-
-from openclaw.task_queue import Task, task_queue
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +12,7 @@ logger = logging.getLogger(__name__)
 class AgentRegistry:
     def __init__(self):
         self._agents: dict[str, tuple[Agent, list[str], Callable | None, Callable | None]] = {}
+        self._cap_index: dict[str, str] = {}  # capability -> agent_name
         self._initialized: set[str] = set()
 
     def register(
@@ -28,9 +26,14 @@ class AgentRegistry:
         if name in self._agents:
             raise ValueError(f"Agent '{name}' is already registered.")
         self._agents[name] = (agent, capabilities, deps_factory, post_process_hook)
+        for cap in capabilities:
+            self._cap_index[cap] = name
 
     def unregister(self, name: str):
-        self._agents.pop(name, None)
+        agent_tuple = self._agents.pop(name, None)
+        if agent_tuple:
+            for cap in agent_tuple[1]:
+                self._cap_index.pop(cap, None)
         self._initialized.discard(name)
 
     def get(self, name: str) -> Agent:
@@ -67,32 +70,29 @@ class AgentRegistry:
             importlib.import_module(modname)
 
     async def query(self, capability: str, prompt: str, timeout: float | None = None, deps: dict | None = None) -> str:
-        """Query an agent by capability, returning its response as a string."""
-        for _agent_name, (agent, caps, deps_factory, _post_hook) in self._agents.items():
-            if capability in caps:
-                try:
-                    resolved_deps = deps or {}
-                    if deps_factory and not deps:
-                        resolved_deps = deps_factory() if callable(deps_factory) else {}
-                    if timeout:
-                        result = await asyncio.wait_for(agent.run(prompt, deps=resolved_deps), timeout=timeout)
-                    else:
-                        result = await agent.run(prompt, deps=resolved_deps)
-                    return str(result.data) if hasattr(result, "data") else str(result)
-                except TimeoutError:
-                    return f"Agent '{_agent_name}' timed out for capability '{capability}'"
-                except Exception as e:
-                    logger.warning("Agent '%s' failed for capability '%s': %s", _agent_name, capability, e)
-                    return f"Agent error: {e}"
-        return f"No agent found for capability '{capability}'"
+        """Query an agent by capability, returning its response as a string.
 
-    def dispatch_task(self, capability: str, prompt: str, caller_id: str = "root") -> str:
-        """Create a task and publish it to the queue. Returns the task ID."""
-        task_id = str(uuid.uuid4())
-        task = Task(id=task_id, capability=capability, prompt=prompt, caller_id=caller_id)
-        task_queue.publish_task(task)
-        logger.info("Dispatched task %s for capability '%s'.", task_id, capability)
-        return task_id
+        Uses an O(1) capability index instead of linear scan.
+        """
+        agent_name = self._cap_index.get(capability)
+        if agent_name is None:
+            return f"No agent found for capability '{capability}'"
+
+        agent, _caps, deps_factory, _post_hook = self._agents[agent_name]
+        try:
+            resolved_deps = deps or {}
+            if deps_factory and not deps:
+                resolved_deps = deps_factory() if callable(deps_factory) else {}
+            if timeout:
+                result = await asyncio.wait_for(agent.run(prompt, deps=resolved_deps), timeout=timeout)
+            else:
+                result = await agent.run(prompt, deps=resolved_deps)
+            return str(result.data) if hasattr(result, "data") else str(result)
+        except TimeoutError:
+            return f"Agent '{agent_name}' timed out for capability '{capability}'"
+        except Exception as e:
+            logger.warning("Agent '%s' failed for capability '%s': %s", agent_name, capability, e)
+            return f"Agent error: {e}"
 
 
 registry = AgentRegistry()

@@ -10,7 +10,6 @@ AGENT_TOOL_CATEGORIES = {
     "docs": ["web", "documentation", "a2a"],
     "cto": ["search", "memory", "documentation", "a2a"],
     "service_engineer": ["search", "memory", "a2a"],
-    "go_test": ["search", "memory", "a2a"],
     "price_analyst": ["web", "search", "memory", "a2a", "pricing"],
     "holiday_planner": ["web", "search", "memory", "a2a", "planning"],
     "market_shark": ["web", "search", "memory", "a2a", "finance"],

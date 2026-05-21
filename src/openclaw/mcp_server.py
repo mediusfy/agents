@@ -104,8 +104,7 @@ async def run_openclaw_pipeline(project_name: str, requirement: str) -> str:
     """Run the entire multi-agent OpenClaw pipeline end-to-end for a given project requirement."""
     from main import main
 
-    os.environ["REQUIREMENT"] = requirement
-    await main(project=project_name, step="all", resume=False, auto_yes=True)
+    await main(project=project_name, step="all", resume=False, auto_yes=True, requirement=requirement)
     return f"Pipeline completed for {project_name}. Artifacts written to disk."
 
 
@@ -187,8 +186,7 @@ async def scaffold_and_build_service(service_name: str, bounded_context: str, re
     from main import main
 
     requirement = requirement or f"Build a {service_name} service for {bounded_context} bounded context."
-    os.environ["REQUIREMENT"] = requirement
-    await main(project=service_name, step="all", resume=False, auto_yes=True)
+    await main(project=service_name, step="all", resume=False, auto_yes=True, requirement=requirement)
     return f"Service '{service_name}' scaffolding pipeline completed. Artifacts in generated-app/{service_name}/."
 
 

@@ -82,7 +82,3 @@ class CodeValidator:
             CodeValidator.validate_vue_async(artifacts),
         )
         return go_result and vue_result
-
-    @staticmethod
-    def run_all(artifacts: list[Artifact]) -> bool:
-        return asyncio.run(CodeValidator.run_all_async(artifacts))

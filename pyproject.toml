@@ -13,8 +13,7 @@ dependencies = [
     "beautifulsoup4>=4.12,<5.0",
     "certifi",
     "chromadb>=0.4.0,<0.6",
-    "dagster>=1.7.0,<2.0",
-    "dagster-webserver>=1.7.0,<2.0",
+
     "duckduckgo-search>=5.0.0,<7.0",
     "fastapi",
     "google-generativeai",
