@@ -42,7 +42,6 @@ def test_checkpoint_load_corrupt(temp_checkpoint_dir):
 
     loaded_state = manager.load("corrupt")
     assert loaded_state is None
-    # We removed os.remove, so the file should still exist
     assert os.path.exists(filepath)
 
 

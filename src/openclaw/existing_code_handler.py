@@ -54,7 +54,6 @@ async def run_existing_code_pipeline(
     logger.info("=== Existing Code Pipeline ===")
     logger.info("Change: %s", change_description)
 
-    # ── Step 1: Service Engineer ──────────────────────────────────────
     logger.info("Step 1: Service Engineer — implementing changes...")
     try:
         service_engineer = registry.get("service_engineer")
@@ -81,7 +80,6 @@ async def run_existing_code_pipeline(
         result.passed = True
         return result
 
-    # ── Step 2: Tests ─────────────────────────────────────────────────
     if run_tests:
         logger.info("Step 2: Test Engineer — generating tests...")
         try:
@@ -103,7 +101,6 @@ async def run_existing_code_pipeline(
             logger.warning(msg)
             result.errors.append(msg)
 
-    # ── Step 3: Quality Gate ──────────────────────────────────────────
     if run_quality_gate:
         logger.info("Step 3: Quality Gate — checking over-engineering...")
         try:
@@ -133,7 +130,6 @@ async def run_existing_code_pipeline(
             logger.warning(msg)
             result.errors.append(msg)
 
-    # ── Step 4: Review ────────────────────────────────────────────────
     if run_review:
         logger.info("Step 4: Board of Review — final approval...")
         try:
@@ -167,8 +163,7 @@ async def run_existing_code_pipeline(
 
 def format_result_summary(result: ExistingCodeResult) -> str:
     """Format the pipeline result into a human-readable summary."""
-    lines = ["## Existing Code Pipeline Results", ""]
-    lines.append(f"**Status**: {'PASSED' if result.passed else 'FAILED'}")
+    lines = ["## Existing Code Pipeline Results", "", f"**Status**: {'PASSED' if result.passed else 'FAILED'}"]
 
     if result.changed_files:
         lines.append("\n**Changed files**:")

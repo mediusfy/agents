@@ -66,8 +66,6 @@ class AgentRegistry:
         for _importer, modname, _ispkg in pkgutil.iter_modules(package.__path__, prefix):
             importlib.import_module(modname)
 
-    # ── Unified query / dispatch (merged from AgentBus) ────────────────
-
     async def query(self, capability: str, prompt: str, timeout: float | None = None, deps: dict | None = None) -> str:
         """Query an agent by capability, returning its response as a string."""
         for _agent_name, (agent, caps, deps_factory, _post_hook) in self._agents.items():

@@ -27,11 +27,9 @@ async def consolidate_memories_op():
         logger.info("No recent memories to consolidate.")
         return
 
-    # Prepare the prompt for the consolidation agent
     memory_text = "\n".join([mem.content for mem in recent_memories])
     prompt = f"Please consolidate the following recent memories into a concise summary:\n\n{memory_text}"
 
-    # generate the summary
     summary_response = await consolidation_agent.run(prompt)
     summary = str(summary_response.data)
 
