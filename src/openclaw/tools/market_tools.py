@@ -19,7 +19,7 @@ async def get_stock_ticker_data(ctx: RunContext[str], ticker: str) -> str:
         info, asset = await asyncio.to_thread(fetch_info)
 
         if not info or "regularMarketPrice" not in info and "currentPrice" not in info:
-            # Fallback for some cryptos or missing data
+            # Fallback missing data
             hist = await asyncio.to_thread(asset.history, period="1d")
             if not hist.empty:
                 last_price = hist["Close"].iloc[-1]
@@ -61,7 +61,6 @@ async def get_historical_prices(ctx: RunContext[str], ticker: str, period: str =
         if hist.empty:
             return f"No historical data found for {ticker} over period {period}."
 
-        # Return a summarized tabular format of the closing prices
         summary = f"Historical Close Prices for {ticker} ({period}):\n"
         for date, row in hist.iterrows():
             summary += f"{date.strftime('%Y-%m-%d')}: ${row['Close']:.2f}\n"

@@ -38,7 +38,7 @@ def create_agent_runner(agent, deps_class, tool_name: str, docstring: str):
     return mcp.tool(name=tool_name)(agent_runner)
 
 
-# ── Travel & Finance Agent Tools ──────────────────────────────────────
+# ── Travel & Finance Agent Tools
 
 run_holiday_planner = create_agent_runner(
     holiday_planner_agent, HolidayPlannerDeps, "run_holiday_planner", "Invokes the Holiday Planner Agent."
@@ -60,7 +60,7 @@ run_accountant = create_agent_runner(
     accountant_agent, AccountantDeps, "run_accountant", "Invokes the Accountant Agent."
 )
 
-# ── SDLC / Existing Code Tools ───────────────────────────────────────
+# ── SDLC / Existing Code Tools
 
 
 @mcp.tool()

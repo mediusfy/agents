@@ -20,3 +20,7 @@ langchain-huggingface
 langchain-text-splitters
 sentence-transformers
 yfinance
+
+pydantic
+logfire
+mcp
