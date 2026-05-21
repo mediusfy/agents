@@ -1,6 +1,8 @@
+import io
+
 from pyflakes.api import checkPath
 from pyflakes.reporter import Reporter
-import io
+
 
 def lint_python_file(file_path: str) -> str:
     """

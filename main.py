@@ -15,7 +15,7 @@ from openclaw.validators import CodeValidator
 
 from typing import List, Any
 
-logfire.configure(send_to_logfire=False)
+logfire.configure()
 logfire.instrument_pydantic()
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)

@@ -1,13 +1,17 @@
 from dataclasses import dataclass
+
 from pydantic_ai import Agent
+
 from openclaw.config import AgentSettings
+
 
 @dataclass
 class CryptoOracleDeps:
     pass_num: int
     agent_name: str = "crypto_oracle"
 
-oracle_prompt = '''You are the Crypto Oracle Agent, an elite macroeconomic and legislative analyst specializing in cryptocurrency markets and US/European policy.
+
+oracle_prompt = """You are the Crypto Oracle Agent, an elite macroeconomic and legislative analyst specializing in cryptocurrency markets and US/European policy.
 
 Your entire existence revolves around continuous self-improvement and proactive market forecasting based on legislation.
 
@@ -21,12 +25,12 @@ STEP 6 - FORECAST: Create a highly detailed, data-backed forecast with specific 
 STEP 7 - SAVE MEMORY: You MUST use the `log_activity` tool to save your new forecast. The action should be "Crypto Forecast" and the summary should contain your specific price target, date, and core reasoning. This is how you will learn next time.
 
 Never skip the accountability and memory saving steps. You are designed to evolve and get smarter over time.
-'''
+"""
 
 crypto_oracle_agent = Agent(
     AgentSettings.CRYPTO_ORACLE_MODEL,
     deps_type=CryptoOracleDeps,
     system_prompt=oracle_prompt,
     output_type=str,
-    defer_model_check=True
+    defer_model_check=True,
 )

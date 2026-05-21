@@ -1,6 +1,7 @@
 """Tests for the agent registry."""
 
 import pytest
+
 from openclaw.registry import AgentRegistry
 
 
@@ -50,5 +51,6 @@ def test_autodiscover_imports_agents():
     # Agents are accessible via their module-level variables, not self-registered.
     from openclaw.agents.accountant import accountant_agent
     from openclaw.agents.backend import backend_agent
+
     assert accountant_agent is not None
     assert backend_agent is not None

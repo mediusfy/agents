@@ -1,4 +1,5 @@
 from pathlib import Path
+
 from openclaw.exceptions import PathTraversalError
 
 
@@ -10,9 +11,7 @@ def safe_path_join(base: str | Path, *parts: str) -> Path:
     base_resolved = Path(base).resolve()
     full = base_resolved.joinpath(*parts).resolve()
     if not str(full).startswith(str(base_resolved)):
-        raise PathTraversalError(
-            f"Path traversal detected: {'/'.join(parts)} escapes {base}"
-        )
+        raise PathTraversalError(f"Path traversal detected: {'/'.join(parts)} escapes {base}")
     return full
 
 

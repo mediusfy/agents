@@ -1,19 +1,20 @@
 from pathlib import Path
-from typing import List
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
 from openclaw.models.core import (
+    AgentAdvice,
     Artifact,
     EventTrigger,
-    UserStory,
     PipelineState,
-    ReviewResult,
     QualityGateResult,
-    SecurityReport,
-    AgentAdvice,
+    ReviewResult,
     RiskLevel,
+    SecurityReport,
+    UserStory,
 )
+
 
 @pytest.fixture
 def sample_user_story() -> UserStory:
@@ -26,8 +27,9 @@ def sample_user_story() -> UserStory:
         ],
     )
 
+
 @pytest.fixture
-def sample_user_stories(sample_user_story) -> List[UserStory]:
+def sample_user_stories(sample_user_story) -> list[UserStory]:
     return [sample_user_story]
 
 
@@ -39,8 +41,9 @@ def sample_artifact() -> Artifact:
         metadata={"user_story_id": "US-001", "language": "go", "service_name": "payment", "framework": "net/http"},
     )
 
+
 @pytest.fixture
-def sample_artifacts(sample_artifact) -> List[Artifact]:
+def sample_artifacts(sample_artifact) -> list[Artifact]:
     return [sample_artifact]
 
 
@@ -52,6 +55,7 @@ def sample_pipeline_state() -> PipelineState:
         attempt=1,
     )
 
+
 @pytest.fixture
 def sample_review_result_approved() -> ReviewResult:
     return ReviewResult(
@@ -60,6 +64,7 @@ def sample_review_result_approved() -> ReviewResult:
         security_score=85,
         risk_level=RiskLevel.LOW,
     )
+
 
 @pytest.fixture
 def sample_review_result_rejected() -> ReviewResult:
@@ -70,6 +75,7 @@ def sample_review_result_rejected() -> ReviewResult:
         risk_level=RiskLevel.HIGH,
     )
 
+
 @pytest.fixture
 def sample_quality_gate_passed() -> QualityGateResult:
     return QualityGateResult(
@@ -77,6 +83,7 @@ def sample_quality_gate_passed() -> QualityGateResult:
         complexity_score=25,
         feedback=[],
     )
+
 
 @pytest.fixture
 def sample_quality_gate_failed() -> QualityGateResult:
@@ -86,6 +93,7 @@ def sample_quality_gate_failed() -> QualityGateResult:
         feedback=["Over-engineered: unnecessary abstraction layer"],
     )
 
+
 @pytest.fixture
 def sample_security_report_passed() -> SecurityReport:
     return SecurityReport(
@@ -94,6 +102,7 @@ def sample_security_report_passed() -> SecurityReport:
         feedback=[],
     )
 
+
 @pytest.fixture
 def sample_agent_advice() -> AgentAdvice:
     return AgentAdvice(
@@ -101,6 +110,7 @@ def sample_agent_advice() -> AgentAdvice:
         recommendations=["Use NATS with JetStream for persistence"],
         approved_to_proceed=True,
     )
+
 
 @pytest.fixture
 def mock_agent():

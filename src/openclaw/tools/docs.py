@@ -1,5 +1,7 @@
 import os
+
 from pydantic_ai import RunContext
+
 from openclaw.tools.registry import register_tool
 from openclaw.utils import safe_path_join
 

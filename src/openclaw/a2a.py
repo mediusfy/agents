@@ -1,23 +1,26 @@
-import uuid
 import logging
-from typing import Dict, Tuple, List, Optional
+import uuid
+
 from pydantic_ai import Agent
+
 from openclaw.task_queue import Task, task_queue
 
 logger = logging.getLogger(__name__)
 
+
 class AgentBus:
     def __init__(self):
-        #TODO TECHNICAL DEBT
-        #TODO used by workers to load the agent code but will deprecated and replaced by service discovery
-        self.registry: Dict[str, Tuple[Agent, List[str], Optional[callable]]] = {}
+        # TODO TECHNICAL DEBT
+        # TODO used by workers to load the agent code but will deprecated and replaced by service discovery
+        self.registry: dict[str, tuple[Agent, list[str], callable | None]] = {}
 
-    def register(self, agent_name: str, agent: Agent, capabilities: List[str], deps_factory: Optional[callable] = None):
+    def register(self, agent_name: str, agent: Agent, capabilities: list[str], deps_factory: callable | None = None):
         self.registry[agent_name] = (agent, capabilities, deps_factory)
 
-    async def query(self, capability: str, prompt: str, timeout: Optional[float] = None, deps: Optional[dict] = None) -> str:
+    async def query(self, capability: str, prompt: str, timeout: float | None = None, deps: dict | None = None) -> str:
         """Directly query an agent by capability (backward-compatible synchronous-style API)."""
         import asyncio
+
         for agent_name, (agent, caps, deps_factory) in self.registry.items():
             if capability in caps:
                 try:
@@ -28,8 +31,8 @@ class AgentBus:
                         result = await asyncio.wait_for(agent.run(prompt, deps=resolved_deps), timeout=timeout)
                     else:
                         result = await agent.run(prompt, deps=resolved_deps)
-                    return str(result.data) if hasattr(result, 'data') else str(result)
-                except asyncio.TimeoutError:
+                    return str(result.data) if hasattr(result, "data") else str(result)
+                except TimeoutError:
                     return f"Agent '{agent_name}' timed out for capability '{capability}'"
                 except Exception as e:
                     logger.warning(f"Agent '{agent_name}' failed for capability '{capability}': {e}")
@@ -51,5 +54,6 @@ class AgentBus:
         task_queue.publish_task(task)
         logger.info(f"Dispatched task {task_id} for capability '{capability}'.")
         return task_id
+
 
 agent_bus = AgentBus()

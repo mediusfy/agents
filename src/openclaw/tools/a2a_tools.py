@@ -1,6 +1,8 @@
 from pydantic_ai import RunContext
+
 from openclaw.a2a import agent_bus
 from openclaw.tools.registry import register_tool
+
 
 async def discover_agent_capabilities(ctx: RunContext) -> str:
     """Lists all available capabilities that other agents can perform. Use this to find out who to delegate to."""
@@ -11,6 +13,7 @@ async def discover_agent_capabilities(ctx: RunContext) -> str:
     if not caps:
         return "No agents currently registered with capabilities."
     return "Available Agent Capabilities for Delegation:\n" + "\n".join(caps)
+
 
 async def delegate_to_agent(ctx: RunContext, capability: str, prompt: str, context_summary: str) -> str:
     """
@@ -27,5 +30,11 @@ async def delegate_to_agent(ctx: RunContext, capability: str, prompt: str, conte
     )
     return await agent_bus.query(capability, full_prompt, caller_id=f"a2a_tools::{capability}")
 
+
 register_tool("discover_agent_capabilities", discover_agent_capabilities, "Find out what other agents can do.", ["a2a"])
-register_tool("delegate_to_agent", delegate_to_agent, "Delegate a task to a sub-agent with concise context to save tokens.", ["a2a"])
+register_tool(
+    "delegate_to_agent",
+    delegate_to_agent,
+    "Delegate a task to a sub-agent with concise context to save tokens.",
+    ["a2a"],
+)

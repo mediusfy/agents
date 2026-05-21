@@ -1,6 +1,8 @@
-import pytest
 import asyncio
 from unittest.mock import MagicMock
+
+import pytest
+
 from openclaw.a2a import AgentBus
 
 

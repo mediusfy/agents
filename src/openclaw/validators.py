@@ -1,13 +1,13 @@
 import asyncio
 import os
 import tempfile
-from typing import List
+
 from openclaw.models.core import Artifact
 
-class CodeValidator:
 
+class CodeValidator:
     @staticmethod
-    async def validate_go_async(artifacts: List[Artifact]) -> bool:
+    async def validate_go_async(artifacts: list[Artifact]) -> bool:
         go_files = []
         for art in artifacts:
             for path, content in art.files.items():
@@ -31,7 +31,9 @@ class CodeValidator:
 
             try:
                 proc = await asyncio.create_subprocess_exec(
-                    "go", "vet", "./...",
+                    "go",
+                    "vet",
+                    "./...",
                     cwd=tmpdir,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
@@ -46,12 +48,12 @@ class CodeValidator:
             except FileNotFoundError:
                 print("[Validator] Go not installed, skipping go vet")
                 return True
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 print("[Validator] go vet timed out (30s), skipping")
                 return True
 
     @staticmethod
-    async def validate_vue_async(artifacts: List[Artifact]) -> bool:
+    async def validate_vue_async(artifacts: list[Artifact]) -> bool:
         vue_files = []
         for art in artifacts:
             for path, content in art.files.items():
@@ -78,7 +80,7 @@ class CodeValidator:
         return all_ok
 
     @staticmethod
-    async def run_all_async(artifacts: List[Artifact]) -> bool:
+    async def run_all_async(artifacts: list[Artifact]) -> bool:
         go_result, vue_result = await asyncio.gather(
             CodeValidator.validate_go_async(artifacts),
             CodeValidator.validate_vue_async(artifacts),
@@ -86,5 +88,5 @@ class CodeValidator:
         return go_result and vue_result
 
     @staticmethod
-    def run_all(artifacts: List[Artifact]) -> bool:
+    def run_all(artifacts: list[Artifact]) -> bool:
         return asyncio.run(CodeValidator.run_all_async(artifacts))

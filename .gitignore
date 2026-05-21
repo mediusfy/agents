@@ -12,3 +12,6 @@ build/
 .idea
 .claw-vectordb
 .vscode
+.dagmem/
+.mypy_cache/
+.pytest_cache/

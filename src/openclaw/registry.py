@@ -1,22 +1,22 @@
 import importlib
 import pkgutil
-from typing import Dict, Optional, Set, List, Callable, Tuple
+from collections.abc import Callable
+
 from pydantic_ai import Agent
+
 
 class AgentRegistry:
     def __init__(self):
-        self._agents: Dict[
-            str, Tuple[Agent, List[str], Optional[Callable], Optional[Callable]]
-        ] = {}
-        self._initialized: Set[str] = set()
+        self._agents: dict[str, tuple[Agent, list[str], Callable | None, Callable | None]] = {}
+        self._initialized: set[str] = set()
 
     def register(
         self,
         name: str,
         agent: Agent,
-        capabilities: List[str],
-        deps_factory: Optional[Callable] = None,
-        post_process_hook: Optional[Callable] = None,
+        capabilities: list[str],
+        deps_factory: Callable | None = None,
+        post_process_hook: Callable | None = None,
     ):
         if name in self._agents:
             raise ValueError(f"Agent '{name}' is already registered.")
@@ -30,7 +30,7 @@ class AgentRegistry:
         agent_tuple = self._agents.get(name)
         if agent_tuple is None:
             raise ValueError(f"Agent '{name}' is not registered.")
-        
+
         agent = agent_tuple[0]
         if name not in self._initialized:
             self._lazy_init(name, agent)
@@ -40,6 +40,7 @@ class AgentRegistry:
     def _lazy_init(self, name: str, agent: Agent):
         from openclaw.tool_assignments import get_tool_categories
         from openclaw.tools import apply_tools
+
         categories = get_tool_categories(name)
         if categories:
             apply_tools(agent, name, categories)
@@ -52,9 +53,11 @@ class AgentRegistry:
 
     def autodiscover(self):
         import openclaw.agents
+
         package = openclaw.agents
         prefix = package.__name__ + "."
         for _importer, modname, _ispkg in pkgutil.iter_modules(package.__path__, prefix):
             importlib.import_module(modname)
+
 
 registry = AgentRegistry()

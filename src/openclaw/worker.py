@@ -1,19 +1,21 @@
 import asyncio
 import logging
 import signal
+from collections.abc import Callable, Coroutine
 from types import FrameType
-from typing import Any, Callable, Coroutine, Optional, Tuple
+from typing import Any
 
 import logfire
+from pydantic_ai import Agent
+
 from openclaw.config import settings
 from openclaw.critical_actions import CRITICAL_CAPABILITIES
 from openclaw.exceptions import AgentExecutionError, AgentNotFoundError
 from openclaw.memory import long_term_memory
-from pydantic_ai import Agent
 from openclaw.registry import registry
-from openclaw.task_queue import task_queue, Task
+from openclaw.task_queue import Task, task_queue
 
-logfire.configure(send_to_logfire=False)
+logfire.configure()
 logfire.instrument_pydantic()
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -54,9 +56,7 @@ class Worker:
         """
         Orchestrates the processing of a single task.
         """
-        with logfire.span(
-            "worker.process_task", task_id=task.id, capability=task.capability
-        ) as span:
+        with logfire.span("worker.process_task", task_id=task.id, capability=task.capability) as span:
             log.info(
                 "Processing task",
                 extra={"task_id": task.id, "capability": task.capability},
@@ -70,9 +70,7 @@ class Worker:
 
                 prompt = await self._enrich_prompt_with_memory(task.prompt, span)
 
-                result, usage = await self._run_and_validate_with_retries(
-                    agent, prompt, task, post_process_hook
-                )
+                result, usage = await self._run_and_validate_with_retries(agent, prompt, task, post_process_hook)
 
                 await self._handle_success(task, result, usage, span)
 
@@ -84,9 +82,7 @@ class Worker:
                 )
             except Exception as e:
                 span.set_attribute("error", str(e))
-                log.exception(
-                    "Unexpected error processing task", extra={"task_id": task.id}
-                )
+                log.exception("Unexpected error processing task", extra={"task_id": task.id})
 
     def _is_pending_approval(self, task: Task, span) -> bool:
         """Checks for and handles tasks requiring human approval."""
@@ -100,9 +96,7 @@ class Worker:
             return True
         return False
 
-    def _find_agent_for_task(
-        self, task: Task
-    ) -> Tuple[Agent, Optional[Callable[[str], Coroutine[Any, Any, None]]]]:
+    def _find_agent_for_task(self, task: Task) -> tuple[Agent, Callable[[str], Coroutine[Any, Any, None]] | None]:
         """Finds a registered agent and its dependencies for a given task."""
         for agent_name, (
             agent_class,
@@ -124,9 +118,7 @@ class Worker:
 
         context = "Relevant information from past activities:\n"
         context += "\n".join(f"- {mem.content}" for mem in relevant_memories)
-        prompt_with_context = (
-            f"{context}\n---\nOriginal Task:\n{prompt}"
-        )
+        prompt_with_context = f"{context}\n---\nOriginal Task:\n{prompt}"
 
         span.set_attribute("context_size", len(prompt_with_context))
         return prompt_with_context
@@ -136,16 +128,14 @@ class Worker:
         agent: Agent,
         prompt: str,
         task: Task,
-        post_process_hook: Optional[Callable[[str], Coroutine[Any, Any, None]]],
-    ) -> Tuple[str, Optional[dict]]:
+        post_process_hook: Callable[[str], Coroutine[Any, Any, None]] | None,
+    ) -> tuple[str, dict | None]:
         """
         Executes the agent and runs validation, retrying on failure.
         """
         last_error = None
         for attempt in range(settings.max_correction_attempts):
-            with logfire.span(
-                "worker.attempt_task", attempt=attempt + 1
-            ) as attempt_span:
+            with logfire.span("worker.attempt_task", attempt=attempt + 1) as attempt_span:
                 try:
                     res = await agent.run(prompt)
                     result_str = str(res)
@@ -161,8 +151,7 @@ class Worker:
                     if not e.is_retryable:
                         break
                     prompt = (
-                        f"The previous attempt failed with this error: {e}. "
-                        "Please correct the issue and try again."
+                        f"The previous attempt failed with this error: {e}. Please correct the issue and try again."
                     )
 
         raise AgentExecutionError(
@@ -185,7 +174,7 @@ class Worker:
         self,
         task: Task,
         result: str,
-        usage: Optional[dict],
+        usage: dict | None,
         span,
     ):
         """Logs success and adds the interaction to long-term memory."""
@@ -200,7 +189,7 @@ class Worker:
         log.info("Task completed successfully", extra={"task_id": task.id})
 
 
-def handle_shutdown_signal(signum: int, frame: Optional[FrameType]):
+def handle_shutdown_signal(signum: int, frame: FrameType | None):
     """Handles graceful shutdown of the worker."""
     log.info(f"Received signal {signum}, shutting down gracefully...")
     shutdown_event.set()

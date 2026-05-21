@@ -1,17 +1,21 @@
 from dataclasses import dataclass
+
 from pydantic_ai import Agent, RunContext
-from openclaw.models.core import Artifact
+
 from openclaw.config import AgentSettings
+from openclaw.models.core import Artifact
+
 
 @dataclass
 class DevopsDeps:
     pass_num: int = 1
     agent_name: str = "devops"
 
+
 devops_agent = Agent(
     AgentSettings.DEVOPS_MODEL,
     deps_type=DevopsDeps,
-    system_prompt='''You are a Principal DevOps Engineer.
+    system_prompt="""You are a Principal DevOps Engineer.
 Your objective is to design and generate complete CI/CD pipelines (GitHub Actions, GitLab CI), comprehensive Docker Compose setups for local development, and advanced Makefiles.
 Prioritize secure, fast, and repeatable builds.
 Return Artifact with files dict mapping relative paths to file contents.
@@ -21,15 +25,16 @@ CRITICAL WORKFLOW:
 1. **History Review:** Use `query_history` to recall previous architectural and contextual decisions before generating logic.
 2. **Log Progress:** Call `log_activity` after significant actions.
 3. **Proactive Docs:** Keep `docs/` updated via `update_documentation` when implementing major features.
-''',
+""",
     output_type=Artifact,
-    defer_model_check=True
+    defer_model_check=True,
 )
+
 
 @devops_agent.tool
 def generate_github_action(ctx: RunContext[str], service_name: str) -> str:
     """Returns an enterprise-grade GitHub Actions pipeline for a Go service."""
-    return f'''name: {service_name} CI
+    return f"""name: {service_name} CI
 
 on:
   push:
@@ -72,12 +77,13 @@ jobs:
 
       - name: Build binary
         run: go build -o bin/server ./cmd/{service_name}/main.go
-'''
+"""
+
 
 @devops_agent.tool
 def generate_docker_compose(ctx: RunContext[str], service_name: str) -> str:
     """Returns a local Docker Compose setup including PostgreSQL and Redis dependencies."""
-    return f'''version: '3.8'
+    return f"""version: '3.8'
 
 services:
   {service_name}:
@@ -116,12 +122,13 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
-'''
+"""
+
 
 @devops_agent.tool
 def generate_makefile(ctx: RunContext[str], service_name: str) -> str:
     """Returns a standardized Makefile for local development and build automation."""
-    return f'''# Makefile for {service_name}
+    return f"""# Makefile for {service_name}
 
 .PHONY: all build test lint clean docker-up docker-down
 
@@ -149,4 +156,4 @@ docker-up:
 
 docker-down:
 	docker-compose down
-'''
+"""

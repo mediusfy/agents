@@ -1,16 +1,16 @@
-import os
 import json
-import uuid
 import logging
-from typing import Optional
+import os
+import uuid
+
 from openclaw.models.core import PipelineState
 from openclaw.settings import settings
-from openclaw.exceptions import CheckpointError
 
 logger = logging.getLogger(__name__)
 
+
 class CheckpointManager:
-    def __init__(self, project_name: str = "default", run_id: Optional[str] = None):
+    def __init__(self, project_name: str = "default", run_id: str | None = None):
         self.project_name = project_name
         self.checkpoint_dir = os.path.join(str(settings.checkpoint_dir), project_name)
         os.makedirs(self.checkpoint_dir, exist_ok=True)
@@ -30,12 +30,12 @@ class CheckpointManager:
             f.write(data)
         logger.info(f"Checkpoint saved: stage='{stage}' at {os.path.relpath(filepath)}")
 
-    def load(self, stage: str) -> Optional[PipelineState]:
+    def load(self, stage: str) -> PipelineState | None:
         filepath = self._get_filepath(stage)
         if not os.path.exists(filepath):
             return None
         try:
-            with open(filepath, "r") as f:
+            with open(filepath) as f:
                 data = json.load(f)
             try:
                 return PipelineState.model_validate(data)
@@ -55,7 +55,7 @@ class CheckpointManager:
                 count += 1
         logger.info(f"Checkpoints cleared: {count} files for run {self.run_id}")
 
-    def find_latest_run_id(self) -> Optional[str]:
+    def find_latest_run_id(self) -> str | None:
         if not os.path.isdir(self.checkpoint_dir):
             return None
         try:
