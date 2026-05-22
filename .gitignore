@@ -4,6 +4,7 @@ __pycache__/
 .env
 generated-app/
 .claw-checkpoints/
+.pycharm_plugin
 telemetry.jsonl
 *.egg-info/
 dist/
