@@ -12,3 +12,7 @@ build/
 .idea
 .claw-vectordb
 .vscode
+.claude-plugin
+.tmp_*
+.dagmem
+.aivory
