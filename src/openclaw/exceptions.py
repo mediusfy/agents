@@ -16,12 +16,16 @@ class AgentNotFoundError(OpenClawError):
 class AgentExecutionError(OpenClawError):
     """An agent's LLM call or tool execution failed."""
 
+    def __init__(self, message, is_retryable=True):
+        super().__init__(message)
+        self.is_retryable = is_retryable
+
 
 class PipelineError(OpenClawError):
     """Pipeline-level failure that should abort the current run."""
 
 
-class PipelineStepFailed(PipelineError):
+class PipelineStepFailedError(PipelineError):
     """A specific pipeline step failed and cannot be retried."""
 
 

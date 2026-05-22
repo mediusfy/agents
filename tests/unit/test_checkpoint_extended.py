@@ -1,9 +1,8 @@
-"""Extended tests for the checkpoint manager."""
-
-import json
 import time
 from pathlib import Path
+
 import pytest
+
 from openclaw.checkpoint import CheckpointManager
 from openclaw.models.core import PipelineState
 

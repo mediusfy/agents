@@ -1,20 +1,18 @@
-import os
-import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
 from openclaw.models.core import (
+    AgentAdvice,
     Artifact,
     EventTrigger,
-    UserStory,
     PipelineState,
-    ReviewResult,
     QualityGateResult,
-    SecurityReport,
-    AgentAdvice,
+    ReviewResult,
     RiskLevel,
+    SecurityReport,
+    UserStory,
 )
 
 
@@ -31,7 +29,7 @@ def sample_user_story() -> UserStory:
 
 
 @pytest.fixture
-def sample_user_stories(sample_user_story) -> List[UserStory]:
+def sample_user_stories(sample_user_story) -> list[UserStory]:
     return [sample_user_story]
 
 
@@ -45,7 +43,7 @@ def sample_artifact() -> Artifact:
 
 
 @pytest.fixture
-def sample_artifacts(sample_artifact) -> List[Artifact]:
+def sample_artifacts(sample_artifact) -> list[Artifact]:
     return [sample_artifact]
 
 
@@ -114,8 +112,6 @@ def sample_agent_advice() -> AgentAdvice:
     )
 
 
-# ── Mock LLM Agent Fixtures ────────────────────────────────────────────────
-
 @pytest.fixture
 def mock_agent():
     """Returns a configured MagicMock that mimics a pydantic_ai Agent."""
@@ -133,8 +129,6 @@ def mock_agent_result(mock_agent, sample_artifact):
     return mock_agent
 
 
-# ── Temp Directory Fixtures ────────────────────────────────────────────────
-
 @pytest.fixture
 def temp_output_dir(tmp_path) -> Path:
     output_dir = tmp_path / "generated-app"
@@ -146,7 +140,7 @@ def temp_output_dir(tmp_path) -> Path:
 def temp_checkpoint_dir(tmp_path, monkeypatch) -> Path:
     ckpt_dir = tmp_path / ".claw-checkpoints"
     ckpt_dir.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setattr("openclaw.config.AgentSettings.CHECKPOINT_DIR", str(ckpt_dir))
+    monkeypatch.setattr("openclaw.checkpoint.settings.checkpoint_dir", ckpt_dir)
     return ckpt_dir
 
 

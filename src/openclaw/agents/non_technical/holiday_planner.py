@@ -1,20 +1,24 @@
 from dataclasses import dataclass
-from pydantic_ai import Agent, RunContext
-from openclaw.config import AgentSettings
+
+from pydantic_ai import Agent
+
+from openclaw.settings import settings
+
 
 @dataclass
 class HolidayPlannerDeps:
     pass_num: int
     agent_name: str = "holiday_planner"
 
-planner_prompt = '''You are a Holiday Planner Agent.
+
+planner_prompt = """You are a Holiday Planner Agent.
 Your job is to coordinate travel plans, organize itineraries, and ensure a seamless travel experience for the user.
-'''
+"""
 
 holiday_planner_agent = Agent(
-    AgentSettings.HOLIDAY_PLANNER_MODEL,
+    settings.holiday_planner_model,
     deps_type=HolidayPlannerDeps,
     system_prompt=planner_prompt,
     output_type=str,
-    defer_model_check=True
+    defer_model_check=True,
 )

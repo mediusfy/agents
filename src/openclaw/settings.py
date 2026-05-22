@@ -7,8 +7,8 @@ Usage:
     settings.max_retries    # 2 by default
 """
 
-from typing import Optional
 from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,9 +21,9 @@ class Settings(BaseSettings):
     )
 
     #  LLM Provider API Keys
-    openai_api_key: Optional[str] = None
-    anthropic_api_key: Optional[str] = None
-    gemini_api_key: Optional[str] = None
+    openai_api_key: str | None = None
+    anthropic_api_key: str | None = None
+    gemini_api_key: str | None = None
 
     # Agent Model Overrides
     ba_model: str = "gpt-4o-mini"
@@ -49,16 +49,12 @@ class Settings(BaseSettings):
     market_shark_model: str = "gemini-2.0-pro"
     crypto_oracle_model: str = "gemini-2.0-pro"
 
-    # ── Pipeline Configuration
+    # Pipeline Configuration
     output_dir: Path = Path("./generated-app")
     max_retries: int = 2
     max_concurrent_llm_calls: int = 5
     checkpoint_dir: Path = Path("./.claw-checkpoints")
     vector_db_dir: Path = Path("./.claw-vectordb")
-    agent_config_path: str = ""
-
-    # ── Pipeline Runtime
-    requirement: Optional[str] = None
 
 
 settings = Settings()

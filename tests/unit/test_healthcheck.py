@@ -1,6 +1,5 @@
-"""Tests for the startup healthcheck module."""
-
 from unittest.mock import patch
+
 from openclaw.healthcheck import validate_api_keys, validate_directories
 
 

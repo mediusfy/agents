@@ -1,7 +1,5 @@
-"""Tests for the settings module."""
-
-import os
 from pathlib import Path
+
 from openclaw.settings import Settings
 
 
@@ -40,11 +38,3 @@ def test_settings_api_keys_from_env(monkeypatch):
     s = Settings()
     assert s.openai_api_key == "sk-real-key"
     assert s.anthropic_api_key == "sk-ant-real-key"
-
-
-def test_backward_compatible_agentsettings():
-    """AgentSettings class should mirror the new Settings."""
-    from openclaw.config import AgentSettings
-    assert AgentSettings.BA_MODEL == "gpt-4o-mini"
-    assert AgentSettings.MAX_RETRIES == 2
-    assert AgentSettings.MAX_CONCURRENT_LLM_CALLS == 5

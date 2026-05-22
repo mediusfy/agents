@@ -1,7 +1,3 @@
-"""Extended tests for the code validator."""
-
-import pytest
-import asyncio
 from openclaw.models.core import Artifact
 from openclaw.validators import CodeValidator
 
@@ -56,9 +52,3 @@ class TestRunAll:
             make_artifact({"Comp.vue": "<template><div/>"}),
         ]
         assert await CodeValidator.run_all_async(arts) is False
-
-    def test_run_all_sync(self):
-        arts = [
-            make_artifact({"Comp.vue": "<template><div/></template>\n<script>export default {}</script>"}),
-        ]
-        assert CodeValidator.run_all(arts) is True

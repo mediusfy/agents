@@ -1,6 +1,5 @@
-"""Tests for the human-in-the-loop gate."""
-
 from unittest.mock import patch
+
 from openclaw.gates import HumanInTheLoopGate
 from openclaw.models.core import Artifact
 

@@ -1,4 +1,5 @@
 from pathlib import Path
+
 from openclaw.models.core import Artifact
 from openclaw.utils import safe_path_join
 

@@ -15,5 +15,7 @@ build/
 .vscode
 .claude-plugin
 .tmp_*
-.dagmem
 .aivory
+.dagmem/
+.mypy_cache/
+.pytest_cache/

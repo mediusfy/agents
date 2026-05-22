@@ -1,6 +1,8 @@
 import httpx
 from pydantic_ai import RunContext
+
 from openclaw.tools.registry import register_tool
+
 
 async def fetch_url(ctx: RunContext[str], url: str, format: str = "text") -> str:
     try:
@@ -10,6 +12,7 @@ async def fetch_url(ctx: RunContext[str], url: str, format: str = "text") -> str
             content_type = resp.headers.get("content-type", "")
             if "json" in content_type:
                 import json
+
                 return json.dumps(resp.json(), indent=2)
             return resp.text
     except httpx.HTTPStatusError as e:
@@ -18,5 +21,6 @@ async def fetch_url(ctx: RunContext[str], url: str, format: str = "text") -> str
         return f"Request failed for {url}: {e}"
     except Exception as e:
         return f"Unexpected error fetching {url}: {e}"
+
 
 register_tool("fetch_url", fetch_url, "Fetch content from a URL via HTTP GET", ["web", "docs", "research"])
