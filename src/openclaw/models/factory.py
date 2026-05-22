@@ -1,0 +1,72 @@
+"""Model factory for creating pydantic_ai model instances.
+
+Supports multiple providers through a unified interface:
+- Native: returns the model name string, letting pydantic_ai infer the provider
+- deepseek: uses DeepSeek's OpenAI-compatible API
+"""
+
+import logging
+import os
+
+logger = logging.getLogger(__name__)
+
+# Provider prefix to base URL mapping
+PROVIDER_BASE_URLS: dict[str, str] = {
+    "deepseek": "https://api.deepseek.com/v1",
+}
+
+# Provider prefix to API key env var mapping
+PROVIDER_KEY_VARS: dict[str, str] = {
+    "deepseek": "DEEPSEEK_API_KEY",
+}
+
+
+def _get_api_key(provider: str) -> str | None:
+    """Get the API key for a provider from settings or env."""
+    from openclaw.settings import settings
+
+    key_map: dict[str, str | None] = {
+        "deepseek": settings.deepseek_api_key,
+    }
+    return key_map.get(provider)
+
+
+def create_model(model_spec: str):
+    """Create a pydantic_ai model instance from a model spec string.
+
+    Supports two forms:
+    - Plain model name (e.g. "gpt-4o-mini", "claude-sonnet-4-20250514"):
+      returns the string as-is for pydantic_ai's built-in provider inference.
+    - Provider-prefixed (e.g. "deepseek:deepseek-chat"):
+      creates an OpenAIModel pointed at the provider's base URL.
+
+    Returns either a str (for native inference) or a pydantic_ai Model instance.
+    """
+    if ":" not in model_spec:
+        return model_spec  # Native inference
+
+    provider, _, model_name = model_spec.partition(":")
+    provider = provider.lower()
+
+    base_url = PROVIDER_BASE_URLS.get(provider)
+    if not base_url:
+        logger.warning("Unknown provider prefix '%s' in model spec '%s', using native inference", provider, model_spec)
+        return model_spec
+
+    api_key = _get_api_key(provider)
+    if not api_key:
+        logger.warning(
+            "No API key found for provider '%s' (set %s in .env), falling back to native inference",
+            provider,
+            PROVIDER_KEY_VARS.get(provider, f"{provider.upper()}_API_KEY"),
+        )
+        return model_spec
+
+    from pydantic_ai.models.openai import OpenAIChatModel
+    from pydantic_ai.providers.openai import OpenAIProvider
+
+    logger.info("Creating %s model '%s' via %s", provider, model_name, base_url)
+    return OpenAIChatModel(
+        model_name,
+        provider=OpenAIProvider(base_url=base_url, api_key=api_key),
+    )

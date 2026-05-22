@@ -1,5 +1,7 @@
 # **Agent Specification: Test Engineer**
 
+> Superseded by `agents/test-engineer.md` (Claude Code) and `src/openclaw/agents/test_eng.py` (pydantic_ai runtime). This spec is retained for historical ADR context.
+
 ## **1\. Profile Overview**
 
 **Role:** The Quality Gatekeeper & Chaos Specialist  

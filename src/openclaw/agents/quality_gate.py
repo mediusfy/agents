@@ -2,9 +2,10 @@ from pydantic_ai import Agent
 
 from openclaw.models.core import QualityGateResult
 from openclaw.settings import settings
+from openclaw.models.factory import create_model
 
 quality_gate_agent = Agent(
-    settings.review_model,
+    create_model(settings.resolve_model(settings.review_model)),
     system_prompt="""You are the Quality Gate Check Agent. Your job is to perform spot checks on artifacts produced by other agents.
         You must ensure the generated code is not over-engineered.
         Specifically, you should watch out for:

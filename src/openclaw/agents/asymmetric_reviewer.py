@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pydantic_ai import Agent
 
 from openclaw.settings import settings
+from openclaw.models.factory import create_model
 
 
 @dataclass
@@ -17,7 +18,7 @@ reviewer_prompt = """You are an Asymmetric Reviewer Agent.
 """
 
 asymmetric_reviewer_agent = Agent(
-    settings.asymmetric_reviewer_model,
+    create_model(settings.resolve_model(settings.asymmetric_reviewer_model)),
     deps_type=AsymmetricReviewerDeps,
     system_prompt=reviewer_prompt,
     output_type=str,

@@ -1,5 +1,7 @@
 # **Agent Specification: Business Analyst (BA)**
 
+> Superseded by `agents/business-analyst.md` (Claude Code) and `src/openclaw/agents/ba.py` (pydantic_ai runtime). This spec is retained for historical ADR context.
+
 ## **1\. Profile Overview**
 
 **Role:** The Domain Strategist  

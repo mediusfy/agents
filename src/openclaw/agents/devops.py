@@ -4,6 +4,7 @@ from pydantic_ai import Agent, RunContext
 
 from openclaw.models.core import Artifact
 from openclaw.settings import settings
+from openclaw.models.factory import create_model
 
 
 @dataclass
@@ -13,7 +14,7 @@ class DevopsDeps:
 
 
 devops_agent = Agent(
-    settings.devops_model,
+    create_model(settings.resolve_model(settings.devops_model)),
     deps_type=DevopsDeps,
     system_prompt="""You are a Principal DevOps Engineer.
 Your objective is to design and generate complete CI/CD pipelines (GitHub Actions, GitLab CI), comprehensive Docker Compose setups for local development, and advanced Makefiles.

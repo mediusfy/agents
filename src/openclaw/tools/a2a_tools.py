@@ -7,7 +7,7 @@ from openclaw.tools.registry import register_tool
 async def discover_agent_capabilities(ctx: RunContext) -> str:
     """Lists all available capabilities that other agents can perform. Use this to find out who to delegate to."""
     caps = []
-    for name, (_agent, agent_caps, _deps_fac) in registry.items():
+    for name, (_agent, agent_caps, _deps_fac, _post_hook) in registry.items():
         for cap in agent_caps:
             caps.append(f"- Capability: '{cap}' (provided by {name} agent)")
     if not caps:

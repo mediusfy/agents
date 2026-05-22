@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pydantic_ai import Agent
 
 from openclaw.settings import settings
+from openclaw.models.factory import create_model
 
 
 @dataclass
@@ -16,7 +17,7 @@ Your job is to coordinate travel plans, organize itineraries, and ensure a seaml
 """
 
 holiday_planner_agent = Agent(
-    settings.holiday_planner_model,
+    create_model(settings.resolve_model(settings.holiday_planner_model)),
     deps_type=HolidayPlannerDeps,
     system_prompt=planner_prompt,
     output_type=str,

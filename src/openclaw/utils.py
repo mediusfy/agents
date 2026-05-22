@@ -6,7 +6,6 @@ from openclaw.exceptions import PathTraversalError
 
 def safe_path_join(base: str | Path, *parts: str) -> Path:
     """Join path components and verify the result stays within base.
-
     Raises PathTraversalError if the resolved path escapes base.
     """
     base_resolved = Path(base).resolve()

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pydantic_ai import Agent
 
 from openclaw.settings import settings
+from openclaw.models.factory import create_model
 
 
 @dataclass
@@ -16,7 +17,7 @@ Your job is to provide accurate weather forecasts, climate summaries, and travel
 """
 
 weather_agent = Agent(
-    settings.weather_model,
+    create_model(settings.resolve_model(settings.weather_model)),
     deps_type=WeatherDeps,
     system_prompt=weather_prompt,
     output_type=str,

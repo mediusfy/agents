@@ -2,6 +2,7 @@ from pydantic_ai import Agent
 
 from openclaw.planning import Plan
 from openclaw.settings import settings
+from openclaw.models.factory import create_model
 
 system_prompt = """You are a Planner Agent. Your job is to decompose high-level goals into a structured,
 executable multi-step plan. For each step, identify the required agent capability,
@@ -15,7 +16,7 @@ Dependencies define order: if step B depends on step A's output, list A's task I
 # Registration happens in registration.py, not at module level
 
 planner_agent = Agent(
-    settings.cto_model,
+    create_model(settings.resolve_model(settings.cto_model)),
     system_prompt=system_prompt,
     output_type=Plan,
     defer_model_check=True,

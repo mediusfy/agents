@@ -1,5 +1,7 @@
 # **Agent Specification: Board of Review**
 
+> Superseded by `agents/code-reviewer.md` (Claude Code) and `src/openclaw/agents/review.py` (pydantic_ai runtime). This spec is retained for historical ADR context.
+
 ## **1\. Profile Overview**
 
 **Role:** The Final Authority (Governance & Risk)  

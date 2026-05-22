@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pydantic_ai import Agent
 
 from openclaw.settings import settings
+from openclaw.models.factory import create_model
 
 
 @dataclass
@@ -16,7 +17,7 @@ Your job is to analyze geographical regions based on various factors like safety
 """
 
 region_analyzer_agent = Agent(
-    settings.region_analyzer_model,
+    create_model(settings.resolve_model(settings.region_analyzer_model)),
     deps_type=RegionAnalyzerDeps,
     system_prompt=analyzer_prompt,
     output_type=str,

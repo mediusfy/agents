@@ -1,5 +1,7 @@
 # **Agent Specification: SRE (Infrastructure)**
 
+> Superseded by `agents/sre-engineer.md` (Claude Code) and `src/openclaw/agents/sre.py` (pydantic_ai runtime). This spec is retained for historical ADR context.
+
 ## **1\. Profile Overview**
 
 **Role:** The Reliability Guardian & Platform Orchestrator  

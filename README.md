@@ -16,7 +16,7 @@ All AI traffic flows through Logfire for metrics, tracing, and token accounting 
 | `business-analyst` | Convert raw requirements to user stories, bounded contexts, event triggers |
 | `cto` | Pre-implementation architecture review, ADR discipline, hard constraints |
 | `ux-designer` | UX/accessibility review before frontend work begins |
-| `backend-engineer` | Go 1.26+ hexagonal services, gRPC, NATS/Kafka, OpenTelemetry |
+| `backend-engineer` | Go 1.25+ hexagonal services, gRPC, NATS/Kafka, OpenTelemetry |
 | `frontend-engineer` | Vue 3 + Composition API + TSX, WCAG 2.1 AA, real-time event bus UI |
 | `database-engineer` | PostgreSQL migrations, indexing, Redis caching |
 | `devops-engineer` | CI/CD (GitHub Actions / GitLab CI), Docker Compose, Makefiles |
@@ -26,6 +26,7 @@ All AI traffic flows through Logfire for metrics, tracing, and token accounting 
 | `quality-gate` | Over-engineering detector with complexity scoring |
 | `code-reviewer` | Final governance: drift detection against prior ADRs, risk ranking |
 | `docs-writer` | OpenAPI specs, READMEs, runbooks |
+| `planner-agent` | Break high-level goals into detailed step-by-step plans |
 
 ### Existing Code Agents (opencode primary + Claude Code rules)
 | Agent / Rule | When to use |
@@ -38,10 +39,26 @@ All AI traffic flows through Logfire for metrics, tracing, and token accounting 
 ### pydantic_ai Runtime Agents (MCP-accessible)
 | Agent | Capability | Description |
 | --- | --- | --- |
-| `service_engineer` | `existing_code`, `implementation` | Modifies existing Go code with read_file/list_directory/gofmt tools. Library-first, DRY, YAGNI. |
-| `go_test_agent` | `go_test`, `go_testing` | Generates table-driven Go tests with testify, mockery, t.Parallel(). |
-| `quality_gate` | `quality_gate`, `review` | Complexity scoring, over-engineering detection. |
-| `review` | `review`, `code_review` | Final governance: security, architecture fit, standards compliance. |
+| `ba` | `requirements_analysis` | Business analysis, user stories, bounded contexts, event triggers |
+| `backend` | `backend_dev` | Go hexagonal services, gRPC, NATS/Kafka, OpenTelemetry |
+| `frontend` | `frontend_dev` | Vue 3 + Composition API + TSX, WCAG 2.1 AA, real-time event bus UI |
+| `database` | `db_schema` | PostgreSQL migrations, indexing, Redis caching |
+| `devops` | `ci_cd` | CI/CD (GitHub Actions / GitLab CI), Docker Compose, Makefiles |
+| `sre` | `infrastructure` | Terraform/OpenTofu + Crossplane, GitOps, multi-region K8s |
+| `security` | `security_audit` | OWASP Top 10 audit, secrets scanning, structured findings |
+| `test_eng` | `go_test`, `playwright_test` | Table-driven Go tests + BDD Playwright |
+| `quality_gate` | `quality_gate` | Complexity scoring, over-engineering detection |
+| `review` | `code_review` | Final governance: security, architecture fit, standards compliance |
+| `service_engineer` | `existing_code` | Modifies existing Go code with read_file/list_directory/gofmt tools |
+| `planner_agent` | `task_planning` | Break high-level goals into executable task plans |
+| `cto` | `arch_review` | Pre-implementation architecture pressure-test |
+| `ux` | `ux_review` | UX/accessibility review before frontend work |
+| `docs` | `docs_generation` | OpenAPI specs, READMEs, runbooks |
+| `accountant` | `finance` | Budget management, expense calculation |
+| `weather` | `weather` | Weather forecasts and climate summaries |
+| `region_analyzer` | `region_analysis` | Geographical region safety/cost analysis |
+| `asymmetric_reviewer` | `legal_review` | Legal/corporate travel savings analysis |
+| `current_events` | `current_events` | News/historical context |
 
 ### Travel & Finance Agents
 | Agent | When to use |
@@ -152,12 +169,15 @@ agents/
   ...
 src/openclaw/                # Python pydantic-ai implementation
   agents/
-    service_engineer.py      # pydantic_ai agent for existing Go code
+    ba.py                    # Business analyst agent
+    backend.py               # Go backend service engineer
+    frontend.py              # Vue 3 frontend engineer
     test_eng.py              # Go table-driven test agent + Playwright agent
+    service_engineer.py      # pydantic_ai agent for existing Go code
     registration.py          # Centralized agent registration
+    ...                      # All SDLC + travel/finance agents
   existing_code_handler.py   # Pipeline orchestrator
   mcp_server.py              # MCP tool: modify_existing_code
-src/mcp/                     # FastMCP server (legacy)
 main.py                      # CLI pipeline entry point
 ```
 

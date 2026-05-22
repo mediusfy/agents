@@ -1,5 +1,7 @@
 # OpenClaw Agent Ecosystem — Implementation Plan
 
+> **Note:** This document reflects the original implementation plan and historical architecture intent. Some details (file paths, model assignments, agent count) are out of date. For current architecture refer to `README.md`, `agents/*.md`, and `src/openclaw/`. Retained as reference for ADR context.
+
 ## Overview
 
 Build 6 domain-specific AI agents that generate production-grade application code. The agents are orchestrated by OpenClaw in a pipeline: **BA → Backend + Frontend → Test → SRE → Review**. Artifacts stay in-memory until the Review agent approves, then are written to disk.
@@ -424,18 +426,14 @@ OpenClaw executes pipeline (step by step):
 ### Retry on Rejection (Orchestrated by OpenClaw)
 
 ```python
-# OpenClaw manages retry logic at the orchestrator level
 MAX_RETRIES = 2
 for attempt in range(MAX_RETRIES):
-    # OpenClaw invokes the full pipeline or targeted agents
     review = await review_agent.run(...)
     if review.data.approved:
         OpenClaw.write_artifacts(artifacts)
         break
     if attempt < MAX_RETRIES - 1:
-        # OpenClaw injects review feedback into agent prompts
         print(f"Attempt {attempt+1} rejected. Re-generating with feedback...")
-        # OpenClaw can choose to re-run specific agents, not the full pipeline
         artifacts = await OpenClaw.re_generate(artifacts, review.data.feedback)
 ```
 

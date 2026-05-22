@@ -1,5 +1,7 @@
 # **Agent Specification: Backend Go Engineer**
 
+> Superseded by `agents/backend-engineer.md` (Claude Code) and `src/openclaw/agents/backend.py` (pydantic_ai runtime). This spec is retained for historical ADR context.
+
 ## **1\. Profile Overview**
 
 **Role:** The Systems Architect  

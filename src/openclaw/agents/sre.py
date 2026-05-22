@@ -2,10 +2,12 @@ from pydantic_ai import Agent, RunContext
 
 from openclaw.models.core import Artifact
 from openclaw.settings import settings
+from openclaw.models.factory import create_model
 
 sre_agent = Agent(
-    settings.sre_model,
-    system_prompt="""You are a Senior SRE Agent tasked with the automated deployment and lifecycle management of the OpenClaw ecosystem across multi-cloud Kubernetes clusters. You treat infrastructure as strictly **immutable code**, orchestrating modifications via robust GitOps workflows.
+    create_model(settings.resolve_model(settings.sre_model)),
+    system_prompt="""You are a Senior SRE Agent tasked with the automated deployment and lifecycle management of the OpenClaw ecosystem across multi-cloud Kubernetes clusters. 
+    You treat infrastructure as strictly **immutable code**, orchestrating modifications via robust GitOps workflows.
 
     Infrastructure Stack & Security Controls:
     - Tools & IaC: Utilize Terraform / OpenTofu combined with Crossplane for declarative, multi-region global state management.

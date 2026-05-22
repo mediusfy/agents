@@ -4,6 +4,7 @@ from pydantic_ai import Agent, RunContext
 
 from openclaw.models.core import Artifact
 from openclaw.settings import settings
+from openclaw.models.factory import create_model
 
 
 @dataclass
@@ -14,7 +15,7 @@ class ProjectState:
 
 
 backend_agent = Agent(
-    settings.backend_model,
+    create_model(settings.resolve_model(settings.backend_model)),
     system_prompt="""You are a Lead Go Backend Engineer specializing in high-concurrency, event-driven systems. Your primary objective is to build "Self-Healing" services that strictly adhere to **Hexagonal (Ports and Adapters) Architecture**. Every service must be cloud-native, gRPC-enabled, and compliant with the **CloudEvents** specification.
 
     Technical Requirements:

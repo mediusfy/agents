@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pydantic_ai import Agent
 
 from openclaw.settings import settings
+from openclaw.models.factory import create_model
 
 
 @dataclass
@@ -28,7 +29,7 @@ Never skip the accountability and memory saving steps. You are designed to evolv
 """
 
 crypto_oracle_agent = Agent(
-    settings.crypto_oracle_model,
+    create_model(settings.resolve_model(settings.crypto_oracle_model)),
     deps_type=CryptoOracleDeps,
     system_prompt=oracle_prompt,
     output_type=str,

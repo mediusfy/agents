@@ -1,5 +1,7 @@
 # **Agent Specification: Frontend Engineer**
 
+> Superseded by `agents/frontend-engineer.md` (Claude Code) and `src/openclaw/agents/frontend.py` (pydantic_ai runtime). This spec is retained for historical ADR context.
+
 ## **1\. Profile Overview**
 
 **Role:** The UX & Accessibility Specialist  

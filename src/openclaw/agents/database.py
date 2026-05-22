@@ -4,6 +4,7 @@ from pydantic_ai import Agent, RunContext
 
 from openclaw.models.core import Artifact
 from openclaw.settings import settings
+from openclaw.models.factory import create_model
 
 
 @dataclass
@@ -13,7 +14,7 @@ class DatabaseDeps:
 
 
 database_agent = Agent(
-    settings.database_model,
+    create_model(settings.resolve_model(settings.database_model)),
     deps_type=DatabaseDeps,
     system_prompt="""You are a Senior Database Engineer.
 Your objective is to generate optimal SQL migrations, schema DDL, Redis/Cache configurations, and data seeding scripts.

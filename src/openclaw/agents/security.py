@@ -4,6 +4,7 @@ from pydantic_ai import Agent
 
 from openclaw.models.core import SecurityReport
 from openclaw.settings import settings
+from openclaw.models.factory import create_model
 
 
 @dataclass
@@ -13,7 +14,7 @@ class SecurityDeps:
 
 
 security_agent = Agent(
-    settings.security_model,
+    create_model(settings.resolve_model(settings.security_model)),
     deps_type=SecurityDeps,
     system_prompt="""You are a Principal Security Engineer.
     Your objective is to comprehensively audit generated code for OWASP Top 10 vulnerabilities, hardcoded secrets, SQL injection, XSS, and insecure defaults.

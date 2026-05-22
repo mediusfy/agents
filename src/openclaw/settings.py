@@ -24,6 +24,16 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
     gemini_api_key: str | None = None
+    deepseek_api_key: str | None = None
+
+    # Provider override — set to "deepseek" to use DeepSeek for all agents.
+    # When set, all model names are automatically prefixed with "deepseek:".
+    model_provider: str | None = None
+
+    # Redis IRIS Memory Backend
+    redis_iris_url: str | None = None
+    redis_iris_store_id: str | None = None
+    redis_iris_token: str | None = None
 
     # Agent Model Overrides
     ba_model: str = "gpt-4o-mini"
@@ -55,6 +65,32 @@ class Settings(BaseSettings):
     max_concurrent_llm_calls: int = 5
     checkpoint_dir: Path = Path("./.claw-checkpoints")
     vector_db_dir: Path = Path("./.claw-vectordb")
+
+    def resolve_model(self, model_name: str) -> str:
+        """Apply the model_provider prefix if configured.
+
+        When MODEL_PROVIDER=deepseek, 'gpt-4o-mini' becomes 'deepseek:deepseek-chat'.
+        Maps common model families to their DeepSeek equivalents.
+        """
+        provider = self.model_provider
+        if not provider:
+            return model_name
+        if ":" in model_name:
+            return model_name  # Already has a provider prefix
+        if provider == "deepseek":
+            # Map common models to DeepSeek equivalents
+            mapping = {
+                "gpt-4o-mini": "deepseek-chat",
+                "gpt-4o": "deepseek-chat",
+                "gpt-4": "deepseek-chat",
+                "claude-sonnet-4-20250514": "deepseek-chat",
+                "claude-3": "deepseek-chat",
+                "gemini-2.0-flash": "deepseek-chat",
+                "gemini-2.0-pro": "deepseek-chat",
+            }
+            resolved = mapping.get(model_name, "deepseek-chat")
+            return f"{provider}:{resolved}"
+        return model_name
 
 
 settings = Settings()

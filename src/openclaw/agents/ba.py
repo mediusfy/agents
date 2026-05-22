@@ -2,6 +2,7 @@ from pydantic_ai import Agent, RunContext
 
 from openclaw.models.core import EventTrigger, UserStory
 from openclaw.settings import settings
+from openclaw.models.factory import create_model
 
 ba_prompt = """You are a Senior Business Analyst Agent focused on **Domain-Driven Design (DDD)**. Your objective is to translate high-level project goals into structured technical requirements and define "Bounded Contexts" for the OpenClaw ecosystem to ensure engineering agents build robust, non-monolithic architectures.
 
@@ -11,21 +12,21 @@ Requirements Standards:
 - Constraints: Explicitly capture and document multi-cloud constraints, emphasizing data residency laws and regional network latency.
 """
 
-ba_agent = Agent(settings.ba_model, system_prompt=ba_prompt, output_type=list[UserStory], defer_model_check=True)
+ba_agent = Agent(create_model(settings.resolve_model(settings.ba_model)), system_prompt=ba_prompt, output_type=list[UserStory], defer_model_check=True)
 
-extractor = Agent(settings.ba_model, system_prompt=ba_prompt, output_type=list[UserStory], defer_model_check=True)
-event_mapper = Agent(settings.ba_model, system_prompt=ba_prompt, output_type=list[EventTrigger], defer_model_check=True)
+extractor = Agent(create_model(settings.resolve_model(settings.ba_model)), system_prompt=ba_prompt, output_type=list[UserStory], defer_model_check=True)
+event_mapper = Agent(create_model(settings.resolve_model(settings.ba_model)), system_prompt=ba_prompt, output_type=list[EventTrigger], defer_model_check=True)
 
 
 @ba_agent.tool
 async def define_user_stories(ctx: RunContext[str], raw_requirements: str) -> list[UserStory]:
     """Converts raw text requirements into structured UserStory models using an LLM."""
     res = await extractor.run(f"Extract user stories from: {raw_requirements}")
-    return res.data
+    return res.output
 
 
 @ba_agent.tool
 async def map_event_triggers(ctx: RunContext[str], story_id: str, gherkin: str) -> list[EventTrigger]:
     """Identifies specific events necessary for the Go backend and QA automation pipelines."""
     res = await event_mapper.run(f"Identify event triggers for story {story_id} with gherkin: {gherkin}")
-    return res.data
+    return res.output

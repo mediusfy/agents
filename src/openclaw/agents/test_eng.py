@@ -3,6 +3,7 @@ from pydantic_ai import Agent, RunContext
 
 from openclaw.models.core import Artifact
 from openclaw.settings import settings
+from openclaw.models.factory import create_model
 
 # ── Playwright / BDD Test Agent (existing) ──────────────────────────────
 
@@ -14,21 +15,21 @@ Testing Strategy & Execution:
 - Test Coverage: Guarantee 100% test coverage mapping back to the event-driven triggers outlined by the Business Analyst.
 """
 
-test_eng_agent = Agent(settings.test_model, system_prompt=test_prompt, output_type=Artifact, defer_model_check=True)
+test_eng_agent = Agent(create_model(settings.resolve_model(settings.test_model)), system_prompt=test_prompt, output_type=Artifact, defer_model_check=True)
 
 
 class TestOutput(BaseModel):
     code: str
 
 
-test_gen = Agent(settings.test_model, system_prompt=test_prompt, output_type=TestOutput, defer_model_check=True)
+test_gen = Agent(create_model(settings.resolve_model(settings.test_model)), system_prompt=test_prompt, output_type=TestOutput, defer_model_check=True)
 
 
 @test_eng_agent.tool
 async def generate_test_suite(ctx: RunContext[str], user_story_gherkin: str) -> str:
     """Converts Gherkin to Playwright TypeScript tests: data-testid selectors, async/await, page object pattern, backend event validation."""
     res = await test_gen.run(f"Write a playwright test for {user_story_gherkin}.")
-    return res.data.code
+    return res.output.code
 
 
 # ── Go Table-Driven Test Agent (new for existing code) ──────────────────
@@ -72,7 +73,7 @@ class GoTestOutput(BaseModel):
 
 
 go_test_agent = Agent(
-    settings.test_model, system_prompt=go_test_prompt, output_type=GoTestOutput, defer_model_check=True
+    create_model(settings.resolve_model(settings.test_model)), system_prompt=go_test_prompt, output_type=GoTestOutput, defer_model_check=True
 )
 
 
@@ -83,4 +84,4 @@ async def generate_go_table_driven_tests(ctx: RunContext[str], source_file: str,
         f"Generate table-driven tests for the function '{function_name}' in {source_file}.\n"
         f"Read {source_file} first to understand the function signature and dependencies."
     )
-    return f"{res.data.filepath}\n```go\n{res.data.code}\n```"
+    return f"{res.output.filepath}\n```go\n{res.output.code}\n```"

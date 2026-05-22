@@ -190,7 +190,7 @@ class TestAddMemory:
         assert collection_name == "test_collection"
         assert documents == ["hello world"]
         assert metadatas[0]["content"] == "hello world"
-        assert metadatas[0]["metadata"] == {"key": "val"}
+        assert metadatas[0]["metadata.key"] == "val"
         # doc_id contains a hash prefix of the content
         expected_hash = hashlib.md5(b"hello world").hexdigest()[:12]
         assert expected_hash in doc_ids[0]
