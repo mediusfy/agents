@@ -3,6 +3,7 @@ import importlib
 import logging
 import pkgutil
 from collections.abc import Callable
+from typing import Any
 
 from pydantic_ai import Agent
 
@@ -36,7 +37,7 @@ class AgentRegistry:
                 self._cap_index.pop(cap, None)
         self._initialized.discard(name)
 
-    def get(self, name: str) -> Agent:
+    def get(self, name: str) -> Any:
         agent_tuple = self._agents.get(name)
         if agent_tuple is None:
             raise ValueError(f"Agent '{name}' is not registered.")
@@ -84,10 +85,12 @@ class AgentRegistry:
             if deps_factory and not deps:
                 resolved_deps = deps_factory() if callable(deps_factory) else {}
             if timeout:
-                result = await asyncio.wait_for(agent.run(prompt, deps=resolved_deps), timeout=timeout)
+                result = await asyncio.wait_for(agent.run(prompt, deps=resolved_deps), timeout=timeout)  # type: ignore
             else:
-                result = await agent.run(prompt, deps=resolved_deps)
-            return str(result.data) if hasattr(result, "data") else str(result)
+                result = await agent.run(prompt, deps=resolved_deps)  # type: ignore
+            if hasattr(result, "data"):
+                return str(result.data)
+            return str(result.output) if hasattr(result, "output") else str(result)
         except TimeoutError:
             return f"Agent '{agent_name}' timed out for capability '{capability}'"
         except Exception as e:

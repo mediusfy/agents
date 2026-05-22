@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class ExistingCodeResult:
     """Result of an existing code modification pipeline run."""
 
-    passed: bool
+    passed: bool = False
     changed_files: list[str] = field(default_factory=list)
     artifacts: list[Artifact] = field(default_factory=list)
     test_files: list[str] = field(default_factory=list)
@@ -64,7 +64,7 @@ async def run_existing_code_pipeline(
             f"Understand the patterns before modifying. Return ONLY the changed files."
         )
         eng_result = await service_engineer.run(eng_prompt)
-        eng_artifact = eng_result.data
+        eng_artifact = eng_result.output
         result.artifacts.append(eng_artifact)
         result.changed_files = list(eng_artifact.files.keys())
         logger.info("Changed files: %s", result.changed_files)
@@ -92,9 +92,9 @@ async def run_existing_code_pipeline(
                 f"then generate table-driven tests."
             )
             test_result = await test_eng.run(test_prompt)
-            if hasattr(test_result.data, "files"):
-                result.artifacts.append(test_result.data)
-                result.test_files = list(test_result.data.files.keys())
+            if hasattr(test_result.output, "files"):
+                result.artifacts.append(test_result.output)
+                result.test_files = list(test_result.output.files.keys())
                 logger.info("Test files: %s", result.test_files)
         except Exception as e:
             msg = f"Test Engineer failed: {e}"
@@ -113,7 +113,7 @@ async def run_existing_code_pipeline(
                 f"{qg_preview}"
             )
             qg_result = await quality_gate.run(qg_prompt)
-            qg_data = qg_result.data
+            qg_data = qg_result.output
             result.quality_gate_score = qg_data.complexity_score
             result.quality_gate_feedback = qg_data.feedback
             logger.info(
@@ -141,7 +141,7 @@ async def run_existing_code_pipeline(
                 f"and CODING_STANDARDS compliance.\n\n{review_preview}"
             )
             review_result = await review.run(review_prompt)
-            review_data = review_result.data
+            review_data = review_result.output
             result.review_approved = review_data.approved
             result.review_risk = review_data.risk_level.value
             logger.info(

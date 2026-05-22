@@ -68,8 +68,16 @@ Before declaring done, run through this checklist:
 | Tests compile | `go test ./...` — at least compiles |
 | Handler thinness | Handlers parse → delegate → respond; no business logic |
 
-### 2.5 Cross-Check (Delegate to Subagents)
-After you finish implementing and self-checking, **delegate to these subagents in order**:
+### 2.5 Final Verification (Before Declaring Done)
+
+**Before saying done**, you MUST run both:
+1. `make test` — all tests must pass
+2. `make run` (or `make run-dry-run`) — the pipeline must start and run to completion
+
+If either fails, fix the issue before proceeding.
+
+### 2.6 Cross-Check (Delegate to Subagents)
+After you finish implementing, self-checking, and verifying with `make test && make run`, **delegate to these subagents in order**:
 
 1. **`library-curator`** — "Review the changes I just made. Is there any custom logic that should be replaced with a standard library or already-imported dependency?"
 2. **`test-generator`** — "Review the test coverage for the changes I made. Write any missing table-driven tests. Use testify, mockery, t.Parallel()."

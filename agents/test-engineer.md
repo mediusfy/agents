@@ -56,6 +56,14 @@ When you detect missing unit tests for backend code or inadequate coverage:
 - Reference CODING_STANDARDS.md §1.8 as the violated standard
 - Flag the backend-engineer as needing to add tests or this agent as needing a test pass
 
+## Final Verification
+
+**Before declaring a task complete**, you MUST run:
+1. `make test` — all tests must pass (including any new tests you wrote)
+2. `make run` (or `make run-dry-run`) — the pipeline must start and run to completion
+
+If either fails, fix the issue before saying done.
+
 ## Output
 
 - Go test files following the table-driven pattern

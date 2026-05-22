@@ -2,12 +2,18 @@ VENV = .venv
 PYTHON = $(VENV)/bin/python3
 PIP = $(VENV)/bin/pip
 
+# Fallback to system Python on CI where .venv doesn't exist
+ifeq ($(wildcard $(VENV)),)
+    PYTHON = python3
+    PIP = pip3
+endif
+
 ifneq (,$(wildcard .env))
     include .env
     export
 endif
 
-.PHONY: all mcp run run-resume run-dry-run setup clean test lint
+.PHONY: all mcp run run-resume run-dry-run setup clean test lint build
 
 PROJECT ?= default
 
@@ -35,17 +41,20 @@ run-dry-run: $(VENV)
 	$(PYTHON) main.py --project $(PROJECT) --dry-run --yes
 	@echo "=== Dry run complete ==="
 
-test: $(VENV)
+test:
 	@echo "=== Running tests ==="
 	$(PYTHON) -m pytest tests/ -v --cov=src/openclaw --cov-report=term-missing
 	@echo "=== Tests complete ==="
 
-lint: $(VENV)
+lint:
 	@echo "=== Running lint ==="
 	$(PYTHON) -m ruff check src/ tests/
 	$(PYTHON) -m ruff format --check src/ tests/
 	$(PYTHON) -m mypy src/openclaw
 	@echo "=== Lint passed ==="
+
+build:
+	$(PYTHON) -c "import openclaw; print('Build OK')"
 
 $(VENV):
 	python3 -m venv $(VENV)

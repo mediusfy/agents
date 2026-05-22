@@ -45,6 +45,14 @@ For each artifact, run these checks (using Grep/Bash tools):
 - Include in each finding: `file:line`, `section violated`, `evidence` (offending snippet), `responsible_agent`.
 - If you find a pattern that is technically valid but contrary to the standards document's intent, flag it as a **style drift** finding.
 
+## Final Verification Check
+
+When reviewing, verify that the implementing agent ran both:
+1. `make test` — tests pass
+2. `make run` (or `make run-dry-run`) — pipeline runs to completion
+
+If there is no evidence these were run, flag it as a blocking finding.
+
 ## Output
 
 Return a `ReviewResult`:
