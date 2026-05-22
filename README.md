@@ -92,6 +92,35 @@ Project-local agents in `.opencode/agents/` are auto-discovered. Global agents i
 ### MCP server
 The `openclaw-agents` MCP server is configured in `~/.config/opencode/opencode.json` and `~/.claude/settings.json`. It exposes `modify_existing_code`, `delegate_to_openclaw_agent`, `run_openclaw_pipeline`, etc.
 
+For Claude, the tool configuration in `settings.json` should be:
+```json
+{
+  "tools": {
+    "openclaw-agents": {
+      "command": "bash",
+      "args": [
+        "/Users/jocham/programming/agents/mcp_run.sh"
+      ]
+    }
+  }
+}
+```
+
+For opencode, the configuration in `opencode.json` should be:
+```json
+{
+  "mcpServers": {
+    "openclaw-agents": {
+      "command": "bash",
+      "args": [
+        "/Users/jocham/programming/agents/mcp_run.sh"
+      ]
+    }
+  }
+}
+```
+Make sure the path to `mcp_run.sh` is correct for your system.
+
 ### Environment
 ```bash
 # Required for LLM calls

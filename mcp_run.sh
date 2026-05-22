@@ -12,17 +12,6 @@ export DAGSTER_HOME=$(pwd)/.dagmem
 
 mkdir -p "$DAGSTER_HOME"
 
-echo "Starting MCP server (SSE mode)..."
-uvicorn openclaw.mcp_server:mcp.sse_app --host 0.0.0.0 --port 8002 &
-MCP_PID=$!
-
-echo "MCP Server running on port 8002 (PID: $MCP_PID)"
-
-cleanup() {
-    echo "Shutting down services..."
-    kill $MCP_PID 2>/dev/null || true
-}
-
-trap cleanup EXIT
-
-wait
+echo "Starting MCP server (stdio mode)..." >&2
+# Actually run the MCP server using python and the stdio transport, not uvicorn which is for SSE
+python src/openclaw/mcp_server.py
