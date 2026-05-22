@@ -15,10 +15,14 @@ from openclaw.gates import HumanInTheLoopGate
 from openclaw.validators import CodeValidator
 from openclaw.utils import format_artifacts
 
-logfire.configure()
-logfire.instrument_pydantic()
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
+
+try:
+    logfire.configure()
+    logfire.instrument_pydantic()
+except Exception:
+    logger.warning("Logfire not configured (run 'logfire auth' to enable telemetry)")
 
 from openclaw.settings import settings
 
@@ -51,7 +55,7 @@ async def run_ba_stage(semaphore, state: PipelineState, raw_requirements: str, c
     logger.info(f"BA Agent processing: {raw_requirements}")
     ba_agent = registry.get("ba")
     ba_result = await run_agent(semaphore, "ba", ba_agent, f"Process these requirements: {raw_requirements}")
-    state.user_stories = ba_result.data
+    state.user_stories = ba_result.output
 
     if not state.user_stories:
         logger.warning("BA returned no user stories. Exiting.")
@@ -87,15 +91,15 @@ async def run_advisory_stage(semaphore, user_stories, checkpoint_mgr, state: Pip
     advisory_results = await asyncio.gather(cto_task, ux_task, return_exceptions=True)
 
     state.advisory_results = {}
-    if not isinstance(advisory_results[0], Exception):
-        cto_data = advisory_results[0].data
+    if not isinstance(advisory_results[0], BaseException):
+        cto_data = advisory_results[0].output
         recs = cto_data.recommendations
         state.advisory_results["cto"] = "CTO Guidelines:\n" + "\n".join(recs) if recs else ""
     else:
         logger.warning(f"CTO agent failed: {advisory_results[0]}")
 
-    if not isinstance(advisory_results[1], Exception):
-        ux_data = advisory_results[1].data
+    if not isinstance(advisory_results[1], BaseException):
+        ux_data = advisory_results[1].output
         recs = ux_data.recommendations
         state.advisory_results["ux"] = "UX Guidelines:\n" + "\n".join(recs) if recs else ""
     else:
@@ -125,8 +129,8 @@ async def run_implementation_stage(semaphore, user_stories, max_retries, cto_adv
         async def run_tagged(sem, agent, prompt, story_id=None, deps=None):
             try:
                 res = await run_agent(sem, agent, registry.get(agent), prompt, deps=deps)
-                res.data.metadata["user_story_id"] = story_id or "global"
-                return res.data
+                res.output.metadata["user_story_id"] = story_id or "global"
+                return res.output
             except TimeoutError:
                 logger.error(f"Agent '{agent}' timed out for story {story_id or 'global'}")
                 return None
@@ -168,19 +172,19 @@ async def run_implementation_stage(semaphore, user_stories, max_retries, cto_adv
         ]
         test_results = await asyncio.gather(*test_tasks, return_exceptions=True)
         for i, res in enumerate(test_results):
-            if isinstance(res, Exception):
+            if isinstance(res, BaseException):
                 logger.error(f"Test agent failed: {res}")
                 continue
-            res.data.metadata["user_story_id"] = user_stories[i].id
-            artifacts.append(res.data)
+            res.output.metadata["user_story_id"] = user_stories[i].id
+            artifacts.append(res.output)
 
         logger.info("Running SRE Agent...")
         try:
             sre_res = await run_agent(semaphore, "sre", registry.get("sre"),
                 "Provision infrastructure and apply Helm charts for the services.")
-            sre_res.data.metadata["user_story_id"] = "infrastructure"
-            sre_res.data.agent_name = "infrastructure"
-            artifacts.append(sre_res.data)
+            sre_res.output.metadata["user_story_id"] = "infrastructure"
+            sre_res.output.agent_name = "infrastructure"
+            artifacts.append(sre_res.output)
         except Exception as e:
             logger.error(f"SRE agent failed: {e}")
 
@@ -198,7 +202,7 @@ async def run_implementation_stage(semaphore, user_stories, max_retries, cto_adv
         try:
             sec_res = await run_agent(semaphore, "security", registry.get("security"),
                 f"Audit the following code for vulnerabilities:\n{full_text}")
-            sec_result = sec_res.data
+            sec_result = sec_res.output
             logger.info(f"Security: passed={sec_result.passed}, score={sec_result.score}")
             if not sec_result.passed:
                 logger.warning("Security audit failed. Will retry.")
@@ -216,7 +220,7 @@ async def run_implementation_stage(semaphore, user_stories, max_retries, cto_adv
         try:
             q_res = await run_agent(semaphore, "quality_gate", registry.get("quality_gate"),
                 f"Perform quality gate check on these artifacts:\n{full_text}")
-            q_result = q_res.data
+            q_result = q_res.output
             logger.info(f"Quality Gate: passed={q_result.passed}, complexity={q_result.complexity_score}")
             if not q_result.passed:
                 logger.warning("Quality Gate rejected. Retrying...")
@@ -236,7 +240,7 @@ async def run_implementation_stage(semaphore, user_stories, max_retries, cto_adv
 
         try:
             review_res = await run_agent(semaphore, "review", registry.get("review"), review_prompt)
-            result = review_res.data
+            result = review_res.output
             logger.info(f"Review: approved={result.approved}, risk={result.risk_level}, security_score={result.security_score}")
         except Exception as e:
             logger.error(f"Review agent failed: {e}")
@@ -316,8 +320,15 @@ async def main(
                       event_triggers=[EventTrigger(id="evt-1", name="PaymentSucceeded", description="Payment processed")]),
         ]
     elif resume and checkpoint_mgr.stage_exists("ba"):
-        state = checkpoint_mgr.load("ba")
-        logger.info("Skipping BA Agent (checkpoint restored)")
+        loaded_state = checkpoint_mgr.load("ba")
+        if loaded_state is None:
+            logger.warning("BA checkpoint exists but failed to load. Re-running BA stage.")
+            state = await run_ba_stage(semaphore, state, raw_requirements, checkpoint_mgr)
+            if not state.user_stories:
+                return
+        else:
+            state = loaded_state
+            logger.info("Skipping BA Agent (checkpoint restored)")
     else:
         state = await run_ba_stage(semaphore, state, raw_requirements, checkpoint_mgr)
         if not state.user_stories:
@@ -332,8 +343,13 @@ async def main(
     if dry_run:
         logger.info("DRY RUN: Skipping Advisory phase.")
     elif resume and checkpoint_mgr.stage_exists("advisory"):
-        state = checkpoint_mgr.load("advisory")
-        logger.info("Skipping Advisory phase (checkpoint restored)")
+        loaded_state = checkpoint_mgr.load("advisory")
+        if loaded_state is None:
+            logger.warning("Advisory checkpoint exists but failed to load. Re-running.")
+            state = await run_advisory_stage(semaphore, user_stories, checkpoint_mgr, state)
+        else:
+            state = loaded_state
+            logger.info("Skipping Advisory phase (checkpoint restored)")
     else:
         state = await run_advisory_stage(semaphore, user_stories, checkpoint_mgr, state)
 
@@ -357,10 +373,19 @@ async def main(
                      metadata={"user_story_id": "US-001"}),
         ]
         state.stage = "implementation"
+    should_run_implementation = True
+    if dry_run:
+        should_run_implementation = False
     elif resume and checkpoint_mgr.stage_exists("implementation"):
-        state = checkpoint_mgr.load("implementation")
-        logger.info("Skipping Implementation phase (checkpoint restored)")
-    else:
+        loaded_state = checkpoint_mgr.load("implementation")
+        if loaded_state is not None:
+            state = loaded_state
+            logger.info("Skipping Implementation phase (checkpoint restored)")
+            should_run_implementation = False
+        else:
+            logger.warning("Implementation checkpoint exists but failed to load. Re-running.")
+
+    if should_run_implementation:
         state.feedback = None
         state.artifacts = []
         state.artifacts, state.feedback = await run_implementation_stage(

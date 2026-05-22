@@ -20,7 +20,7 @@ class VectorMemory:
     def __init__(self, collection_name: str):
         self.collection_name = collection_name
 
-    async def add_memory(self, content: str, metadata: dict[str, Any] = None):
+    async def add_memory(self, content: str, metadata: dict[str, Any] | None = None):
         """Adds a new memory to the vector store with a stable content-based ID."""
         memory = Memory(content=content, metadata=metadata or {})
         content_hash = hashlib.md5(content.encode()).hexdigest()[:12]
@@ -30,7 +30,7 @@ class VectorMemory:
     async def get_relevant_memories(self, query: str, n_results: int = 5) -> list[Memory]:
         """Retrieves the most relevant memories for a given query."""
         results = await vector_db.async_search(self.collection_name, query, n_results=n_results)
-        return [Memory(**res) for res in results]
+        return [Memory(content=res) for res in results]
 
     async def consolidate(self, n_recent: int = 50) -> str | None:
         """Fetch recent memories and return them as a single text block for summarization.

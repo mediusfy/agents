@@ -35,6 +35,14 @@ Run these on every artifact:
 | Error handling patterns | §1.5 | Raw string errors vs typed sentinels |
 | Handler contains business logic | §1.11 | Delegate check — does handler call service or do it directly? |
 
+## Final Verification
+
+**Before declaring a task complete**, the implementing agent MUST have run both:
+1. `make test` — all tests pass
+2. `make run` (or `make run-dry-run`) — pipeline runs to completion
+
+If the agent did not run these, flag it as a blocking finding.
+
 ## Cross-Communication
 
 When you find code that passes complexity checks but violates style standards:

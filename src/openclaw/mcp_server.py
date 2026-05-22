@@ -17,13 +17,20 @@ from openclaw.agents.region_analyzer import RegionAnalyzerDeps, region_analyzer_
 from openclaw.agents.weather import WeatherDeps, weather_agent
 from openclaw.vector_db import vector_db
 
-logfire.configure()
-logfire.instrument_pydantic()
+try:
+    logfire.configure()
+    logfire.instrument_pydantic()
+except Exception:
+    logging.warning("Logfire not configured — telemetry disabled")
+
 logging.basicConfig(level=logging.INFO)
 
 mcp = FastMCP("OpenClaw")
-if hasattr(mcp, "app"):
-    logfire.instrument_fastapi(mcp.app)
+try:
+    if hasattr(mcp, "app"):
+        logfire.instrument_fastapi(mcp.app)
+except Exception:
+    pass
 
 
 def create_agent_runner(agent, deps_class, tool_name: str, docstring: str):
@@ -32,7 +39,7 @@ def create_agent_runner(agent, deps_class, tool_name: str, docstring: str):
     async def agent_runner(request: str) -> str:
         deps = deps_class(pass_num=1)
         result = await agent.run(request, deps=deps)
-        return result.data
+        return result.output
 
     agent_runner.__doc__ = docstring
     agent_runner.__name__ = tool_name
@@ -115,7 +122,7 @@ async def plan_and_execute(goal: str) -> str:
     from openclaw.registry import registry
 
     plan_response = await planner_agent.run(f"Create a plan to achieve this goal: {goal}")
-    plan = plan_response.data
+    plan = plan_response.output
 
     completed: set[str] = set()
     results: dict[str, str] = {}
