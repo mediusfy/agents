@@ -27,10 +27,6 @@ from openclaw.registry import AgentRegistry, registry
 from openclaw.telemetry import Telemetry
 from openclaw.writer import ArtifactWriter
 
-# =============================================================================
-# Pipeline Stage Data Flow
-# =============================================================================
-
 
 class TestPipelineStageDataFlow:
     """Verifies data flows correctly between pipeline stages with mocked agents."""
@@ -199,7 +195,6 @@ class TestPipelineStageDataFlow:
 # Full PipelineState Checkpoint Roundtrip (Memory Preservation)
 # =============================================================================
 
-
 class TestPipelineStatePersistence:
     """Verifies that a fully populated PipelineState survives save/load."""
 
@@ -346,6 +341,7 @@ class TestPipelineStatePersistence:
                 UserStory(id="US-001", title="Feature A", gherkin="Given X\nWhen Y\nThen Z"),
             ],
         )
+
         advisory_state = PipelineState(
             run_id="multi-stage",
             stage="advisory",
@@ -433,7 +429,6 @@ class TestPipelineStatePersistence:
 # =============================================================================
 # Agent Registration and Capability Discovery
 # =============================================================================
-
 
 class TestAgentRegistrationIntegration:
     """Verifies all agents register and capabilities are queryable."""
