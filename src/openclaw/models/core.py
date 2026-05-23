@@ -65,12 +65,10 @@ class ActivityLog(BaseModel):
     timestamp: str
     artifact_ids: list[str] = Field(default_factory=list)
 
-
 class SecurityReport(BaseModel):
     passed: bool
     score: int
     feedback: list[str] = Field(default_factory=list)
-
 
 class PipelineState(BaseModel):
     run_id: str

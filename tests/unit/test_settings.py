@@ -5,7 +5,7 @@ from openclaw.settings import Settings
 
 def test_settings_defaults():
     s = Settings()
-    assert s.ba_model == "gpt-4o-mini"
+    assert s.ba_model == "deepseek-chat"
     assert s.max_retries == 2
     assert s.max_concurrent_llm_calls == 5
     assert s.output_dir == Path("./generated-app")

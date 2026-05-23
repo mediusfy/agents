@@ -3,7 +3,7 @@
 All environment variables are validated and typed here.
 Usage:
     from openclaw.settings import settings
-    settings.ba_model       # "gpt-4o-mini" by default
+    settings.ba_model       # "deepseek-chat" by default
     settings.max_retries    # 2 by default
 """
 
@@ -28,7 +28,7 @@ class Settings(BaseSettings):
 
     # Provider override — set to "deepseek" to use DeepSeek for all agents.
     # When set, all model names are automatically prefixed with "deepseek:".
-    model_provider: str | None = None
+    model_provider: str | None = "deepseek"
 
     # Redis IRIS Memory Backend
     redis_iris_url: str | None = None
@@ -36,15 +36,15 @@ class Settings(BaseSettings):
     redis_iris_token: str | None = None
 
     # Agent Model Overrides
-    ba_model: str = "gpt-4o-mini"
+    ba_model: str = "deepseek-chat"
     backend_model: str = "claude-sonnet-4-20250514"
     frontend_model: str = "gpt-4o"
-    test_model: str = "gpt-4o-mini"
+    test_model: str = "deepseek-chat"
     sre_model: str = "gemini-2.0-flash"
     review_model: str = "claude-sonnet-4-20250514"
-    database_model: str = "gpt-4o-mini"
-    devops_model: str = "gpt-4o-mini"
-    docs_model: str = "gpt-4o-mini"
+    database_model: str = "deepseek-chat"
+    devops_model: str = "deepseek-chat"
+    docs_model: str = "deepseek-chat"
     security_model: str = "claude-sonnet-4-20250514"
     ux_model: str = "claude-sonnet-4-20250514"
     cto_model: str = "claude-sonnet-4-20250514"
@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     region_analyzer_model: str = "gpt-4o"
     asymmetric_reviewer_model: str = "gpt-4o"
     current_events_model: str = "gpt-4o"
-    weather_model: str = "gpt-4o-mini"
+    weather_model: str = "deepseek-chat"
     accountant_model: str = "gpt-4o"
     price_analyst_model: str = "gemini-2.0-pro"
     market_shark_model: str = "gemini-2.0-pro"
@@ -81,6 +81,7 @@ class Settings(BaseSettings):
             # Map common models to DeepSeek equivalents
             mapping = {
                 "gpt-4o-mini": "deepseek-chat",
+                "deepseek-chat": "deepseek-chat",
                 "gpt-4o": "deepseek-chat",
                 "gpt-4": "deepseek-chat",
                 "claude-sonnet-4-20250514": "deepseek-chat",
