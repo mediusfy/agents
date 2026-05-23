@@ -111,14 +111,27 @@ The `openclaw-agents` MCP server is configured in `~/.config/opencode/opencode.j
 
 For Claude, the tool configuration in `settings.json` should be:
 ```json
-{
-  "tools": {
-    "openclaw-agents": {
-      "command": "bash",
-      "args": [
-        "/Users/jocham/programming/agents/mcp_run.sh"
-      ]
+"mcpServers": {
+  "logfire": {
+    "type": "http",
+    "url": "https://logfire-eu.pydantic.dev/mcp",
+    "headers": {
+      "Authorization": "Bearer YOUR_LOGFIRE_TOKEN"
     }
+  },
+  "openclaw-agents": {
+    "type": "local",
+    "enabled": true,
+    "command": ["bash", "/Users/jocham/programming/agents/mcp_run.sh"]
+  },
+  "redis-mcp-server": {
+    "type": "stdio",
+    "command": "uvx",
+    "args": [
+      "--from", "redis-mcp-server@latest",
+      "redis-mcp-server",
+      "--url", "redis://<YOUR https://cloud.redis.io/ DATABASE URL>"
+    ]
   }
 }
 ```
@@ -127,10 +140,17 @@ For opencode, the configuration in `opencode.json` should be:
 ```json
 {
   "mcpServers": {
-    "openclaw-agents": {
+    "agents": {
       "command": "bash",
+      "args": ["/Users/jocham/programming/agents/mcp_run.sh", "--logfire-token", "YOUR_LOGFIRE_TOKEN"],
+      "enabled": true
+    },
+    "redis-mcp-server": {
+      "command": "uvx",
       "args": [
-        "/Users/jocham/programming/agents/mcp_run.sh"
+        "--from", "redis-mcp-server@latest",
+        "redis-mcp-server",
+        "--url", "redis://<YOUR https://cloud.redis.io/ DATABASE URL>"
       ]
     }
   }

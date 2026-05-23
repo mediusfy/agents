@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 class EventTrigger(BaseModel):
     id: str
-    name: str = Field(description="Name of the event, e.g., OrderCreated")
+    name: str = Field(description="Name of the event")
     description: str
 
 
