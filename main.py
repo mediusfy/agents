@@ -26,7 +26,7 @@ except Exception:
 
 from openclaw.settings import settings
 
-DEFAULT_REQUIREMENT = "Build a payment processing service that handles incoming payments and emits 'PaymentSucceeded' or 'PaymentFailed' events."
+DEFAULT_REQUIREMENT = "Build a message processing service that processes incoming message then and emits 'NotificationDetailsEvent' or 'NotificationStatus' events."
 
 STEP_CHOICES = ["ba", "backend", "frontend", "test", "sre", "review",
                 "database", "devops", "docs", "security", "all"]

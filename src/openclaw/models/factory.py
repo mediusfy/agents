@@ -10,12 +10,10 @@ import os
 
 logger = logging.getLogger(__name__)
 
-# Provider prefix to base URL mapping
 PROVIDER_BASE_URLS: dict[str, str] = {
     "deepseek": "https://api.deepseek.com/v1",
 }
 
-# Provider prefix to API key env var mapping
 PROVIDER_KEY_VARS: dict[str, str] = {
     "deepseek": "DEEPSEEK_API_KEY",
 }

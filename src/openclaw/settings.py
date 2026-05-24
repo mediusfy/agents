@@ -20,17 +20,13 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    #  LLM Provider API Keys
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
     gemini_api_key: str | None = None
     deepseek_api_key: str | None = None
 
-    # Provider override — set to "deepseek" to use DeepSeek for all agents.
-    # When set, all model names are automatically prefixed with "deepseek:".
     model_provider: str | None = "deepseek"
 
-    # Redis IRIS Memory Backend
     redis_iris_url: str | None = None
     redis_iris_store_id: str | None = None
     redis_iris_token: str | None = None
@@ -76,9 +72,9 @@ class Settings(BaseSettings):
         if not provider:
             return model_name
         if ":" in model_name:
-            return model_name  # Already has a provider prefix
+            return model_name
         if provider == "deepseek":
-            # Map common models to DeepSeek equivalents
+
             mapping = {
                 "gpt-4o-mini": "deepseek-chat",
                 "deepseek-chat": "deepseek-chat",

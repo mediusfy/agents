@@ -54,7 +54,7 @@ async def run_existing_code_pipeline(
     logger.info("=== Existing Code Pipeline ===")
     logger.info("Change: %s", change_description)
 
-    logger.info("Step 1: Service Engineer — implementing changes...")
+    logger.info("Service Engineer — implementing changes...")
     try:
         service_engineer = registry.get("service_engineer")
         eng_prompt = (
@@ -81,7 +81,7 @@ async def run_existing_code_pipeline(
         return result
 
     if run_tests:
-        logger.info("Step 2: Test Engineer — generating tests...")
+        logger.info("Test Engineer — generating tests...")
         try:
             test_eng = registry.get("test_eng")
             test_preview = format_artifacts(result.artifacts, max_chars=15_000, include_agent_header=False)
@@ -102,7 +102,7 @@ async def run_existing_code_pipeline(
             result.errors.append(msg)
 
     if run_quality_gate:
-        logger.info("Step 3: Quality Gate — checking over-engineering...")
+        logger.info("Quality Gate — checking over-engineering...")
         try:
             quality_gate = registry.get("quality_gate")
             qg_preview = format_artifacts(result.artifacts, max_chars=30_000, include_agent_header=False)
@@ -131,7 +131,7 @@ async def run_existing_code_pipeline(
             result.errors.append(msg)
 
     if run_review:
-        logger.info("Step 4: Board of Review — final approval...")
+        logger.info("Board of Review — final approval...")
         try:
             review = registry.get("review")
             review_preview = format_artifacts(result.artifacts, max_chars=40_000, include_agent_header=False)
