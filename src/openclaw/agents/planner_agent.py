@@ -13,8 +13,6 @@ Each step must be achievable by a single agent capability.
 Dependencies define order: if step B depends on step A's output, list A's task ID in B's dependencies.
 """
 
-# Registration happens in registration.py, not at module level
-
 planner_agent = Agent(
     create_model(settings.resolve_model(settings.cto_model)),
     system_prompt=system_prompt,

@@ -1,8 +1,3 @@
-"""Startup validation for the OpenClaw ecosystem.
-
-Ensures required configuration is present and valid before the pipeline runs.
-"""
-
 import logging
 import os
 from pathlib import Path
