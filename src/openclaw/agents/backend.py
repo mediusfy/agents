@@ -3,8 +3,8 @@ from dataclasses import dataclass
 from pydantic_ai import Agent, RunContext
 
 from openclaw.models.core import Artifact
-from openclaw.settings import settings
 from openclaw.models.factory import create_model
+from openclaw.settings import settings
 
 
 @dataclass

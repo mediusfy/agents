@@ -1,8 +1,8 @@
 from pydantic_ai import Agent
 
+from openclaw.models.factory import create_model
 from openclaw.planning import Plan
 from openclaw.settings import settings
-from openclaw.models.factory import create_model
 
 system_prompt = """You are a Planner Agent. Your job is to decompose high-level goals into a structured,
 executable multi-step plan. For each step, identify the required agent capability,

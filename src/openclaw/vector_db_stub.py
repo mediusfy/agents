@@ -2,10 +2,10 @@
 
 
 class _StubVectorDB:
-    def search(self, collection: str, query: str) -> list[str]:
-        return [f"Vector DB not available — install heavy dependencies (chromadb, sentence-transformers)"]
+    def search(self, collection: str, query: str) -> list[str]:  # noqa: ARG002
+        return ["Vector DB not available — install heavy dependencies (chromadb, sentence-transformers)"]
 
-    def add_documents(self, collection: str, docs: list[str], metadatas: list[dict], ids: list[str]) -> None:
+    def add_documents(self, collection: str, docs: list[str], metadatas: list[dict], ids: list[str]) -> None:  # noqa: ARG002
         pass
 
 

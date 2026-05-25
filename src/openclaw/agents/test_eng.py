@@ -2,8 +2,8 @@ from pydantic import BaseModel
 from pydantic_ai import Agent, RunContext
 
 from openclaw.models.core import Artifact
-from openclaw.settings import settings
 from openclaw.models.factory import create_model
+from openclaw.settings import settings
 
 # ── Playwright / BDD Test Agent (existing) ──────────────────────────────
 
@@ -15,14 +15,24 @@ Testing Strategy & Execution:
 - Test Coverage: Guarantee 100% test coverage mapping back to the event-driven triggers outlined by the Business Analyst.
 """
 
-test_eng_agent = Agent(create_model(settings.resolve_model(settings.test_model)), system_prompt=test_prompt, output_type=Artifact, defer_model_check=True)
+test_eng_agent = Agent(
+    create_model(settings.resolve_model(settings.test_model)),
+    system_prompt=test_prompt,
+    output_type=Artifact,
+    defer_model_check=True,
+)
 
 
 class TestOutput(BaseModel):
     code: str
 
 
-test_gen = Agent(create_model(settings.resolve_model(settings.test_model)), system_prompt=test_prompt, output_type=TestOutput, defer_model_check=True)
+test_gen = Agent(
+    create_model(settings.resolve_model(settings.test_model)),
+    system_prompt=test_prompt,
+    output_type=TestOutput,
+    defer_model_check=True,
+)
 
 
 @test_eng_agent.tool
@@ -73,7 +83,10 @@ class GoTestOutput(BaseModel):
 
 
 go_test_agent = Agent(
-    create_model(settings.resolve_model(settings.test_model)), system_prompt=go_test_prompt, output_type=GoTestOutput, defer_model_check=True
+    create_model(settings.resolve_model(settings.test_model)),
+    system_prompt=go_test_prompt,
+    output_type=GoTestOutput,
+    defer_model_check=True,
 )
 
 

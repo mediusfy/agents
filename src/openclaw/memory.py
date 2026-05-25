@@ -94,13 +94,14 @@ class RedisIrisMemory:
         self.store_id = store_id
         self.api_key = api_key
 
-    async def add_memory(self, content: str, metadata: dict[str, Any] | None = None) -> None:
+    async def add_memory(self, content: str, metadata: dict[str, Any] | None = None) -> None:  # noqa: ARG002
         """Add a memory to the Redis IRIS store."""
         import redis_agent_memory  # noqa: F401 — lazy import; raises if not installed
 
-    async def get_relevant_memories(self, query: str, n_results: int = 5) -> list["Memory"]:
+    async def get_relevant_memories(self, query: str, n_results: int = 5) -> list["Memory"]:  # noqa: ARG002
         """Retrieve relevant memories from the Redis IRIS store."""
         import redis_agent_memory  # noqa: F401
+
         raise NotImplementedError("redis_agent_memory integration not yet implemented")
 
 
