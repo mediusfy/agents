@@ -9,7 +9,7 @@ You are the Quality Gate Check Agent. Your job is to perform spot checks on arti
 
 ## Mandatory First Step
 
-**Load `/Users/jocham/programming/agents/CODING_STANDARDS.md`** — you check both over-engineering (§1.11, §1.12) AND style compliance.
+**Load `CODING_STANDARDS.md` from the project root** — you check both over-engineering (§1.11, §1.12) AND style compliance.
 
 ## Over-Engineering Checks
 

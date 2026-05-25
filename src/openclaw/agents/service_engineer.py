@@ -1,11 +1,38 @@
+import os
 import subprocess
 from pathlib import Path
 
 from pydantic_ai import Agent, RunContext
 
+from openclaw.exceptions import PathTraversalError
 from openclaw.models.core import Artifact
-from openclaw.settings import settings
 from openclaw.models.factory import create_model
+from openclaw.settings import settings
+
+# Cap on file content returned by read_file. Larger files balloon the LLM
+# context and any captured request bodies in telemetry.
+_READ_FILE_MAX_BYTES = 256 * 1024
+
+
+def _sandbox_root() -> Path:
+    """Resolve the root that file-reading tools are allowed to touch.
+
+    Read from OPENCLAW_CODEBASE_ROOT (set by run_existing_code_pipeline), with
+    CWD as the safe local-dev default. Returning a Path lets the caller use
+    relative_to() to enforce containment.
+    """
+    return Path(os.environ.get("OPENCLAW_CODEBASE_ROOT", os.getcwd())).resolve()
+
+
+def _resolve_sandboxed(user_path: str) -> Path:
+    root = _sandbox_root()
+    candidate = (root / user_path).resolve() if not os.path.isabs(user_path) else Path(user_path).resolve()
+    try:
+        candidate.relative_to(root)
+    except ValueError as e:
+        raise PathTraversalError(f"Path '{user_path}' escapes sandbox root {root}") from e
+    return candidate
+
 
 service_engineer_agent = Agent(
     create_model(settings.resolve_model(settings.backend_model)),
@@ -48,18 +75,27 @@ Return an Artifact with ONLY the files that changed. Include the full file conte
 
 @service_engineer_agent.tool
 async def read_file(ctx: RunContext[str], filepath: str) -> str:
-    """Read a file from the codebase to understand existing code before modifying it."""
-    path = Path(filepath)
-    if not path.exists():
+    """Read a file from the codebase (sandboxed to OPENCLAW_CODEBASE_ROOT) before modifying it."""
+    try:
+        path = _resolve_sandboxed(filepath)
+    except PathTraversalError as e:
+        return f"ERROR: {e}"
+    if not path.exists() or not path.is_file():
         return f"ERROR: File not found: {filepath}"
-    return path.read_text()
+    content = path.read_text(errors="replace")
+    if len(content) > _READ_FILE_MAX_BYTES:
+        return content[:_READ_FILE_MAX_BYTES] + f"\n... (truncated at {_READ_FILE_MAX_BYTES} bytes)"
+    return content
 
 
 @service_engineer_agent.tool
 def list_directory(ctx: RunContext[str], dirpath: str) -> str:
-    """List files in a directory to understand project structure."""
-    path = Path(dirpath)
-    if not path.exists():
+    """List files in a directory (sandboxed to OPENCLAW_CODEBASE_ROOT) to understand project structure."""
+    try:
+        path = _resolve_sandboxed(dirpath)
+    except PathTraversalError as e:
+        return f"ERROR: {e}"
+    if not path.exists() or not path.is_dir():
         return f"ERROR: Directory not found: {dirpath}"
     items = []
     for entry in sorted(path.iterdir()):

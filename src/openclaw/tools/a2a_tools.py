@@ -1,6 +1,7 @@
 from pydantic_ai import RunContext
 
-from openclaw.registry import registry
+from openclaw.exceptions import AgentExecutionError, AgentNotFoundError
+from openclaw.registry import instrumented_query, registry
 from openclaw.tools.registry import register_tool
 
 
@@ -21,6 +22,9 @@ async def delegate_to_agent(ctx: RunContext, capability: str, prompt: str, conte
     To ensure proficient token usage and accurate responses:
     - prompt: The specific task/question for the sub-agent.
     - context_summary: Provide ONLY the absolutely necessary context (e.g. key code snippets or decisions). Do not dump full history.
+
+    Routed through `instrumented_query` so the cross-agent hop is a child span,
+    not an invisible call.
     """
     full_prompt = (
         f"--- DELEGATED TASK ---\n"
@@ -28,7 +32,15 @@ async def delegate_to_agent(ctx: RunContext, capability: str, prompt: str, conte
         f"Task:\n{prompt}\n\n"
         f"Please provide an accurate and concise response."
     )
-    return await registry.query(capability, full_prompt)
+    try:
+        return await instrumented_query(
+            capability=capability,
+            prompt=full_prompt,
+            span_name="a2a.delegate",
+            attributes={"capability": capability, "context_summary_length": len(context_summary)},
+        )
+    except (AgentNotFoundError, AgentExecutionError) as e:
+        return f"ERROR: {e}"
 
 
 register_tool("discover_agent_capabilities", discover_agent_capabilities, "Find out what other agents can do.", ["a2a"])

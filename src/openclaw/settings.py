@@ -20,17 +20,13 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    #  LLM Provider API Keys
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
     gemini_api_key: str | None = None
     deepseek_api_key: str | None = None
 
-    # Provider override — set to "deepseek" to use DeepSeek for all agents.
-    # When set, all model names are automatically prefixed with "deepseek:".
     model_provider: str | None = "deepseek"
 
-    # Redis IRIS Memory Backend
     redis_iris_url: str | None = None
     redis_iris_store_id: str | None = None
     redis_iris_token: str | None = None
@@ -67,30 +63,38 @@ class Settings(BaseSettings):
     vector_db_dir: Path = Path("./.claw-vectordb")
 
     def resolve_model(self, model_name: str) -> str:
-        """Apply the model_provider prefix if configured.
+        """Ensure the model name is a valid pydantic_ai model spec.
 
-        When MODEL_PROVIDER=deepseek, 'gpt-4o-mini' becomes 'deepseek:deepseek-chat'.
-        Maps common model families to their DeepSeek equivalents.
+        When MODEL_PROVIDER is set, maps all models through that provider.
+        When None, adds provider prefixes for models that need them
+        (deepseek-chat → deepseek:deepseek-chat).
+        Models that pydantic_ai knows natively (gpt-4o, claude-sonnet-4-*, gemini-*)
+        are passed through unchanged.
         """
         provider = self.model_provider
-        if not provider:
+        if provider:
+            if ":" in model_name:
+                return model_name  # Already has a provider prefix
+            if provider == "deepseek":
+                mapping = {
+                    "gpt-4o-mini": "deepseek-chat",
+                    "deepseek-chat": "deepseek-chat",
+                    "gpt-4o": "deepseek-chat",
+                    "gpt-4": "deepseek-chat",
+                    "claude-sonnet-4-20250514": "deepseek-chat",
+                    "claude-3": "deepseek-chat",
+                    "gemini-2.0-flash": "deepseek-chat",
+                    "gemini-2.0-pro": "deepseek-chat",
+                }
+                resolved = mapping.get(model_name, "deepseek-chat")
+                return f"{provider}:{resolved}"
             return model_name
+        # No provider override — add prefixes for known models
         if ":" in model_name:
-            return model_name  # Already has a provider prefix
-        if provider == "deepseek":
-            # Map common models to DeepSeek equivalents
-            mapping = {
-                "gpt-4o-mini": "deepseek-chat",
-                "deepseek-chat": "deepseek-chat",
-                "gpt-4o": "deepseek-chat",
-                "gpt-4": "deepseek-chat",
-                "claude-sonnet-4-20250514": "deepseek-chat",
-                "claude-3": "deepseek-chat",
-                "gemini-2.0-flash": "deepseek-chat",
-                "gemini-2.0-pro": "deepseek-chat",
-            }
-            resolved = mapping.get(model_name, "deepseek-chat")
-            return f"{provider}:{resolved}"
+            return model_name
+        if model_name.startswith("deepseek-"):
+            return f"deepseek:{model_name}"
+        # gpt-*, claude-*, gemini-* are known natively by pydantic_ai
         return model_name
 
 

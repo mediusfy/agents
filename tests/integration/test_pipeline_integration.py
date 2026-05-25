@@ -195,6 +195,7 @@ class TestPipelineStageDataFlow:
 # Full PipelineState Checkpoint Roundtrip (Memory Preservation)
 # =============================================================================
 
+
 class TestPipelineStatePersistence:
     """Verifies that a fully populated PipelineState survives save/load."""
 
@@ -430,12 +431,18 @@ class TestPipelineStatePersistence:
 # Agent Registration and Capability Discovery
 # =============================================================================
 
+
 class TestAgentRegistrationIntegration:
     """Verifies all agents register and capabilities are queryable."""
 
     def setup_method(self):
         registry._agents = {}
         registry._cap_index = {}
+        # Reset the idempotency flag in registration.py so register_all_agents()
+        # picks up the freshly-cleared registry instead of short-circuiting.
+        import openclaw.agents.registration as _reg
+
+        _reg._registered = False
 
     def test_all_pipeline_agents_register(self):
         """register_all_agents must register expected SDLC agents."""
@@ -495,21 +502,21 @@ class TestAgentRegistrationIntegration:
         assert len(registry.list_agents()) == 27
 
     def test_capability_index_is_populated(self):
-        """Each agent's capabilities must be in the index."""
+        """Each agent's capabilities must be in the index.
+
+        Post-fix: `_cap_index[cap]` is a list of agent names in registration
+        order, not a single agent name. Use `owners_of()` to read it.
+        """
         from openclaw.agents.registration import register_all_agents
 
         register_all_agents()
 
         assert "requirements" in registry._cap_index
-        assert registry._cap_index["requirements"] == "ba"
+        assert registry.owners_of("requirements") == ["ba"]
 
-        assert "architecture" in registry._cap_index
-        assert "backend" in registry._cap_index
-        assert "database" in registry._cap_index
-        assert "testing" in registry._cap_index
-        assert "infrastructure" in registry._cap_index
-        assert "security" in registry._cap_index
-        assert "code_review" in registry._cap_index
+        for cap in ("architecture", "backend", "database", "testing", "infrastructure", "security", "code_review"):
+            assert cap in registry._cap_index, f"capability '{cap}' missing from index"
+            assert registry.owners_of(cap), f"capability '{cap}' has no owners"
 
     def test_capability_query_o1_lookup(self, tmp_path, monkeypatch):
         """query() must route to the right agent via O(1) capability lookup."""
@@ -538,14 +545,34 @@ class TestAgentRegistrationIntegration:
         assert "weather" in names
 
     @pytest.mark.asyncio
-    async def test_query_unknown_capability_returns_error_message(self):
-        """Querying for an unregistered capability returns an error string, not a crash."""
+    async def test_query_unknown_capability_raises_agent_not_found(self):
+        """Post-fix: query() raises AgentNotFoundError instead of returning an error string,
+        so callers can't accidentally treat a missing capability as a successful result."""
+        from openclaw.exceptions import AgentNotFoundError
+
         r = AgentRegistry()
         r.register("test", MagicMock(), ["known_cap"])
 
-        result = await r.query("unknown_cap", "test prompt")
-        assert "No agent found for capability" in result
-        assert "unknown_cap" in result
+        with pytest.raises(AgentNotFoundError, match="unknown_cap"):
+            await r.query("unknown_cap", "test prompt")
+
+    def test_register_all_agents_is_idempotent(self):
+        """Second call to register_all_agents() must NOT raise on duplicate registration.
+
+        Previously, calling it twice (which delegate_to_openclaw_agent and
+        modify_existing_code do on every MCP invocation) crashed on the
+        first agent's `ValueError("Agent 'ba' is already registered.")`.
+        """
+        from openclaw.agents.registration import register_all_agents
+
+        register_all_agents()
+        first_count = len(registry.list_agents())
+
+        # Second call should be a no-op, not a crash.
+        register_all_agents()
+        second_count = len(registry.list_agents())
+
+        assert second_count == first_count, "registration count drifted on second call"
 
 
 # =============================================================================

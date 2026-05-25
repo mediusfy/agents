@@ -77,3 +77,27 @@ class TestFindLatestRun:
 
         latest = CheckpointManager("test_proj").find_latest_run_id()
         assert latest == run_b
+
+
+class TestAtomicSave:
+    """Post-fix: save() writes via a .tmp + os.replace, so the destination
+    is never observed in a partial state. Previously a SIGTERM mid-write
+    left a zero-length file that find_latest_run_id would later pick up."""
+
+    def test_save_leaves_no_tmp_file_behind(self, manager, sample_state):
+        manager.save("stage1", sample_state)
+        filepath = Path(manager._get_filepath("stage1"))
+        assert filepath.exists(), "final checkpoint not created"
+        assert not filepath.with_suffix(filepath.suffix + ".tmp").exists(), "tmp file was left on disk after save()"
+
+    def test_save_overwrite_is_atomic(self, manager, sample_state):
+        # First write.
+        manager.save("stage1", sample_state)
+        # Mutate state and save again — final content must reflect the new state,
+        # never a half-overwritten file.
+        new_state = PipelineState(run_id="test_run", stage="updated", attempt=42)
+        manager.save("stage1", new_state)
+        loaded = manager.load("stage1")
+        assert loaded is not None
+        assert loaded.stage == "updated"
+        assert loaded.attempt == 42

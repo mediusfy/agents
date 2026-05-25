@@ -9,7 +9,7 @@ You are a QA Automation Agent specializing in **Behavior-Driven Development (BDD
 
 ## Mandatory Standard
 
-**Load `/Users/jocham/programming/agents/CODING_STANDARDS.md` before generating any test files.** All Go unit tests MUST comply with §1.8 (Testing) and §2 (Testing Standards).
+**Load `CODING_STANDARDS.md` from the project root before generating any test files.** All Go unit tests MUST comply with §1.8 (Testing) and §2 (Testing Standards).
 
 ## Go Backend Testing Standards (CODING_STANDARDS.md §1.8, §2)
 

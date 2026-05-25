@@ -26,8 +26,15 @@ class CheckpointManager:
             data = state.model_dump_json()
         except AttributeError:
             data = state.json()
-        with open(filepath, "w") as f:
+        # Atomic write: write to a tmp file then os.replace, so a crash mid-write
+        # never leaves a zero-length or truncated checkpoint that find_latest_run_id
+        # would later pick up as "the latest run".
+        tmp_path = f"{filepath}.tmp"
+        with open(tmp_path, "w") as f:
             f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, filepath)
         logger.info(f"Checkpoint saved: stage='{stage}' at {os.path.relpath(filepath)}")
 
     def load(self, stage: str) -> PipelineState | None:

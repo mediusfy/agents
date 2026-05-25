@@ -13,7 +13,6 @@ from openclaw.vector_db import vector_db
 
 async def log_activity(ctx: RunContext[Any], action: str, summary: str, artifact_ids: list[str] | None = None) -> str:
     """Logs a significant agent activity to the project memory for future spot-checking."""
-    # Robustly extract pass_num and agent_name from deps, defaulting if not provided
     pass_num = getattr(ctx.deps, "pass_num", 0) if ctx.deps else 0
     agent_name = getattr(ctx.deps, "agent_name", "system") if ctx.deps else "system"
 

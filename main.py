@@ -4,8 +4,9 @@ import os
 import logging
 from typing import Any
 
-import logfire
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
+from openclaw.observability import configure_observability
 from openclaw.registry import registry
 from openclaw.writer import ArtifactWriter
 from openclaw.checkpoint import CheckpointManager
@@ -18,15 +19,11 @@ from openclaw.utils import format_artifacts
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-try:
-    logfire.configure()
-    logfire.instrument_pydantic()
-except Exception:
-    logger.warning("Logfire not configured (run 'logfire auth' to enable telemetry)")
+configure_observability()
 
 from openclaw.settings import settings
 
-DEFAULT_REQUIREMENT = "Build a payment processing service that handles incoming payments and emits 'PaymentSucceeded' or 'PaymentFailed' events."
+DEFAULT_REQUIREMENT = "Build a message processing service that processes incoming message then and emits 'NotificationDetailsEvent' or 'NotificationStatus' events."
 
 STEP_CHOICES = ["ba", "backend", "frontend", "test", "sre", "review",
                 "database", "devops", "docs", "security", "all"]
@@ -43,11 +40,18 @@ async def run_agent(
     timeout: float = DEFAULT_AGENT_TIMEOUT,
 ) -> Any:
     async with semaphore:
-        async def _run():
+
+        @retry(
+            stop=stop_after_attempt(3),
+            wait=wait_exponential(multiplier=1, min=2, max=30),
+            retry=retry_if_exception_type((TimeoutError, ConnectionError, OSError)),
+            reraise=True,
+        )
+        async def _run_with_retry():
             coro = agent.run(prompt, deps=deps) if deps is not None else agent.run(prompt)
             return await asyncio.wait_for(coro, timeout=timeout)
 
-        return await telemetry.track(agent_name, _run)
+        return await telemetry.track(agent_name, _run_with_retry)
 
 
 async def run_ba_stage(semaphore, state: PipelineState, raw_requirements: str, checkpoint_mgr) -> PipelineState:

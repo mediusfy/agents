@@ -2,15 +2,14 @@ import os
 
 from pydantic_ai import RunContext
 
+from openclaw.exceptions import PathTraversalError
 from openclaw.tools.registry import register_tool
 from openclaw.utils import safe_path_join
-from openclaw.exceptions import PathTraversalError
 
 
 async def update_documentation(ctx: RunContext, file_path: str, content: str, mode: str = "append") -> str:
     """Updates project documentation. Use this to proactively document decisions or implementation details."""
     base_docs_dir = os.path.realpath("docs")
-    # Strip leading slashes and normalize — LLMs sometimes pass absolute-like paths
     safe_file = file_path.lstrip("/")
     try:
         full_path = safe_path_join(base_docs_dir, safe_file)

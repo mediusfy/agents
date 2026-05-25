@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 from openclaw.healthcheck import validate_api_keys, validate_directories
 
+
 class TestValidateAPIKeys:
     def test_no_keys_returns_error(self):
         with patch("openclaw.healthcheck.settings") as mock:

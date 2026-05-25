@@ -58,6 +58,7 @@ where = ["src"]
 minversion = "8.0"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+pythonpath = ["."]
 asyncio_mode = "auto"
 markers = [
     "unit: Unit tests (fast, no external deps)",
@@ -85,6 +86,8 @@ select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "ARG", "C4", "T20"]
 "src/openclaw/agents/non_technical/*.py" = ["ARG001", "E501"]
 "src/openclaw/memory_consolidator.py" = ["E501"]
 "src/openclaw/models/core.py" = ["UP042"]
+"src/openclaw/memory.py" = ["ARG002"]
+"src/openclaw/vector_db_stub.py" = ["ARG002"]
 
 [tool.ruff.format]
 quote-style = "double"

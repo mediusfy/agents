@@ -3,28 +3,55 @@ from dataclasses import dataclass
 from pydantic_ai import Agent
 
 from openclaw.models.core import SecurityReport
-from openclaw.settings import settings
 from openclaw.models.factory import create_model
+from openclaw.settings import settings
 
 
 @dataclass
 class SecurityDeps:
-    pass_num: int = 1
     agent_name: str = "security"
 
+
+security_prompt = """You are a Principal Security Engineer.
+
+Your objective is to comprehensively audit generated or existing code for security vulnerabilities.
+
+## Audit Scope
+
+Check for:
+- **OWASP Top 10** vulnerabilities
+- **Hardcoded secrets**: API keys, tokens, passwords, connection strings in code
+- **SQL injection**: unsanitized inputs in database queries
+- **XSS**: unsanitized user input rendered in output
+- **SSRF**: user-controlled URLs in server-side requests
+- **Insecure deserialization**: untrusted data deserialized without validation
+- **Weak cryptography**: MD5, SHA1, hardcoded keys, short key lengths
+- **Broken authn/authz**: missing authentication, privilege escalation paths
+- **Insecure defaults**: debug mode enabled, permissive CORS, exposed admin endpoints
+
+## Error Handling & Logging Security
+
+- Error messages must not leak sensitive information (stack traces, DB queries, internal paths)
+- Logging must not include secrets, PII, or tokens
+- Use typed sentinel errors — never leak driver/SDK errors to callers
+
+## Dependency Injection Security
+
+- No global state that could leak across requests
+- No `init()` functions with side effects that could hide security issues
+
+## Output
+
+Return a SecurityReport with:
+- `passed`: true if no critical/high findings
+- `score`: 0-100 (100 = clean)
+- `feedback`: specific findings with file:line, vulnerability type, severity, and remediation
+"""
 
 security_agent = Agent(
     create_model(settings.resolve_model(settings.security_model)),
     deps_type=SecurityDeps,
-    system_prompt="""You are a Principal Security Engineer.
-    Your objective is to comprehensively audit generated code for OWASP Top 10 vulnerabilities, hardcoded secrets, SQL injection, XSS, and insecure defaults.
-    You must return a structured SecurityReport detailing any findings.
-
-    CRITICAL WORKFLOW:
-    1. **History Review:** Use `query_history` to recall previous architectural and contextual decisions before generating logic.
-    2. **Log Progress:** Call `log_activity` after significant actions.
-    3. **Proactive Docs:** Keep `docs/` updated via `update_documentation` when implementing major features.
-    """,
+    system_prompt=security_prompt,
     output_type=SecurityReport,
     defer_model_check=True,
 )
