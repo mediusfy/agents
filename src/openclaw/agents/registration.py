@@ -6,12 +6,31 @@ as module-level side effects in individual agent files.
 
 from openclaw.registry import registry
 
+# Module-level flag is the fast path for "we've already registered". Set as the
+# LAST step of register_all_agents() so a crash mid-loop correctly leaves the
+# flag False and the next call retries.
+#
+# Tests sometimes mutate the global registry directly (e.g. via a fresh
+# AgentRegistry fixture that doesn't share state). To stay correct under that
+# pattern, we also confirm the registry actually contains a known agent — if
+# the flag claims "done" but the registry is empty, we re-register.
+_registered: bool = False
+_KNOWN_AGENT = "ba"
 
-def register_all_agents():
+
+def register_all_agents() -> None:
     """Register all agents (pipeline + travel/finance) on the unified registry.
 
     This is the single registration entry point for the entire ecosystem.
+    Safe to call repeatedly — subsequent calls are no-ops. This matters for
+    the MCP tools `delegate_to_openclaw_agent` and `modify_existing_code`,
+    which both re-invoke this on every call.
     """
+    global _registered
+    if _registered and registry.is_registered(_KNOWN_AGENT):
+        return
+    # Either we never registered, or a test cleared the registry — reset.
+    _registered = False
     # ── SDLC Pipeline Agents ──────────────────────────────────────────────
     from openclaw.agents.ba import ba_agent
     from openclaw.agents.backend import backend_agent
@@ -50,16 +69,19 @@ def register_all_agents():
     )
     registry.register("planner", planner_agent, ["plan", "planning"])
 
-    # ── Travel & Finance Agents ───────────────────────────────────────────
-    from openclaw.agents.accountant import AccountantDeps, accountant_agent
-    from openclaw.agents.asymmetric_reviewer import AsymmetricReviewerDeps, asymmetric_reviewer_agent
-    from openclaw.agents.current_events import CurrentEventsDeps, current_events_agent
+    # ── Travel & Finance Agents (now all under non_technical/) ───────────
+    from openclaw.agents.non_technical.accountant import AccountantDeps, accountant_agent
+    from openclaw.agents.non_technical.asymmetric_reviewer import (
+        AsymmetricReviewerDeps,
+        asymmetric_reviewer_agent,
+    )
     from openclaw.agents.non_technical.crypto_oracle import CryptoOracleDeps, crypto_oracle_agent
+    from openclaw.agents.non_technical.current_events import CurrentEventsDeps, current_events_agent
     from openclaw.agents.non_technical.holiday_planner import HolidayPlannerDeps, holiday_planner_agent
     from openclaw.agents.non_technical.market_shark import MarketSharkDeps, market_shark_agent
     from openclaw.agents.non_technical.price_analyst import PriceAnalystDeps, price_analyst_agent
-    from openclaw.agents.region_analyzer import RegionAnalyzerDeps, region_analyzer_agent
-    from openclaw.agents.weather import WeatherDeps, weather_agent
+    from openclaw.agents.non_technical.region_analyzer import RegionAnalyzerDeps, region_analyzer_agent
+    from openclaw.agents.non_technical.weather import WeatherDeps, weather_agent
 
     registry.register("accountant", accountant_agent, ["finance"], lambda: AccountantDeps())
     registry.register(
@@ -90,3 +112,5 @@ def register_all_agents():
         ["pricing", "analysis", "purchasing"],
         lambda: PriceAnalystDeps(),
     )
+
+    _registered = True

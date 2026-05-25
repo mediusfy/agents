@@ -1,5 +1,12 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "openclaw-agents": {
+      "type": "local",
+      "enabled": true,
+      "command": ["./mcp_run.sh"]
+    }
+  },
   "agent": {
     "backend-engineer": {
       "description": "Lead Go backend engineer for high-concurrency, event-driven, hexagonal services. Scaffolds Go services, designs gRPC/Protobuf APIs, writes idempotent NATS/Kafka consumers, wires OpenTelemetry + Prometheus.",

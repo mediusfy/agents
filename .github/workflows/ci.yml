@@ -70,3 +70,7 @@ jobs:
           pip install -e ".[dev]"
       - name: Verify MCP server imports
         run: python -c "from openclaw.mcp_server import mcp; print('MCP server imports OK')"
+      - name: Verify MCP server initialize handshake
+        # Catches regressions that import-only checking would miss: broken tool
+        # registration, mismatched MCP protocol version, missing transport deps.
+        run: python scripts/mcp_handshake_check.py

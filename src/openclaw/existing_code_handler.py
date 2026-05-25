@@ -6,6 +6,7 @@ Each step validates the previous one before proceeding.
 
 import contextlib
 import logging
+import os
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -93,6 +94,14 @@ async def run_existing_code_pipeline(
 
     logger.info("=== Existing Code Pipeline ===")
     logger.info("Change: %s", change_description)
+
+    # Sandbox the service_engineer agent's read_file/list_directory tools to
+    # the requested codebase root (or CWD when unspecified). The agent reads
+    # this via os.environ in service_engineer._sandbox_root().
+    if codebase_path:
+        os.environ["OPENCLAW_CODEBASE_ROOT"] = os.path.realpath(codebase_path)
+    else:
+        os.environ.pop("OPENCLAW_CODEBASE_ROOT", None)
 
     # ── Stage 1: Service Engineer ─────────────────────────────────────
     logger.info("Service Engineer — implementing changes...")

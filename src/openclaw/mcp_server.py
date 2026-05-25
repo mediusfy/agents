@@ -9,39 +9,18 @@ import logfire
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
-from openclaw.agents.accountant import AccountantDeps, accountant_agent
-from openclaw.agents.asymmetric_reviewer import AsymmetricReviewerDeps, asymmetric_reviewer_agent
-from openclaw.agents.current_events import CurrentEventsDeps, current_events_agent
+from openclaw.agents.non_technical.accountant import AccountantDeps, accountant_agent
+from openclaw.agents.non_technical.asymmetric_reviewer import AsymmetricReviewerDeps, asymmetric_reviewer_agent
+from openclaw.agents.non_technical.current_events import CurrentEventsDeps, current_events_agent
 from openclaw.agents.non_technical.holiday_planner import HolidayPlannerDeps, holiday_planner_agent
-from openclaw.agents.region_analyzer import RegionAnalyzerDeps, region_analyzer_agent
-from openclaw.agents.weather import WeatherDeps, weather_agent
+from openclaw.agents.non_technical.region_analyzer import RegionAnalyzerDeps, region_analyzer_agent
+from openclaw.agents.non_technical.weather import WeatherDeps, weather_agent
+from openclaw.observability import configure_observability
 from openclaw.vector_db import vector_db
 
 logger = logging.getLogger(__name__)
 
-# ── Logfire configuration ──────────────────────────────────────────────
-
-LOGFIRE_ENABLED = False
-LOGFIRE_CONFIGURE_ERROR: str | None = None
-
-try:
-    # Check if Logfire has valid credentials before attempting configure
-    logfire_token = os.environ.get("LOGFIRE_TOKEN", "")
-    logfire_credentials = os.path.expanduser("~/.logfire/credentials.json")
-    has_credentials = bool(logfire_token) or os.path.exists(logfire_credentials)
-
-    if has_credentials:
-        logfire.configure()
-        logfire.instrument_pydantic()
-        logfire.instrument_httpx(capture_request_headers=False, capture_response_headers=False)
-        LOGFIRE_ENABLED = True
-        logger.info("Logfire configured — pydantic + httpx instrumented")
-    else:
-        LOGFIRE_CONFIGURE_ERROR = "No Logfire token or credentials found — telemetry disabled"
-        logger.info(LOGFIRE_CONFIGURE_ERROR)
-except Exception as e:
-    LOGFIRE_CONFIGURE_ERROR = f"Logfire configuration failed: {e}"
-    logger.warning(LOGFIRE_CONFIGURE_ERROR)
+configure_observability()
 
 logging.basicConfig(level=logging.INFO)
 
@@ -51,15 +30,6 @@ mcp = FastMCP(
         enable_dns_rebinding_protection=os.environ.get("MCP_DNS_REBINDING_PROTECTION", "1") == "1"
     ),
 )
-
-# Instrument FastAPI if logfire is available and mcp has an app
-if LOGFIRE_ENABLED and hasattr(mcp, "app"):
-    try:
-        logfire.instrument_fastapi(mcp.app)
-        logger.info("Logfire FastAPI instrumentation applied")
-    except Exception as e:
-        logger.warning("Logfire FastAPI instrumentation failed (non-fatal): %s", e)
-
 
 # ── Instrumented agent runner factory ───────────────────────────────────
 
@@ -126,28 +96,60 @@ def save_adr(decision_id: str, content: str) -> str:
         return f"Saved ADR {decision_id} successfully."
 
 
+def _list_capabilities() -> str:
+    """Return the live list of capabilities → agent owners, sorted alphabetically.
+
+    Used to keep the delegate_to_openclaw_agent docstring honest at runtime.
+    """
+    from openclaw.agents.registration import register_all_agents
+    from openclaw.registry import registry
+
+    register_all_agents()
+    lines = []
+    for cap, owners in registry.capabilities():
+        primary = owners[0]
+        rest = f"  (also: {', '.join(owners[1:])})" if len(owners) > 1 else ""
+        lines.append(f"  - {cap}: {primary}{rest}")
+    return "\n".join(lines)
+
+
 @mcp.tool()
 async def delegate_to_openclaw_agent(capability: str, context: str, task: str) -> str:
     """
     Delegate a heavy-lifting engineering task to the OpenClaw autonomous agents.
-    Available capabilities: 'requirements_analysis', 'arch_review', 'backend_dev',
-    'frontend_dev', 'infra_advice', 'db_schema',
-    'service_engineer' (existing code mods, use modify_existing_code tool instead),
-    'go_test' (Go table-driven tests), 'quality_gate' (over-engineering check), etc.
+
+    Pass a capability string registered via openclaw.agents.registration; common
+    ones include 'backend', 'frontend', 'database', 'security', 'review',
+    'quality_gate', 'go_test', 'planning', 'sre', 'docs'. The full live list is
+    available via the list_openclaw_capabilities tool — call that first if you
+    are not sure which capability fits the task.
+
     For modifying existing code, prefer the 'modify_existing_code' tool.
     """
     from openclaw.agents.registration import register_all_agents
+    from openclaw.exceptions import AgentExecutionError, AgentNotFoundError
     from openclaw.registry import instrumented_query
 
     register_all_agents()
 
     full_prompt = f"Context from IDE:\n{context}\n\nTask:\n{task}"
-    return await instrumented_query(
-        capability=capability,
-        prompt=full_prompt,
-        span_name="mcp.delegate_to_agent",
-        attributes={"capability": capability, "context_length": len(context), "task_length": len(task)},
-    )
+    try:
+        return await instrumented_query(
+            capability=capability,
+            prompt=full_prompt,
+            span_name="mcp.delegate_to_agent",
+            attributes={"capability": capability, "context_length": len(context), "task_length": len(task)},
+        )
+    except AgentNotFoundError as e:
+        return f"ERROR: {e}\n\nAvailable capabilities:\n{_list_capabilities()}"
+    except AgentExecutionError as e:
+        return f"ERROR: {e}"
+
+
+@mcp.tool()
+def list_openclaw_capabilities() -> str:
+    """List the OpenClaw agent capabilities currently registered, with their owning agent."""
+    return "Registered capabilities (capability: primary_agent):\n" + _list_capabilities()
 
 
 @mcp.tool()

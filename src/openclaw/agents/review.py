@@ -1,38 +1,27 @@
-from dataclasses import dataclass
-
-from pydantic_ai import Agent, RunContext
+from pydantic_ai import Agent
 
 from openclaw.models.core import ReviewResult
 from openclaw.models.factory import create_model
 from openclaw.settings import settings
 
-
-@dataclass
-class ReviewDependencies:
-    blueprint_summary: str
-    bounded_contexts: list[str]
-    strict_mode: bool = True
-
-
-review_agent = Agent(
-    model=create_model(settings.resolve_model(settings.review_model)),
-    output_type=ReviewResult,
-    deps_type=ReviewDependencies,
-    retries=3,  # Automatically retry if the output doesn't match ReviewResult schema
-    defer_model_check=True,
-)
+# Review-stage configuration. These were previously fed through a `deps_type`
+# but the pipeline callers (`main.py`, `existing_code_handler.py`) never
+# supplied deps, which caused the dynamic system prompt to AttributeError on
+# `ctx.deps.blueprint_summary`. They're static today — the BA stage doesn't
+# yet emit a structured blueprint summary — so we inline them. When/if a
+# real blueprint flows through `PipelineState`, switch back to deps.
+REVIEW_BLUEPRINT_SUMMARY = "Event-driven hexagonal services, gRPC-enabled, CloudEvents-compliant."
+REVIEW_BOUNDED_CONTEXTS = ["payments", "notifications", "users"]
+REVIEW_STRICT_MODE = True
 
 
-@review_agent.system_prompt
-def build_qsa_prompt(ctx: RunContext[ReviewDependencies]) -> str:
-    """Dynamically builds the system prompt injecting runtime blueprints."""
-
+def _build_review_prompt() -> str:
     strict_clause = (
         "CRITICAL: Strict mode is ENABLED. Any warning must be treated as a hard failure."
-        if ctx.deps.strict_mode
+        if REVIEW_STRICT_MODE
         else "NOTE: Strict mode is disabled. Provide warnings for minor infractions."
     )
-
+    bounded = ", ".join(REVIEW_BOUNDED_CONTEXTS)
     return f"""You represent the final governance layer. Your role is to act as a **Qualified Security Assessor (QSA)**.
 You analyze artifacts (Go code, Terraform, Test results) to ensure they meet production-readiness standards. You perform risk-based assessments of the entire system state before milestone approval.
 
@@ -43,8 +32,8 @@ You analyze artifacts (Go code, Terraform, Test results) to ensure they meet pro
 * Absolutely NO hardcoded secrets, tokens, or sensitive data in any artifact.
 
 ### 2. Architecture Constraints
-* Artifacts must perfectly match the approved Event-Driven Blueprint: {ctx.deps.blueprint_summary}
-* Artifacts must strictly adhere to these Bounded Contexts: {", ".join(ctx.deps.bounded_contexts)}
+* Artifacts must perfectly match the approved Event-Driven Blueprint: {REVIEW_BLUEPRINT_SUMMARY}
+* Artifacts must strictly adhere to these Bounded Contexts: {bounded}
 
 ### 3. Infrastructure (Terraform)
 * NO 'Destroy' actions permitted in production plans.
@@ -52,3 +41,12 @@ You analyze artifacts (Go code, Terraform, Test results) to ensure they meet pro
 
 ### Output Instructions
 Populate your output exactly according to the requested schema. Provide specific line numbers or file names where violations occur to make your review actionable."""
+
+
+review_agent = Agent(
+    model=create_model(settings.resolve_model(settings.review_model)),
+    system_prompt=_build_review_prompt(),
+    output_type=ReviewResult,
+    retries=3,  # Automatically retry if the output doesn't match ReviewResult schema
+    defer_model_check=True,
+)

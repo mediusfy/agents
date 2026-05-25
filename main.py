@@ -4,9 +4,9 @@ import os
 import logging
 from typing import Any
 
-import logfire
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
+from openclaw.observability import configure_observability
 from openclaw.registry import registry
 from openclaw.writer import ArtifactWriter
 from openclaw.checkpoint import CheckpointManager
@@ -19,21 +19,7 @@ from openclaw.utils import format_artifacts
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-# Logfire configuration — check credentials before attempting
-try:
-    logfire_token = os.environ.get("LOGFIRE_TOKEN", "")
-    logfire_credentials = os.path.expanduser("~/.logfire/credentials.json")
-    has_credentials = bool(logfire_token) or os.path.exists(logfire_credentials)
-
-    if has_credentials:
-        logfire.configure()
-        logfire.instrument_pydantic()
-        logfire.instrument_httpx(capture_request_headers=False, capture_response_headers=False)
-        logger.info("Logfire configured — pydantic + httpx instrumented")
-    else:
-        logger.info("No Logfire credentials found — telemetry disabled (set LOGFIRE_TOKEN or run 'logfire auth')")
-except Exception as e:
-    logger.warning("Logfire configuration failed (non-fatal): %s", e)
+configure_observability()
 
 from openclaw.settings import settings
 

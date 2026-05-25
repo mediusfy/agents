@@ -10,6 +10,7 @@ from typing import Any
 import logfire
 from pydantic_ai import Agent
 
+from openclaw.exceptions import AgentExecutionError, AgentNotFoundError
 from openclaw.telemetry import telemetry
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,9 @@ logger = logging.getLogger(__name__)
 class AgentRegistry:
     def __init__(self):
         self._agents: dict[str, tuple[Agent, list[str], Callable | None, Callable | None]] = {}
-        self._cap_index: dict[str, str] = {}  # capability -> agent_name
+        # capability -> ordered list of agent names that claim it (first-registered wins on query;
+        # multiple owners are allowed but logged so the caller can disambiguate)
+        self._cap_index: dict[str, list[str]] = {}
         self._initialized: set[str] = set()
 
     def register(
@@ -33,14 +36,49 @@ class AgentRegistry:
             raise ValueError(f"Agent '{name}' is already registered.")
         self._agents[name] = (agent, capabilities, deps_factory, post_process_hook)
         for cap in capabilities:
-            self._cap_index[cap] = name
+            owners = self._cap_index.setdefault(cap, [])
+            if owners:
+                logger.warning(
+                    "Capability '%s' is now claimed by multiple agents %s; query() resolves to '%s'.",
+                    cap,
+                    [*owners, name],
+                    owners[0],
+                )
+            owners.append(name)
+        # Lazy tool wiring is keyed on agent name; clear any stale entry from a prior register/unregister cycle.
+        self._initialized.discard(name)
 
     def unregister(self, name: str):
         agent_tuple = self._agents.pop(name, None)
         if agent_tuple:
             for cap in agent_tuple[1]:
-                self._cap_index.pop(cap, None)
+                owners = self._cap_index.get(cap)
+                if not owners:
+                    continue
+                if name in owners:
+                    owners.remove(name)
+                if not owners:
+                    self._cap_index.pop(cap, None)
         self._initialized.discard(name)
+
+    def owners_of(self, capability: str) -> list[str]:
+        """Return the ordered list of agent names that claim a capability.
+
+        Empty list means no agent provides it.
+        """
+        return list(self._cap_index.get(capability, []))
+
+    def is_registered(self, name: str) -> bool:
+        """Whether an agent with this name is currently in the registry."""
+        return name in self._agents
+
+    def capabilities(self) -> list[tuple[str, list[str]]]:
+        """Return (capability, owners) pairs in stable (sorted) order.
+
+        Useful for building human-facing lists (e.g. MCP capability tools)
+        without reaching into the private index.
+        """
+        return [(cap, list(owners)) for cap, owners in sorted(self._cap_index.items())]
 
     def get(self, name: str) -> Any:
         agent_tuple = self._agents.get(name)
@@ -78,11 +116,13 @@ class AgentRegistry:
     async def query(self, capability: str, prompt: str, timeout: float | None = None, deps: dict | None = None) -> str:
         """Query an agent by capability, returning its response as a string.
 
-        Uses an O(1) capability index instead of linear scan.
+        Raises AgentNotFoundError if no agent claims the capability and
+        AgentExecutionError if the agent run fails (timeout, model error, validation, etc.).
         """
-        agent_name = self._cap_index.get(capability)
-        if agent_name is None:
-            return f"No agent found for capability '{capability}'"
+        owners = self._cap_index.get(capability)
+        if not owners:
+            raise AgentNotFoundError(f"No agent found for capability '{capability}'")
+        agent_name = owners[0]
 
         agent, _caps, deps_factory, _post_hook = self._agents[agent_name]
         try:
@@ -96,11 +136,13 @@ class AgentRegistry:
             if hasattr(result, "data"):
                 return str(result.data)
             return str(result.output) if hasattr(result, "output") else str(result)
-        except TimeoutError:
-            return f"Agent '{agent_name}' timed out for capability '{capability}'"
+        except TimeoutError as e:
+            raise AgentExecutionError(
+                f"Agent '{agent_name}' timed out for capability '{capability}'", is_retryable=True
+            ) from e
         except Exception as e:
             logger.warning("Agent '%s' failed for capability '%s': %s", agent_name, capability, e)
-            return f"Agent error: {e}"
+            raise AgentExecutionError(f"Agent '{agent_name}' failed: {e}", is_retryable=False) from e
 
 
 async def instrumented_query(
@@ -118,7 +160,8 @@ async def instrumented_query(
     - telemetry.track() for JSONL telemetry
     - Error attribution to the right agent
     """
-    agent_name = registry._cap_index.get(capability, "unknown")
+    owners = registry.owners_of(capability)
+    agent_name = owners[0] if owners else "unknown"
     span_attrs: dict[str, Any] = {
         "capability": capability,
         "agent_name": agent_name,

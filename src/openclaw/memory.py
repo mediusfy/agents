@@ -105,7 +105,6 @@ class RedisIrisMemory:
         raise NotImplementedError("redis_agent_memory integration not yet implemented")
 
 
-# Module-level singleton cache for get_memory_backend()
 _memory_backend: VectorMemory | RedisIrisMemory | None = None
 
 
