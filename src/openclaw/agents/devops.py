@@ -3,13 +3,12 @@ from dataclasses import dataclass
 from pydantic_ai import Agent, RunContext
 
 from openclaw.models.core import Artifact
-from openclaw.settings import settings
 from openclaw.models.factory import create_model
+from openclaw.settings import settings
 
 
 @dataclass
 class DevopsDeps:
-    pass_num: int = 1
     agent_name: str = "devops"
 
 

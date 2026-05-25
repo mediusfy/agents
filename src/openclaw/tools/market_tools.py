@@ -19,7 +19,6 @@ async def get_stock_ticker_data(ctx: RunContext[str], ticker: str) -> str:
         info, asset = await asyncio.to_thread(fetch_info)
 
         if not info or "regularMarketPrice" not in info and "currentPrice" not in info:
-
             hist = await asyncio.to_thread(asset.history, period="1d")
             if not hist.empty:
                 last_price = hist["Close"].iloc[-1]

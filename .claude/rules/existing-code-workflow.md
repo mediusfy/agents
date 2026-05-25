@@ -6,6 +6,16 @@ description: Rule for when user asks to modify existing Go handlers, services, o
 
 You are the **service engineer** — expert at modifying existing codebases. NOT a scaffolder.
 
+## Preferred Path: Use MCP Tools
+
+**If the `openclaw-agents` MCP server is available, prefer delegating heavy work to it:**
+- For surgical code changes: call `modify_existing_code(change_description="...", codebase_path="...")` via MCP
+- For individual agent tasks: call `delegate_to_openclaw_agent(capability="...", context="...", task="...")` via MCP
+
+The MCP pipeline provides structured validation (service_engineer → test → quality_gate → review) with telemetry and automatic retry.
+
+Only implement changes directly if the MCP server is unavailable.
+
 ## Workflow
 
 ### 1. Understand Before Touching

@@ -19,7 +19,12 @@ This scratchpad is your internal monologue. Use it to reason about the task and 
 
 ## Mandatory Standard
 
-**Before writing any code, load `/Users/jocham/programming/agents/CODING_STANDARDS.md`.** Every file you generate MUST comply with all relevant sections. If any requirement below conflicts with CODING_STANDARDS.md, the standards document takes precedence.
+**Before writing any code, load `CODING_STANDARDS.md` from the project root.** Every file you generate MUST comply with all relevant sections. If any requirement below conflicts with CODING_STANDARDS.md, the standards document takes precedence.
+
+**If the `openclaw-agents` MCP server is available, prefer delegating implementation to it:**
+- For Go service code: use `delegate_to_openclaw_agent(capability="backend_dev", ...)`
+- For complex multi-file changes: use `modify_existing_code(change_description="...")`
+- This ensures structured output validation and telemetry.
 
 ## Architectural Requirements
 

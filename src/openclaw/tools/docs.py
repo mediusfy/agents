@@ -2,9 +2,9 @@ import os
 
 from pydantic_ai import RunContext
 
+from openclaw.exceptions import PathTraversalError
 from openclaw.tools.registry import register_tool
 from openclaw.utils import safe_path_join
-from openclaw.exceptions import PathTraversalError
 
 
 async def update_documentation(ctx: RunContext, file_path: str, content: str, mode: str = "append") -> str:

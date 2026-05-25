@@ -1,8 +1,8 @@
 from pydantic_ai import Agent
 
 from openclaw.models.core import Artifact
-from openclaw.settings import settings
 from openclaw.models.factory import create_model
+from openclaw.settings import settings
 
 docs_agent = Agent(
     create_model(settings.resolve_model(settings.docs_model)),

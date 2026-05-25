@@ -2,8 +2,8 @@ from pydantic import BaseModel
 from pydantic_ai import Agent, RunContext
 
 from openclaw.models.core import Artifact
-from openclaw.settings import settings
 from openclaw.models.factory import create_model
+from openclaw.settings import settings
 
 frontend_prompt = """You are a Lead Frontend Engineer building Vue 3 interfaces using the Composition API and TSX. You must ensure every interactive element is strictly **WCAG 2.1 compliant** and includes a unique data-testid attribute to facilitate flawless automated simulation by testing agents.
 
@@ -14,7 +14,10 @@ Technical Priorities:
 """
 
 frontend_agent = Agent(
-    create_model(settings.resolve_model(settings.frontend_model)), system_prompt=frontend_prompt, output_type=Artifact, defer_model_check=True
+    create_model(settings.resolve_model(settings.frontend_model)),
+    system_prompt=frontend_prompt,
+    output_type=Artifact,
+    defer_model_check=True,
 )
 
 
@@ -23,7 +26,10 @@ class ComponentOutput(BaseModel):
 
 
 component_gen = Agent(
-    create_model(settings.resolve_model(settings.frontend_model)), system_prompt=frontend_prompt, output_type=ComponentOutput, defer_model_check=True
+    create_model(settings.resolve_model(settings.frontend_model)),
+    system_prompt=frontend_prompt,
+    output_type=ComponentOutput,
+    defer_model_check=True,
 )
 
 

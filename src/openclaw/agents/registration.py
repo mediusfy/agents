@@ -61,36 +61,32 @@ def register_all_agents():
     from openclaw.agents.region_analyzer import RegionAnalyzerDeps, region_analyzer_agent
     from openclaw.agents.weather import WeatherDeps, weather_agent
 
-    registry.register("accountant", accountant_agent, ["finance"], lambda: AccountantDeps(pass_num=1))
+    registry.register("accountant", accountant_agent, ["finance"], lambda: AccountantDeps())
     registry.register(
         "asymmetric_reviewer",
         asymmetric_reviewer_agent,
         ["legal", "finance"],
-        lambda: AsymmetricReviewerDeps(pass_num=1),
+        lambda: AsymmetricReviewerDeps(),
     )
-    registry.register(
-        "current_events", current_events_agent, ["news", "history"], lambda: CurrentEventsDeps(pass_num=1)
-    )
-    registry.register("region_analyzer", region_analyzer_agent, ["analysis"], lambda: RegionAnalyzerDeps(pass_num=1))
-    registry.register("weather", weather_agent, ["weather"], lambda: WeatherDeps(pass_num=1))
-    registry.register(
-        "crypto_oracle", crypto_oracle_agent, ["finance", "news", "research"], lambda: CryptoOracleDeps(pass_num=1)
-    )
+    registry.register("current_events", current_events_agent, ["news", "history"], lambda: CurrentEventsDeps())
+    registry.register("region_analyzer", region_analyzer_agent, ["analysis"], lambda: RegionAnalyzerDeps())
+    registry.register("weather", weather_agent, ["weather"], lambda: WeatherDeps())
+    registry.register("crypto_oracle", crypto_oracle_agent, ["finance", "news", "research"], lambda: CryptoOracleDeps())
     registry.register(
         "holiday_planner",
         holiday_planner_agent,
         ["planning", "travel"],
-        lambda: HolidayPlannerDeps(pass_num=1),
+        lambda: HolidayPlannerDeps(),
     )
     registry.register(
         "market_shark",
         market_shark_agent,
         ["finance", "crypto", "stocks", "investing"],
-        lambda: MarketSharkDeps(pass_num=1),
+        lambda: MarketSharkDeps(),
     )
     registry.register(
         "price_analyst",
         price_analyst_agent,
         ["pricing", "analysis", "purchasing"],
-        lambda: PriceAnalystDeps(pass_num=1),
+        lambda: PriceAnalystDeps(),
     )

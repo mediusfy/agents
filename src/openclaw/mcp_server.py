@@ -1,13 +1,13 @@
 import asyncio
+import logging
 import os
 import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-import logging
-
 import logfire
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 from openclaw.agents.accountant import AccountantDeps, accountant_agent
 from openclaw.agents.asymmetric_reviewer import AsymmetricReviewerDeps, asymmetric_reviewer_agent
@@ -17,29 +17,66 @@ from openclaw.agents.region_analyzer import RegionAnalyzerDeps, region_analyzer_
 from openclaw.agents.weather import WeatherDeps, weather_agent
 from openclaw.vector_db import vector_db
 
+logger = logging.getLogger(__name__)
+
+# ── Logfire configuration ──────────────────────────────────────────────
+
+LOGFIRE_ENABLED = False
+LOGFIRE_CONFIGURE_ERROR: str | None = None
+
 try:
-    logfire.configure()
-    logfire.instrument_pydantic()
-except Exception:
-    logging.warning("Logfire not configured — telemetry disabled")
+    # Check if Logfire has valid credentials before attempting configure
+    logfire_token = os.environ.get("LOGFIRE_TOKEN", "")
+    logfire_credentials = os.path.expanduser("~/.logfire/credentials.json")
+    has_credentials = bool(logfire_token) or os.path.exists(logfire_credentials)
+
+    if has_credentials:
+        logfire.configure()
+        logfire.instrument_pydantic()
+        logfire.instrument_httpx(capture_request_headers=False, capture_response_headers=False)
+        LOGFIRE_ENABLED = True
+        logger.info("Logfire configured — pydantic + httpx instrumented")
+    else:
+        LOGFIRE_CONFIGURE_ERROR = "No Logfire token or credentials found — telemetry disabled"
+        logger.info(LOGFIRE_CONFIGURE_ERROR)
+except Exception as e:
+    LOGFIRE_CONFIGURE_ERROR = f"Logfire configuration failed: {e}"
+    logger.warning(LOGFIRE_CONFIGURE_ERROR)
 
 logging.basicConfig(level=logging.INFO)
 
-mcp = FastMCP("OpenClaw")
-try:
-    if hasattr(mcp, "app"):
+mcp = FastMCP(
+    "OpenClaw",
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=os.environ.get("MCP_DNS_REBINDING_PROTECTION", "1") == "1"
+    ),
+)
+
+# Instrument FastAPI if logfire is available and mcp has an app
+if LOGFIRE_ENABLED and hasattr(mcp, "app"):
+    try:
         logfire.instrument_fastapi(mcp.app)
-except Exception:
-    pass
+        logger.info("Logfire FastAPI instrumentation applied")
+    except Exception as e:
+        logger.warning("Logfire FastAPI instrumentation failed (non-fatal): %s", e)
+
+
+# ── Instrumented agent runner factory ───────────────────────────────────
 
 
 def create_agent_runner(agent, deps_class, tool_name: str, docstring: str):
-    """Factory to create an MCP tool for running an agent."""
+    """Factory to create an MCP tool for running an agent, with Logfire span."""
 
     async def agent_runner(request: str) -> str:
-        deps = deps_class(pass_num=1)
-        result = await agent.run(request, deps=deps)
-        return result.output
+        with logfire.span(
+            "mcp.run_agent",
+            tool_name=tool_name,
+            request_length=len(request),
+            _level="info",
+        ):
+            deps = deps_class()
+            result = await agent.run(request, deps=deps)
+            return result.output
 
     agent_runner.__doc__ = docstring
     agent_runner.__name__ = tool_name
@@ -74,17 +111,19 @@ run_accountant = create_agent_runner(
 @mcp.tool()
 def search_adrs(query: str) -> str:
     """Search existing Architecture Decision Records (ADRs) to ensure new advice doesn't contradict past rulings."""
-    results = vector_db.search("adrs", query)
-    if not results:
-        return f"No ADRs found for query: {query}"
-    return "Found past architectural context:\n" + "\n---\n".join(results)
+    with logfire.span("mcp.search_adrs", query_length=len(query), _level="info"):
+        results = vector_db.search("adrs", query)
+        if not results:
+            return f"No ADRs found for query: {query}"
+        return "Found past architectural context:\n" + "\n---\n".join(results)
 
 
 @mcp.tool()
 def save_adr(decision_id: str, content: str) -> str:
     """Save a new Architecture Decision Record (ADR) to the knowledge base."""
-    vector_db.add_documents("adrs", [content], [{"id": decision_id}], [decision_id])
-    return f"Saved ADR {decision_id} successfully."
+    with logfire.span("mcp.save_adr", decision_id=decision_id, _level="info"):
+        vector_db.add_documents("adrs", [content], [{"id": decision_id}], [decision_id])
+        return f"Saved ADR {decision_id} successfully."
 
 
 @mcp.tool()
@@ -98,59 +137,76 @@ async def delegate_to_openclaw_agent(capability: str, context: str, task: str) -
     For modifying existing code, prefer the 'modify_existing_code' tool.
     """
     from openclaw.agents.registration import register_all_agents
-    from openclaw.registry import registry
+    from openclaw.registry import instrumented_query
 
     register_all_agents()
 
     full_prompt = f"Context from IDE:\n{context}\n\nTask:\n{task}"
-    return await registry.query(capability, full_prompt)
+    return await instrumented_query(
+        capability=capability,
+        prompt=full_prompt,
+        span_name="mcp.delegate_to_agent",
+        attributes={"capability": capability, "context_length": len(context), "task_length": len(task)},
+    )
 
 
 @mcp.tool()
 async def run_openclaw_pipeline(project_name: str, requirement: str) -> str:
     """Run the entire multi-agent OpenClaw pipeline end-to-end for a given project requirement."""
-    from main import main
+    with logfire.span(
+        "mcp.run_pipeline",
+        project_name=project_name,
+        requirement_length=len(requirement),
+        _level="info",
+    ):
+        from main import main
 
-    await main(project=project_name, step="all", resume=False, auto_yes=True, requirement=requirement)
-    return f"Pipeline completed for {project_name}. Artifacts written to disk."
+        await main(project=project_name, step="all", resume=False, auto_yes=True, requirement=requirement)
+        return f"Pipeline completed for {project_name}. Artifacts written to disk."
 
 
 @mcp.tool()
 async def plan_and_execute(goal: str) -> str:
     """Creates a plan to achieve a high-level goal and executes all tasks in dependency order."""
-    from openclaw.agents.planner_agent import planner_agent
-    from openclaw.registry import registry
+    with logfire.span("mcp.plan_and_execute", goal_length=len(goal), _level="info"):
+        from openclaw.agents.planner_agent import planner_agent
+        from openclaw.registry import instrumented_query
 
-    plan_response = await planner_agent.run(f"Create a plan to achieve this goal: {goal}")
-    plan = plan_response.output
+        plan_response = await planner_agent.run(f"Create a plan to achieve this goal: {goal}")
+        plan = plan_response.output
 
-    completed: set[str] = set()
-    results: dict[str, str] = {}
+        completed: set[str] = set()
+        results: dict[str, str] = {}
 
-    while len(completed) < len(plan.tasks):
-        batch = [t for t in plan.tasks if t.id not in completed and all(dep in completed for dep in t.dependencies)]
-        if not batch:
-            return f"Plan execution stuck — possible circular dependency.\nPlan: {plan.model_dump_json(indent=2)}"
+        while len(completed) < len(plan.tasks):
+            batch = [t for t in plan.tasks if t.id not in completed and all(dep in completed for dep in t.dependencies)]
+            if not batch:
+                return f"Plan execution stuck — possible circular dependency.\nPlan: {plan.model_dump_json(indent=2)}"
 
-        async def _run_task(t):
-            try:
-                result = await registry.query(t.capability, t.prompt)
-                results[t.id] = result
-            except Exception as e:
-                results[t.id] = f"ERROR: {e}"
+            async def _run_task(t):
+                try:
+                    result = await instrumented_query(
+                        capability=t.capability,
+                        prompt=t.prompt,
+                        span_name="mcp.plan_task",
+                        attributes={"task_id": t.id, "capability": t.capability},
+                    )
+                    results[t.id] = result
+                except Exception as e:
+                    results[t.id] = f"ERROR: {e}"
 
-        await asyncio.gather(*[_run_task(t) for t in batch])
+            await asyncio.gather(*[_run_task(t) for t in batch])
 
-        for t in batch:
-            completed.add(t.id)
+            for t in batch:
+                completed.add(t.id)
 
-    summary_lines = [f"## Plan Execution: {goal}", ""]
-    for t in plan.tasks:
-        status = "✓" if "ERROR" not in results.get(t.id, "") else "✗"
-        summary_lines.append(f"  {status} {t.id} ({t.capability}): {t.prompt[:80]}...")
-        summary_lines.append(f"     → {results.get(t.id, 'no result')[:200]}")
+        summary_lines = [f"## Plan Execution: {goal}", ""]
+        for t in plan.tasks:
+            status = "✓" if "ERROR" not in results.get(t.id, "") else "✗"
+            summary_lines.append(f"  {status} {t.id} ({t.capability}): {t.prompt[:80]}...")
+            summary_lines.append(f"     → {results.get(t.id, 'no result')[:200]}")
 
-    return "\n".join(summary_lines)
+        return "\n".join(summary_lines)
 
 
 @mcp.tool()
@@ -168,20 +224,26 @@ async def modify_existing_code(change_description: str, codebase_path: str = "")
             to the ProcessMessage handler in internal/service/message.go")
         codebase_path: Path to the existing codebase root. Leave empty to auto-detect.
     """
-    from openclaw.agents.registration import register_all_agents
-    from openclaw.existing_code_handler import format_result_summary, run_existing_code_pipeline
+    with logfire.span(
+        "mcp.modify_existing_code",
+        change_description_length=len(change_description),
+        codebase_path=codebase_path or "auto-detect",
+        _level="info",
+    ):
+        from openclaw.agents.registration import register_all_agents
+        from openclaw.existing_code_handler import format_result_summary, run_existing_code_pipeline
 
-    register_all_agents()
+        register_all_agents()
 
-    result = await run_existing_code_pipeline(
-        change_description=change_description,
-        codebase_path=codebase_path,
-        run_tests=True,
-        run_quality_gate=True,
-        run_review=True,
-    )
+        result = await run_existing_code_pipeline(
+            change_description=change_description,
+            codebase_path=codebase_path,
+            run_tests=True,
+            run_quality_gate=True,
+            run_review=True,
+        )
 
-    return format_result_summary(result)
+        return format_result_summary(result)
 
 
 @mcp.tool()
@@ -190,11 +252,17 @@ async def scaffold_and_build_service(service_name: str, bounded_context: str, re
     Scaffold and build a new backend service from scratch using the full OpenClaw pipeline.
     This runs the BA → Advisory → Implementation → Test → SRE → Review pipeline.
     """
-    from main import main
+    with logfire.span(
+        "mcp.scaffold_service",
+        service_name=service_name,
+        bounded_context=bounded_context,
+        _level="info",
+    ):
+        from main import main
 
-    requirement = requirement or f"Build a {service_name} service for {bounded_context} bounded context."
-    await main(project=service_name, step="all", resume=False, auto_yes=True, requirement=requirement)
-    return f"Service '{service_name}' scaffolding pipeline completed. Artifacts in generated-app/{service_name}/."
+        requirement = requirement or f"Build a {service_name} service for {bounded_context} bounded context."
+        await main(project=service_name, step="all", resume=False, auto_yes=True, requirement=requirement)
+        return f"Service '{service_name}' scaffolding pipeline completed. Artifacts in generated-app/{service_name}/."
 
 
 if __name__ == "__main__":

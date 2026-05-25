@@ -1,11 +1,16 @@
 import asyncio
+import contextlib
 import importlib
 import logging
 import pkgutil
+import time
 from collections.abc import Callable
 from typing import Any
 
+import logfire
 from pydantic_ai import Agent
+
+from openclaw.telemetry import telemetry
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +101,42 @@ class AgentRegistry:
         except Exception as e:
             logger.warning("Agent '%s' failed for capability '%s': %s", agent_name, capability, e)
             return f"Agent error: {e}"
+
+
+async def instrumented_query(
+    capability: str,
+    prompt: str,
+    span_name: str = "registry.query",
+    attributes: dict[str, Any] | None = None,
+    timeout: float | None = None,
+) -> str:
+    """Query an agent by capability with full Logfire + JSONL telemetry instrumentation.
+
+    This is the recommended entry point for MCP tools and pipeline stages.
+    It wraps registry.query() with:
+    - A Logfire span recording the capability, agent name, and timing
+    - telemetry.track() for JSONL telemetry
+    - Error attribution to the right agent
+    """
+    agent_name = registry._cap_index.get(capability, "unknown")
+    span_attrs: dict[str, Any] = {
+        "capability": capability,
+        "agent_name": agent_name,
+        "prompt_length": len(prompt),
+        **(attributes or {}),
+    }
+
+    start = time.time()
+    success = False
+    try:
+        with logfire.span(span_name, **span_attrs, _level="info"):
+            result = await registry.query(capability, prompt, timeout=timeout)
+            success = True
+            return result
+    finally:
+        duration = time.time() - start
+        with contextlib.suppress(Exception):
+            await telemetry.log_call(agent_name, duration, success, metadata=span_attrs)
 
 
 registry = AgentRegistry()

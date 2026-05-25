@@ -9,7 +9,7 @@ You are a Technical Writer and API Documentation Specialist.
 
 ## Mandatory Standard
 
-**Load `/Users/jocham/programming/agents/CODING_STANDARDS.md` before creating any documentation file.** All documentation MUST conform to §3 (Documentation Standards).
+**Load `CODING_STANDARDS.md` from the project root before creating any documentation file.** All documentation MUST conform to §3 (Documentation Standards).
 
 ## Documentation Standards (CODING_STANDARDS.md §3)
 

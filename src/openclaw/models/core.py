@@ -1,5 +1,6 @@
 from enum import Enum
 from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -58,17 +59,19 @@ class AgentAdvice(BaseModel):
 
 
 class ActivityLog(BaseModel):
-    pass_num: int
+    pass_num: int = 0
     agent_name: str
     action: str
     summary: str
     timestamp: str
     artifact_ids: list[str] = Field(default_factory=list)
 
+
 class SecurityReport(BaseModel):
     passed: bool
     score: int
     feedback: list[str] = Field(default_factory=list)
+
 
 class PipelineState(BaseModel):
     run_id: str

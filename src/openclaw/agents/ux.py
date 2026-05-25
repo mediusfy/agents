@@ -1,8 +1,8 @@
 from pydantic_ai import Agent
 
 from openclaw.models.core import AgentAdvice
-from openclaw.settings import settings
 from openclaw.models.factory import create_model
+from openclaw.settings import settings
 
 ux_agent = Agent(
     create_model(settings.resolve_model(settings.ux_model)),

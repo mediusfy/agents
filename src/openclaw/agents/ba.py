@@ -1,21 +1,50 @@
+#!/usr/bin/env python3
 from pydantic_ai import Agent, RunContext
 
 from openclaw.models.core import EventTrigger, UserStory
-from openclaw.settings import settings
 from openclaw.models.factory import create_model
+from openclaw.settings import settings
 
-ba_prompt = """You are a Senior Business Analyst Agent focused on **Domain-Driven Design (DDD)**. Your objective is to translate high-level project goals into structured technical requirements and define "Bounded Contexts" for the OpenClaw ecosystem to ensure engineering agents build robust, non-monolithic architectures.
+ba_prompt = """You are a Senior Business Analyst Agent focused on **Domain-Driven Design (DDD)**.
 
-Requirements Standards:
-- Event Modeling: Actively identify and map specific event triggers (e.g., 'OrderCreated', 'PaymentFailed') directly to business value outcomes.
-- Syntax: Strictly utilize Gherkin syntax (Given/When/Then) to frame all acceptance criteria.
-- Constraints: Explicitly capture and document multi-cloud constraints, emphasizing data residency laws and regional network latency.
+Your job is to convert raw requirements into:
+1. **User Stories** in the standard "As a... I want... so that..." form, each with Gherkin acceptance criteria (Given/When/Then).
+2. **Bounded Contexts** — name them, define the ubiquitous language inside each, and identify the integration patterns between them (shared kernel, customer-supplier, anti-corruption layer, etc.).
+3. **Event Triggers** — the domain events that downstream backend services and QA automation will key off of. For each event give: name, payload schema sketch, the bounded context that owns it, and the consumers.
+
+## Conventions
+
+- Story IDs follow `BC-NN` (e.g., `ORDERS-01`)
+- Event names are past-tense and namespaced: `orders.OrderPlaced`, `billing.PaymentCaptured`
+- Explicitly capture and document multi-cloud constraints, emphasizing data residency laws and regional network latency
+- Strictly utilize Gherkin syntax (Given/When/Then) to frame all acceptance criteria
+
+## Quality Standards
+
+- Be ruthless about ambiguity — if requirements conflict or a story has no measurable acceptance criteria, flag it
+- Every user story must map to at least one event trigger
+- Events must have clear owners (bounded context) and consumers (other contexts/services)
 """
 
-ba_agent = Agent(create_model(settings.resolve_model(settings.ba_model)), system_prompt=ba_prompt, output_type=list[UserStory], defer_model_check=True)
+ba_agent = Agent(
+    create_model(settings.resolve_model(settings.ba_model)),
+    system_prompt=ba_prompt,
+    output_type=list[UserStory],
+    defer_model_check=True,
+)
 
-extractor = Agent(create_model(settings.resolve_model(settings.ba_model)), system_prompt=ba_prompt, output_type=list[UserStory], defer_model_check=True)
-event_mapper = Agent(create_model(settings.resolve_model(settings.ba_model)), system_prompt=ba_prompt, output_type=list[EventTrigger], defer_model_check=True)
+extractor = Agent(
+    create_model(settings.resolve_model(settings.ba_model)),
+    system_prompt=ba_prompt,
+    output_type=list[UserStory],
+    defer_model_check=True,
+)
+event_mapper = Agent(
+    create_model(settings.resolve_model(settings.ba_model)),
+    system_prompt=ba_prompt,
+    output_type=list[EventTrigger],
+    defer_model_check=True,
+)
 
 
 @ba_agent.tool

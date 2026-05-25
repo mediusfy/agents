@@ -101,6 +101,7 @@ class RedisIrisMemory:
     async def get_relevant_memories(self, query: str, n_results: int = 5) -> list["Memory"]:
         """Retrieve relevant memories from the Redis IRIS store."""
         import redis_agent_memory  # noqa: F401
+
         raise NotImplementedError("redis_agent_memory integration not yet implemented")
 
 

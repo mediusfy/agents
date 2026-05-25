@@ -3,7 +3,7 @@
 
 class _StubVectorDB:
     def search(self, collection: str, query: str) -> list[str]:
-        return [f"Vector DB not available — install heavy dependencies (chromadb, sentence-transformers)"]
+        return ["Vector DB not available — install heavy dependencies (chromadb, sentence-transformers)"]
 
     def add_documents(self, collection: str, docs: list[str], metadatas: list[dict], ids: list[str]) -> None:
         pass

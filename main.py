@@ -5,6 +5,7 @@ import logging
 from typing import Any
 
 import logfire
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from openclaw.registry import registry
 from openclaw.writer import ArtifactWriter
@@ -18,11 +19,21 @@ from openclaw.utils import format_artifacts
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
+# Logfire configuration — check credentials before attempting
 try:
-    logfire.configure()
-    logfire.instrument_pydantic()
-except Exception:
-    logger.warning("Logfire not configured (run 'logfire auth' to enable telemetry)")
+    logfire_token = os.environ.get("LOGFIRE_TOKEN", "")
+    logfire_credentials = os.path.expanduser("~/.logfire/credentials.json")
+    has_credentials = bool(logfire_token) or os.path.exists(logfire_credentials)
+
+    if has_credentials:
+        logfire.configure()
+        logfire.instrument_pydantic()
+        logfire.instrument_httpx(capture_request_headers=False, capture_response_headers=False)
+        logger.info("Logfire configured — pydantic + httpx instrumented")
+    else:
+        logger.info("No Logfire credentials found — telemetry disabled (set LOGFIRE_TOKEN or run 'logfire auth')")
+except Exception as e:
+    logger.warning("Logfire configuration failed (non-fatal): %s", e)
 
 from openclaw.settings import settings
 
@@ -43,11 +54,18 @@ async def run_agent(
     timeout: float = DEFAULT_AGENT_TIMEOUT,
 ) -> Any:
     async with semaphore:
-        async def _run():
+
+        @retry(
+            stop=stop_after_attempt(3),
+            wait=wait_exponential(multiplier=1, min=2, max=30),
+            retry=retry_if_exception_type((TimeoutError, ConnectionError, OSError)),
+            reraise=True,
+        )
+        async def _run_with_retry():
             coro = agent.run(prompt, deps=deps) if deps is not None else agent.run(prompt)
             return await asyncio.wait_for(coro, timeout=timeout)
 
-        return await telemetry.track(agent_name, _run)
+        return await telemetry.track(agent_name, _run_with_retry)
 
 
 async def run_ba_stage(semaphore, state: PipelineState, raw_requirements: str, checkpoint_mgr) -> PipelineState:

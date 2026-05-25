@@ -195,6 +195,7 @@ class TestPipelineStageDataFlow:
 # Full PipelineState Checkpoint Roundtrip (Memory Preservation)
 # =============================================================================
 
+
 class TestPipelineStatePersistence:
     """Verifies that a fully populated PipelineState survives save/load."""
 
@@ -429,6 +430,7 @@ class TestPipelineStatePersistence:
 # =============================================================================
 # Agent Registration and Capability Discovery
 # =============================================================================
+
 
 class TestAgentRegistrationIntegration:
     """Verifies all agents register and capabilities are queryable."""

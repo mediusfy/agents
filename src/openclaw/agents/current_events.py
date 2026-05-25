@@ -2,13 +2,12 @@ from dataclasses import dataclass
 
 from pydantic_ai import Agent
 
-from openclaw.settings import settings
 from openclaw.models.factory import create_model
+from openclaw.settings import settings
 
 
 @dataclass
 class CurrentEventsDeps:
-    pass_num: int
     agent_name: str = "current_events"
 
 
