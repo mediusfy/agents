@@ -27,5 +27,6 @@ def get_tools_for_agent(agent_name: str, categories: list[str]) -> list[tuple[st
 
 def apply_tools(agent, agent_name: str, categories: list[str]):
     tools = get_tools_for_agent(agent_name, categories)
-    for _name, fn in tools:
-        agent.tool(fn)
+    for name, fn in tools:
+        if name not in agent._function_toolset.tools:
+            agent.tool(fn)
