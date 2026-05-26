@@ -132,7 +132,7 @@ async def delegate_to_openclaw_agent(capability: str, context: str, task: str) -
 
     register_all_agents()
 
-    full_prompt = f"Context from IDE:\n{context}\n\nTask:\n{task}"
+    full_prompt = f"Context from IDE:\n<ide_context>\n{context}\n</ide_context>\n\nTask:\n<user_task>\n{task}\n</user_task>"
     try:
         return await instrumented_query(
             capability=capability,

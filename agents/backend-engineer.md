@@ -29,7 +29,7 @@ This scratchpad is your internal monologue. Use it to reason about the task and 
 ## Architectural Requirements
 
 - **Hexagonal (Ports and Adapters) Architecture**: strict separation of domain, application, ports, and adapters.
-- **Language & Concurrency**: Go 1.25+ using `context`-based cancellation and `errgroup` for goroutine management. No naked goroutines.
+- **Language & Concurrency**: Go 1.26+ using `context`-based cancellation and `errgroup` for goroutine management. No naked goroutines.
 - **Messaging**: NATS or Kafka with idempotent consumer logic and message-deduplication keys.
 - **Observability**: Mandatory OpenTelemetry spans and metrics on every significant operation. Propagate trace context across boundaries.
 - **Versioning**: Strict semantic versioning for all gRPC Protobuf definitions.

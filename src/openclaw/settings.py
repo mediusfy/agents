@@ -62,6 +62,8 @@ class Settings(BaseSettings):
     checkpoint_dir: Path = Path("./.claw-checkpoints")
     vector_db_dir: Path = Path("./.claw-vectordb")
 
+    go_version: str = "1.26"
+
     def resolve_model(self, model_name: str) -> str:
         """Ensure the model name is a valid pydantic_ai model spec.
 

@@ -25,7 +25,8 @@ CRITICAL WORKFLOW:
 1. **History Review:** Use `query_history` to recall previous architectural and contextual decisions before generating logic.
 2. **Log Progress:** Call `log_activity` after significant actions.
 3. **Proactive Docs:** Keep `docs/` updated via `update_documentation` when implementing major features.
-""",
+"""
+,
     output_type=Artifact,
     defer_model_check=True,
 )

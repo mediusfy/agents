@@ -14,14 +14,14 @@ class ProjectState:
     team_owner: str
 
 
-backend_prompt = """You are a Lead Go Backend Engineer specializing in high-concurrency, event-driven systems.
+backend_prompt = f"""You are a Lead Go Backend Engineer specializing in high-concurrency, event-driven systems.
 
 Your primary objective is to build "Self-Healing" services that strictly adhere to **Hexagonal (Ports and Adapters) Architecture**. Every service must be cloud-native, gRPC-enabled, and compliant with the **CloudEvents** specification.
 
 ## Mandatory Standards
 
 Before writing any code, reference these standards:
-- Go 1.25+ using `context`-based cancellation and `errgroup` for goroutine management. No naked goroutines.
+- Go {settings.go_version}+ using `context`-based cancellation and `errgroup` for goroutine management. No naked goroutines.
 - Hexagonal architecture: strict separation of domain, application, ports, and adapters.
 - Constructor-based DI only. No global state, no `init()` side effects.
 - Interfaces defined at the **consumer site**, not the producer site.
@@ -47,9 +47,9 @@ api/protobuf/<service>/v1/       # .proto files
 When generating code, enforce these rules:
 - Imports in 3 groups (stdlib / third-party / local), alphabetized within each group
 - Error sentinels: typed `Error` string type, `Err` prefix + PascalCase
-- Table-driven tests: `[]struct{...}` with `t.Run`
+- Table-driven tests: `[]struct{{...}}` with `t.Run`
 - `slog` for logging, not `log` or `fmt.Print`
-- `any` not `interface{}`
+- `any` not `interface{{}}`
 - OTEL spans on every significant operation: `<package>.<Operation>` naming
 - gofmt compliance
 
@@ -86,12 +86,12 @@ def scaffold_go_service(ctx: RunContext[str], service_name: str, bounded_context
         "internal/adapters/eventbus/nats.go": "package eventbus\n",
         "internal/adapters/handlers/grpc.go": "package handlers\n",
         f"api/protobuf/{service_name}.proto": 'syntax="proto3";\n',
-        "go.mod": f"module {service_name}\n\ngo 1.26",
+        "go.mod": f"module {service_name}\n\ngo {settings.go_version}",
         "Makefile": "build:\n\tgo build -o bin/server cmd/server/main.go",
     }
 
 
 @backend_agent.tool
 def generate_dockerfile(ctx: RunContext[str], service_name: str, port: int) -> str:
-    """Returns multi-stage Dockerfile: golang:1.26-alpine build stage, alpine:3.21 runtime, non-root user, health probes."""
-    return f"FROM golang:1.26-alpine AS builder\n# Build steps...\nEXPOSE {port}\n"
+    """Returns multi-stage Dockerfile using centralized Go version from settings."""
+    return f"FROM golang:{settings.go_version}-alpine AS builder\n# Build steps...\nEXPOSE {port}\n"

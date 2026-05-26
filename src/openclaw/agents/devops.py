@@ -33,7 +33,7 @@ CRITICAL WORKFLOW:
 
 @devops_agent.tool
 def generate_github_action(ctx: RunContext[str], service_name: str) -> str:
-    """Returns an enterprise-grade GitHub Actions pipeline for a Go service."""
+    """Returns an enterprise-grade GitHub Actions pipeline for a Go service using centralized settings."""
     return f"""name: {service_name} CI
 
 on:
@@ -55,7 +55,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.26"
+          go-version: "{settings.go_version}"
           cache: true # Ensures fast builds by caching modules and build outputs
 
       - name: Verify dependencies
