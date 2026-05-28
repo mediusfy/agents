@@ -9,8 +9,6 @@ from openclaw.models.core import Artifact
 from openclaw.models.factory import create_model
 from openclaw.settings import settings
 
-# Cap on file content returned by read_file. Larger files balloon the LLM
-# context and any captured request bodies in telemetry.
 _READ_FILE_MAX_BYTES = 256 * 1024
 
 

@@ -103,7 +103,7 @@ async def run_existing_code_pipeline(
     else:
         os.environ.pop("OPENCLAW_CODEBASE_ROOT", None)
 
-    # ── Stage 1: Service Engineer ─────────────────────────────────────
+    # Service Engineer
     logger.info("Service Engineer — implementing changes...")
     with logfire.span(
         "existing_code.pipeline",
@@ -142,7 +142,7 @@ async def run_existing_code_pipeline(
         result.passed = True
         return result
 
-    # ── Stage 2: Test Engineer ────────────────────────────────────────
+    # Test Engineer
     if run_tests:
         logger.info("Test Engineer — generating tests...")
         with logfire.span(
@@ -174,7 +174,7 @@ async def run_existing_code_pipeline(
                 logger.warning(msg)
                 result.errors.append(msg)
 
-    # ── Stage 3: Quality Gate ─────────────────────────────────────────
+    # Quality Gate
     if run_quality_gate:
         logger.info("Quality Gate — checking over-engineering...")
         with logfire.span(
@@ -214,7 +214,7 @@ async def run_existing_code_pipeline(
                 logger.warning(msg)
                 result.errors.append(msg)
 
-    # ── Stage 4: Board of Review ──────────────────────────────────────
+    # Board of Review
     if run_review:
         logger.info("Board of Review — final approval...")
         with logfire.span(

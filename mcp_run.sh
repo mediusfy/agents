@@ -12,6 +12,5 @@ export DAGSTER_HOME=$(pwd)/.dagmem
 
 mkdir -p "$DAGSTER_HOME"
 
-echo "Starting MCP server (stdio mode)..." >&2
-# Actually run the MCP server using python and the stdio transport, not uvicorn which is for SSE
-python src/openclaw/mcp_server.py
+# exec replaces the shell so stdin/stdout go directly to Python (no buffering)
+exec python src/openclaw/mcp_server.py

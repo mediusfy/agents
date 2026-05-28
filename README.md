@@ -10,7 +10,7 @@ All AI traffic flows through Logfire for metrics, tracing, and token accounting 
 
 ## Agents
 
-### SDLC Agents (Claude Code + openclaw pipeline)
+### Pipeline Agents 
 | Agent | When to use |
 | --- | --- |
 | `business-analyst` | Convert raw requirements to user stories, bounded contexts, event triggers |
@@ -28,7 +28,7 @@ All AI traffic flows through Logfire for metrics, tracing, and token accounting 
 | `docs-writer` | OpenAPI specs, READMEs, runbooks |
 | `planner-agent` | Break high-level goals into detailed step-by-step plans |
 
-### Existing Code Agents (opencode primary + Claude Code rules)
+### Existing Code Agents 
 | Agent / Rule | When to use |
 | --- | --- |
 | `service-coder` (opencode primary) | Modify EXISTING Go services — self-checks, delegates to library-curator, test-generator, code-inspector, functional-tester, architect |
@@ -70,71 +70,46 @@ All AI traffic flows through Logfire for metrics, tracing, and token accounting 
 | `weather` | Accurate weather forecasts, climate summaries, and travel-related weather advice |
 | `accountant` | Manage budgets, calculate expenses, and provide financial advice for travel and general purposes |
 
-## Pipelines
-
-### Scaffold a new service
-```
-main.py --project my-service --requirement "Build a payment processing service"
-```
-Runs: BA → CTO/UX advisory → Backend + Frontend + Database → Test → Security → Quality Gate → Review
-
-### Modify existing code
-```
-modify_existing_code(
-    change_description="Add tracing to ProcessMessage handler in internal/service/message.go",
-    codebase_path="/path/to/service"
-)
-```
-Available as an MCP tool via `openclaw-agents` MCP server, or select the `service-coder` agent in opencode.
-
-Runs: service_engineer → test_eng → quality_gate → review (each validates the previous step)
-
 ## Install
-
-### Claude Code plugin
-Add to `~/.claude/settings.json`:
-```json
-{
-  "plugins": {
-    "openclaw": {
-      "source": "/Users/jocham/programming/agents"
-    }
-  }
-}
-```
 
 ### opencode agents
 Project-local agents in `.opencode/agents/` are auto-discovered. Global agents in `~/.config/opencode/agents/` are also supported.
 
-### MCP server
-The `openclaw-agents` MCP server is configured in `~/.config/opencode/opencode.json` and `~/.claude/settings.json`. It exposes `modify_existing_code`, `delegate_to_openclaw_agent`, `run_openclaw_pipeline`, etc.
+### MCP server (Claude Code)
 
-For Claude, the tool configuration in `settings.json` should be:
-```json
-"mcpServers": {
-  "logfire": {
-    "type": "http",
-    "url": "https://logfire-eu.pydantic.dev/mcp",
-    "headers": {
-      "Authorization": "Bearer YOUR_LOGFIRE_TOKEN"
-    }
-  },
-  "openclaw-agents": {
-    "type": "local",
-    "enabled": true,
-    "command": ["bash", "/Users/jocham/programming/agents/mcp_run.sh"]
-  },
-  "redis-mcp-server": {
-    "type": "stdio",
-    "command": "uvx",
-    "args": [
-      "--from", "redis-mcp-server@latest",
-      "redis-mcp-server",
-      "--url", "redis://<YOUR https://cloud.redis.io/ DATABASE URL>"
-    ]
-  }
+The `openclaw-agents` MCP server exposes `modify_existing_code`, `delegate_to_openclaw_agent`, `run_openclaw_pipeline`, etc.
+
+**Important:** Claude Code reads MCP server configs from `~/.claude.json`, not `~/.claude/settings.json`. Use the `claude mcp add` CLI command to register servers correctly.
+
+Add the openclaw-agents server:
+```bash
+claude mcp add --scope user openclaw-agents -- /bin/bash /path/to/agents/mcp_run.sh
+```
+example
+```bash
+claude mcp add --scope user openclaw-agents -- /bin/bash 
+
+Verify it's connected:
+```bash
+claude mcp get openclaw-agents -- /bin/bash /Users/jocham/programming/agents/mcp_run.sh
+```
+
+## Antigravity
+```bash
+"openclaw-agents": {
+  "command": "/Users/jocham/programming/agents/mcp_run.sh",
+  "args": []
 }
 ```
+
+You should see `Status: ✓ Connected`. If not, check that `mcp_run.sh` is executable and that the `.venv` inside the agents directory is set up.
+
+To remove:
+```bash
+claude mcp remove openclaw-agents -s user 
+```
+
+**Note:** The `mcp_run.sh` script must use `exec` on the final python command so that stdin/stdout go directly to the Python MCP server process without shell buffering.
 
 For opencode, the configuration in `opencode.json` should be:
 ```json
@@ -168,37 +143,7 @@ GEMINI_API_KEY="..."
 # Required for metrics and tracing
 LOGFIRE_TOKEN="pylf_v2_eu_..."
 
-# Optional overrides
 LOGFIRE_SEND_TO_LOGFIRE=true    # default: true when LOGFIRE_TOKEN is set
-```
-
-## Layout
-
-```
-.claude-plugin/
-  plugin.json                # plugin manifest
-.claude/rules/
-  existing-code-workflow.md  # Claude Code rules for existing code
-  code-inspection.md
-.opencode/agents/
-  service-coder.md           # opencode primary agent for existing code
-  code-inspector.md          # opencode subagent for cross-check
-agents/
-  business-analyst.md        # 14 SDLC subagent definitions (Claude Code)
-  backend-engineer.md
-  ...
-src/openclaw/                # Python pydantic-ai implementation
-  agents/
-    ba.py                    # Business analyst agent
-    backend.py               # Go backend service engineer
-    frontend.py              # Vue 3 frontend engineer
-    test_eng.py              # Go table-driven test agent + Playwright agent
-    service_engineer.py      # pydantic_ai agent for existing Go code
-    registration.py          # Centralized agent registration
-    ...                      # All SDLC + travel/finance agents
-  existing_code_handler.py   # Pipeline orchestrator
-  mcp_server.py              # MCP tool: modify_existing_code
-main.py                      # CLI pipeline entry point
 ```
 
 ## Logfire Observability
@@ -209,10 +154,6 @@ All pydantic_ai agent runs are auto-instrumented. Every `agent.run()` call produ
 - Model name
 - Structured input/output
 - Error tracking
-
-View at https://logfire-eu.pydantic.dev/drew/argus
-
-## Troubleshooting
 
 ### Clear Cache
 ```bash
