@@ -2,116 +2,79 @@
 
 A multi-agent SDLC ecosystem with three layers:
 
-1. **Claude Code plugin** (`agents/*.md`, `.claude-plugin/`) — 13 SDLC agents + Travel/Finance domain assistants
-2. **opencode agents** (`.opencode/agents/`) — primary/subagent definitions with self-check and cross-review
-3. **pydantic_ai Python agents** (`src/openclaw/agents/`) — runtime agents with structured outputs, tools, and MCP exposure
+1.  **Claude Code plugin** (`agents/*.md`, `.claude-plugin/`) — 13 SDLC agents + Travel/Finance domain assistants
+2.  **opencode agents** (`.opencode/agents/`) — primary/subagent definitions with self-check and cross-review
+3.  **pydantic_ai Python agents** (`src/openclaw/agents/`) — runtime agents with structured outputs, tools, and MCP exposure
 
-All AI traffic flows through Logfire for metrics, tracing, and token accounting at https://logfire-eu.pydantic.dev/drew/argus.
+All AI traffic flows through Logfire for metrics, tracing, and token accounting at [https://logfire-eu.pydantic.dev/drew/argus](https://logfire-eu.pydantic.dev/drew/argus).
+
+## Directory Structure
+
+```
+agents/*.md                  # Claude Code agent definitions (detailed system prompts)
+.opencode/agents/*.md        # OpenCode primary + subagent definitions
+.claude-plugin/plugin.json   # Claude Code plugin manifest
+.claude/rules/*.md           # Claude Code rules (auto-triggered on keywords)
+src/openclaw/                # Python pydantic_ai runtime
+  agents/                    # Agent implementations (pydantic_ai Agents)
+  agents/non_technical/      # Finance/travel agents
+  tools/                     # Shared tools (market data, A2A delegation)
+  models/                    # Pydantic output models + model factory
+  mcp_server.py              # MCP server exposing agents as tools
+  registry.py                # Capability-based agent registry
+  settings.py                # pydantic-settings configuration
+  existing_code_handler.py   # Pipeline orchestrator for existing code mods
+main.py                      # CLI pipeline entry point
+start_mcp.py                 # MCP server launcher (production)
+tests/                       # pytest test suite
+CODING_STANDARDS.md          # Go coding standards (for generated code)
+```
 
 ## Agents
 
-### Pipeline Agents 
-| Agent | When to use |
+### Core SDLC Pipeline Agents
+| Agent | Description |
 | --- | --- |
-| `business-analyst` | Convert raw requirements to user stories, bounded contexts, event triggers |
-| `cto` | Pre-implementation architecture review, ADR discipline, hard constraints |
-| `ux-designer` | UX/accessibility review before frontend work begins |
-| `backend-engineer` | Go 1.25+ hexagonal services, gRPC, NATS/Kafka, OpenTelemetry |
-| `frontend-engineer` | Vue 3 + Composition API + TSX, WCAG 2.1 AA, real-time event bus UI |
-| `database-engineer` | PostgreSQL migrations, indexing, Redis caching |
-| `devops-engineer` | CI/CD (GitHub Actions / GitLab CI), Docker Compose, Makefiles |
-| `sre-engineer` | Terraform/OpenTofu + Crossplane, GitOps, multi-region K8s |
-| `security-engineer` | OWASP Top 10 audit, secrets scanning, structured findings report |
-| `test-engineer` | BDD Playwright tests from Gherkin, with backend side-effect validation |
-| `quality-gate` | Over-engineering detector with complexity scoring |
-| `code-reviewer` | Final governance: drift detection against prior ADRs, risk ranking |
-| `docs-writer` | OpenAPI specs, READMEs, runbooks |
-| `planner-agent` | Break high-level goals into detailed step-by-step plans |
+| `business-analyst` / `ba` | Converts raw requirements into bounded contexts, user stories, and event triggers. |
+| `cto` | Pre-implementation architecture reviews, enforcing ADR discipline and hard constraints. |
+| `ux-designer` / `ux` | Accessibility (WCAG 2.1 AA) and UX reviews prior to frontend implementation. |
+| `backend-engineer` / `backend` | Go (1.25+) hexagonal architecture, gRPC, NATS/Kafka, and OpenTelemetry. |
+| `frontend-engineer` / `frontend` | Vue 3, Composition API, TSX, and real-time event bus UI. |
+| `database-engineer` / `database` | PostgreSQL migrations, indexing strategies, and Redis caching. |
+| `devops-engineer` / `devops` | CI/CD pipelines, Docker Compose, and Makefiles. |
+| `sre-engineer` / `sre` | Terraform/OpenTofu, Crossplane, GitOps, and multi-region K8s deployments. |
+| `security-engineer` / `security` | OWASP Top 10 audits, secret scanning, and structured findings. |
+| `test-engineer` / `test_eng` | Table-driven Go tests and BDD Playwright from Gherkin. |
+| `quality-gate` | Complexity scoring and over-engineering detection. |
+| `code-reviewer` / `review` | Final governance, drift detection against ADRs, and risk ranking. |
+| `docs-writer` / `docs` | OpenAPI specs, runbooks, and README generation. |
+| `planner-agent` | Breaks high-level goals into step-by-step execution plans. |
 
-### Existing Code Agents 
-| Agent / Rule | When to use |
+### Existing Code Modification Agents
+| Agent | Description |
 | --- | --- |
-| `service-coder` (opencode primary) | Modify EXISTING Go services — self-checks, delegates to library-curator, test-generator, code-inspector, functional-tester, architect |
-| `code-inspector` (opencode subagent) | Cross-check: over-engineering, DRY, library misuse, CODING_STANDARDS compliance, pattern drift |
-| `existing-code-workflow` (Claude rule) | Rule activated when modifying existing Go handlers, wiring, or refactoring |
-| `code-inspection` (Claude rule) | Rule activated on "review this code" / "audit" / "quality check" |
+| `service-coder` (Opencode) | Modifies existing Go services. Triggers self-checks and delegates to specialized subagents. |
+| `code-inspector` (Opencode) | Audits for DRY violations, over-engineering, and pattern drift. |
+| `service_engineer` (MCP) | Modifies Go code using local read/write and `gofmt` tools. |
 
-### pydantic_ai Runtime Agents (MCP-accessible)
-| Agent | Capability | Description |
-| --- | --- | --- |
-| `ba` | `requirements_analysis` | Business analysis, user stories, bounded contexts, event triggers |
-| `backend` | `backend_dev` | Go hexagonal services, gRPC, NATS/Kafka, OpenTelemetry |
-| `frontend` | `frontend_dev` | Vue 3 + Composition API + TSX, WCAG 2.1 AA, real-time event bus UI |
-| `database` | `db_schema` | PostgreSQL migrations, indexing, Redis caching |
-| `devops` | `ci_cd` | CI/CD (GitHub Actions / GitLab CI), Docker Compose, Makefiles |
-| `sre` | `infrastructure` | Terraform/OpenTofu + Crossplane, GitOps, multi-region K8s |
-| `security` | `security_audit` | OWASP Top 10 audit, secrets scanning, structured findings |
-| `test_eng` | `go_test`, `playwright_test` | Table-driven Go tests + BDD Playwright |
-| `quality_gate` | `quality_gate` | Complexity scoring, over-engineering detection |
-| `review` | `code_review` | Final governance: security, architecture fit, standards compliance |
-| `service_engineer` | `existing_code` | Modifies existing Go code with read_file/list_directory/gofmt tools |
-| `planner_agent` | `task_planning` | Break high-level goals into executable task plans |
-| `cto` | `arch_review` | Pre-implementation architecture pressure-test |
-| `ux` | `ux_review` | UX/accessibility review before frontend work |
-| `docs` | `docs_generation` | OpenAPI specs, READMEs, runbooks |
-| `accountant` | `finance` | Budget management, expense calculation |
-| `weather` | `weather` | Weather forecasts and climate summaries |
-| `region_analyzer` | `region_analysis` | Geographical region safety/cost analysis |
-| `asymmetric_reviewer` | `legal_review` | Legal/corporate travel savings analysis |
-| `current_events` | `current_events` | News/historical context |
+*(Note: Claude Code uses specific rules like `existing-code-workflow` and `code-inspection` to automatically trigger the right behaviors when refactoring or auditing code).*
 
-### Travel & Finance Agents
-| Agent | When to use |
+### Domain Expert Agents (Travel & Finance)
+| Agent | Description |
 | --- | --- |
-| `holiday-planner` | Coordinate travel plans, organize itineraries, and ensure a seamless travel experience |
-| `region-analyzer` | Analyze geographical regions for safety, cost of living, and local attractions |
-| `asymmetric-reviewer` | Law and corporate expert finding loopholes and asymmetric information to save money when traveling |
-| `current-events` | Provide context on current events, blending modern news with historical perspectives |
-| `weather` | Accurate weather forecasts, climate summaries, and travel-related weather advice |
-| `accountant` | Manage budgets, calculate expenses, and provide financial advice for travel and general purposes |
+| `holiday-planner` | Itinerary organization and travel coordination. |
+| `region-analyzer` | Cost of living, safety, and geographical analysis. |
+| `asymmetric-reviewer` | Corporate/legal travel savings and loophole identification. |
+| `current-events` | Modern news blended with historical context. |
+| `weather` | Forecasts and climate summaries. |
+| `accountant` | Budget management and expense calculation. |
 
-## Install
+## Installation & Setup
 
-### opencode agents
+### Opencode Agents
 Project-local agents in `.opencode/agents/` are auto-discovered. Global agents in `~/.config/opencode/agents/` are also supported.
 
-### MCP server (Claude Code)
-
-The `openclaw-agents` MCP server exposes `modify_existing_code`, `delegate_to_openclaw_agent`, `run_openclaw_pipeline`, etc.
-
-**Important:** Claude Code reads MCP server configs from `~/.claude.json`, not `~/.claude/settings.json`. Use the `claude mcp add` CLI command to register servers correctly.
-
-Add the openclaw-agents server:
-```bash
-claude mcp add --scope user openclaw-agents -- /bin/bash /path/to/agents/mcp_run.sh
-```
-example
-```bash
-claude mcp add --scope user openclaw-agents -- /bin/bash 
-
-Verify it's connected:
-```bash
-claude mcp get openclaw-agents -- /bin/bash /Users/jocham/programming/agents/mcp_run.sh
-```
-
-## Antigravity
-```bash
-"openclaw-agents": {
-  "command": "/Users/jocham/programming/agents/mcp_run.sh",
-  "args": []
-}
-```
-
-You should see `Status: ✓ Connected`. If not, check that `mcp_run.sh` is executable and that the `.venv` inside the agents directory is set up.
-
-To remove:
-```bash
-claude mcp remove openclaw-agents -s user 
-```
-
-**Note:** The `mcp_run.sh` script must use `exec` on the final python command so that stdin/stdout go directly to the Python MCP server process without shell buffering.
-
-For opencode, the configuration in `opencode.json` should be:
+Configure your `opencode.json` to register the MCP servers:
 ```json
 {
   "mcpServers": {
@@ -125,37 +88,60 @@ For opencode, the configuration in `opencode.json` should be:
       "args": [
         "--from", "redis-mcp-server@latest",
         "redis-mcp-server",
-        "--url", "redis://<YOUR https://cloud.redis.io/ DATABASE URL>"
+        "--url", "redis://<YOUR_REDIS_URL>"
       ]
     }
   }
 }
 ```
-Make sure the path to `mcp_run.sh` is correct for your system.
 
-### Environment
+### Claude Code (MCP Server)
+The `openclaw-agents` server exposes tools like `modify_existing_code` and `run_openclaw_pipeline`.
+
+**Note:** Claude reads MCP configs from `~/.claude.json`, not the settings directory. Always use the CLI to add servers.
+
+1.  **Register the server:**
+    ```bash
+    claude mcp add --scope user openclaw-agents -- /bin/bash /Users/jocham/programming/agents/mcp_run.sh
+    ```
+
+2.  **Verify the connection:**
+    ```bash
+    claude mcp get openclaw-agents
+    ```
+    You should see `Status: ✓ Connected`. If it fails, verify `mcp_run.sh` is executable and your `.venv` is properly configured. Crucially, `mcp_run.sh` must use `exec` on the final python command so stdin/stdout bypasses shell buffering.
+
+3.  **To remove the server:**
+    ```bash
+    claude mcp remove openclaw-agents -s user
+    ```
+
+### Antigravity Configuration
+If you are using Antigravity, add this to your config:
+```json
+"openclaw-agents": {
+  "command": "/Users/jocham/programming/agents/mcp_run.sh",
+  "args": []
+}
+```
+
+### Environment Variables
 ```bash
-# Required for LLM calls
+# LLM Providers
 OPENAI_API_KEY="sk-..."
 ANTHROPIC_API_KEY="sk-ant-..."
 GEMINI_API_KEY="..."
 
-# Required for metrics and tracing
+# Observability
 LOGFIRE_TOKEN="pylf_v2_eu_..."
-
-LOGFIRE_SEND_TO_LOGFIRE=true    # default: true when LOGFIRE_TOKEN is set
+LOGFIRE_SEND_TO_LOGFIRE=true # defaults to true if token is present
 ```
 
-## Logfire Observability
+## Observability & Maintenance
 
-All pydantic_ai agent runs are auto-instrumented. Every `agent.run()` call produces spans with:
-- Token counts (prompt + completion)
-- Latency per call
-- Model name
-- Structured input/output
-- Error tracking
+All `pydantic_ai` runs are auto-instrumented. Every `agent.run()` produces a span containing token usage, call latency, model name, input/output structures, and error traces.
 
-### Clear Cache
+To clear the local cache:
 ```bash
 ./scripts/clear_cache.sh
 ```
