@@ -9,14 +9,14 @@ import logfire
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
-from openclaw.agents.non_technical.accountant import AccountantDeps, accountant_agent
-from openclaw.agents.non_technical.asymmetric_reviewer import AsymmetricReviewerDeps, asymmetric_reviewer_agent
-from openclaw.agents.non_technical.current_events import CurrentEventsDeps, current_events_agent
-from openclaw.agents.non_technical.holiday_planner import HolidayPlannerDeps, holiday_planner_agent
-from openclaw.agents.non_technical.region_analyzer import RegionAnalyzerDeps, region_analyzer_agent
-from openclaw.agents.non_technical.weather import WeatherDeps, weather_agent
 from openclaw.observability import configure_observability
 from openclaw.vector_db import vector_db
+from openclaw.agents.registration import register_all_agents
+from openclaw.registry import registry
+from openclaw.exceptions import AgentExecutionError, AgentNotFoundError
+import time
+import contextlib
+from openclaw.telemetry import telemetry
 
 logger = logging.getLogger(__name__)
 
@@ -31,49 +31,95 @@ mcp = FastMCP(
     ),
 )
 
-# ── Instrumented agent runner factory ───────────────────────────────────
+# ── Dynamic Agent MCP Tools ──────────────────────────────────────────
+
+# Ensure all agents are registered at boot so we can dynamically discover them
+register_all_agents()
 
 
-def create_agent_runner(agent, deps_class, tool_name: str, docstring: str):
-    """Factory to create an MCP tool for running an agent, with Logfire span."""
+async def run_agent_by_name(agent_name: str, request: str) -> str:
+    """Run a registered agent by its name, resolving dependencies and tracking telemetry."""
+    try:
+        agent = registry.get(agent_name)
+    except ValueError as e:
+        raise AgentNotFoundError(f"Agent '{agent_name}' not registered") from e
 
-    async def agent_runner(request: str) -> str:
-        with logfire.span(
-            "mcp.run_agent",
-            tool_name=tool_name,
-            request_length=len(request),
-            _level="info",
-        ):
-            deps = deps_class()
-            result = await agent.run(request, deps=deps)
-            return result.output
+    agent_tuple = registry._agents.get(agent_name)
+    if not agent_tuple:
+        raise AgentNotFoundError(f"Agent '{agent_name}' not registered")
 
-    agent_runner.__doc__ = docstring
-    agent_runner.__name__ = tool_name
-    return mcp.tool(name=tool_name)(agent_runner)
+    _, _, deps_factory, _ = agent_tuple
+
+    span_attrs = {
+        "agent_name": agent_name,
+        "request_length": len(request),
+    }
+
+    start = time.time()
+    success = False
+    try:
+        with logfire.span("mcp.run_agent", **span_attrs, _level="info"):
+            resolved_deps = deps_factory() if callable(deps_factory) else {}
+            result = await agent.run(request, deps=resolved_deps)
+            success = True
+            if hasattr(result, "data"):
+                return str(result.data)
+            return str(result.output) if hasattr(result, "output") else str(result)
+    except Exception as e:
+        logger.warning("Agent '%s' failed: %s", agent_name, e)
+        raise AgentExecutionError(f"Agent '{agent_name}' failed: {e}", is_retryable=False) from e
+    finally:
+        duration = time.time() - start
+        with contextlib.suppress(Exception):
+            await telemetry.log_call(agent_name, duration, success, metadata=span_attrs)
 
 
-# ── Travel & Finance Agent Tools
+AGENT_DOCSTRINGS = {
+    "holiday_planner": "Invokes the Holiday Planner Agent.",
+    "region_analyzer": "Invokes the Region Analyzer Agent.",
+    "asymmetric_reviewer": "Invokes the Asymmetric Reviewer Agent (law & corporate tricks for travel savings).",
+    "current_events": "Invokes the Current Events Agent (history buff).",
+    "weather": "Invokes the Weather Agent.",
+    "accountant": "Invokes the Accountant Agent.",
+    "ba": "Invokes the Business Analyst (BA) agent to write user stories and requirements.",
+    "cto": "Invokes the CTO agent for architectural guidance and advisories.",
+    "backend": "Invokes the Backend Engineer agent to generate high-concurrency Go services.",
+    "frontend": "Invokes the Frontend Engineer agent to generate user interfaces.",
+    "database": "Invokes the Database agent to generate schema migrations and seed scripts.",
+    "devops": "Invokes the DevOps agent to generate CI/CD pipelines and docker-compose configurations.",
+    "docs": "Invokes the Documentation agent to generate API documentation and READMEs.",
+    "sre": "Invokes the SRE agent to generate Kubernetes/Helm infrastructure manifests.",
+    "test_eng": "Invokes the Test Engineer agent to run tests and analyze coverage.",
+    "test_gen": "Invokes the Test Generator agent to write unit and table-driven tests.",
+    "go_test": "Invokes the Go Testing agent to run tests and debug test failures.",
+    "review": "Invokes the Code Review agent to verify production readiness and standards.",
+    "security": "Invokes the Security agent to audit code and scan for vulnerabilities.",
+    "ux": "Invokes the UX Design agent to refine page layout and flow.",
+    "quality_gate": "Invokes the Quality Gate agent to check for over-engineering and complexity.",
+    "service_engineer": "Invokes the Service Engineer agent to modify existing Go codebases.",
+    "planner": "Invokes the Planner agent to create execution plans.",
+    "crypto_oracle": "Invokes the Crypto Oracle Agent to analyze crypto markets and trends.",
+    "market_shark": "Invokes the Market Shark Agent to analyze stock markets and investments.",
+    "price_analyst": "Invokes the Price Analyst Agent to analyze and compare pricing.",
+}
 
-run_holiday_planner = create_agent_runner(
-    holiday_planner_agent, HolidayPlannerDeps, "run_holiday_planner", "Invokes the Holiday Planner Agent."
-)
-run_region_analyzer = create_agent_runner(
-    region_analyzer_agent, RegionAnalyzerDeps, "run_region_analyzer", "Invokes the Region Analyzer Agent."
-)
-run_asymmetric_reviewer = create_agent_runner(
-    asymmetric_reviewer_agent,
-    AsymmetricReviewerDeps,
-    "run_asymmetric_reviewer",
-    "Invokes the Asymmetric Reviewer Agent (law & corporate tricks for travel savings).",
-)
-run_current_events = create_agent_runner(
-    current_events_agent, CurrentEventsDeps, "run_current_events", "Invokes the Current Events Agent (history buff)."
-)
-run_weather = create_agent_runner(weather_agent, WeatherDeps, "run_weather", "Invokes the Weather Agent.")
-run_accountant = create_agent_runner(
-    accountant_agent, AccountantDeps, "run_accountant", "Invokes the Accountant Agent."
-)
+
+def _register_agent_mcp_tools():
+    def make_runner(agent_name: str):
+        async def agent_runner(request: str) -> str:
+            return await run_agent_by_name(agent_name, request)
+        return agent_runner
+
+    for name in registry.list_agents():
+        tool_name = f"run_{name}"
+        runner = make_runner(name)
+        docstring = AGENT_DOCSTRINGS.get(name, f"Invokes the {name} agent to perform its designated task.")
+        runner.__doc__ = docstring
+        runner.__name__ = tool_name
+        mcp.tool(name=tool_name)(runner)
+
+
+_register_agent_mcp_tools()
 
 # ── SDLC / Existing Code Tools
 
