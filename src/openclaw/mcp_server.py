@@ -5,18 +5,20 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+import contextlib
+import time
+from typing import Any
+
 import logfire
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
-from openclaw.observability import configure_observability
-from openclaw.vector_db import vector_db
 from openclaw.agents.registration import register_all_agents
-from openclaw.registry import registry
 from openclaw.exceptions import AgentExecutionError, AgentNotFoundError
-import time
-import contextlib
+from openclaw.observability import configure_observability
+from openclaw.registry import registry
 from openclaw.telemetry import telemetry
+from openclaw.vector_db import vector_db
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +52,7 @@ async def run_agent_by_name(agent_name: str, request: str) -> str:
 
     _, _, deps_factory, _ = agent_tuple
 
-    span_attrs = {
+    span_attrs: dict[str, Any] = {
         "agent_name": agent_name,
         "request_length": len(request),
     }
@@ -108,6 +110,7 @@ def _register_agent_mcp_tools():
     def make_runner(agent_name: str):
         async def agent_runner(request: str) -> str:
             return await run_agent_by_name(agent_name, request)
+
         return agent_runner
 
     for name in registry.list_agents():

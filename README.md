@@ -96,7 +96,40 @@ Configure your `opencode.json` to register the MCP servers:
 ```
 
 ### Claude Code (MCP Server)
-The `openclaw-agents` server exposes tools like `modify_existing_code` and `run_openclaw_pipeline`.
+The `openclaw-agents` server exposes orchestration tools like `modify_existing_code`, `run_openclaw_pipeline`, and `plan_and_execute`.
+
+Additionally, the MCP server dynamically registers and exposes every agent in the ecosystem as an individual tool prefixed with `run_` (e.g., `run_ba`, `run_backend`, `run_cto`, `run_review`, `run_weather`). This allows you to invoke individual agents directly with a single prompt string:
+
+- **SDLC/Engineering Agents:**
+  - `run_ba`: Business Analyst
+  - `run_cto`: CTO/Architect
+  - `run_backend`: Backend Engineer
+  - `run_frontend`: Frontend Engineer
+  - `run_database`: Database Engineer
+  - `run_devops`: DevOps Engineer
+  - `run_docs`: Docs Writer
+  - `run_sre`: SRE Engineer
+  - `run_test_eng`: Test Engineer
+  - `run_test_gen`: Test Generator
+  - `run_go_test`: Go Testing Agent
+  - `run_review`: Code Reviewer
+  - `run_security`: Security Engineer
+  - `run_ux`: UX Designer
+  - `run_quality_gate`: Quality Gate Checker
+  - `run_service_engineer`: Service Engineer
+  - `run_planner`: Goal Planner
+- **Travel & Finance Agents:**
+  - `run_accountant`: Budget/Expense Accountant
+  - `run_asymmetric_reviewer`: Travel savings loopholes
+  - `run_current_events`: Modern/Historical news
+  - `run_region_analyzer`: Location analysis
+  - `run_weather`: Forecasts/Weather
+  - `run_crypto_oracle`: Crypto analyzer
+  - `run_holiday_planner`: Travel coordinator
+  - `run_market_shark`: Stock market/investments
+  - `run_price_analyst`: Pricing comparator
+
+If any agent needs to call another agent (e.g., for self-checking or cross-reviews), they will dynamically use their wired `a2a` (agent-to-agent) delegation tools under the hood.
 
 **Note:** Claude reads MCP configs from `~/.claude.json`, not the settings directory. Always use the CLI to add servers.
 

@@ -2,7 +2,10 @@
 *.pyc
 .DS_Store
 .aivory
+.antigravitycli
+.dagmem
 .claude-plugin
+.claude
 .claw-checkpoints/
 .claw-vectordb
 .claw-vectordb*/
