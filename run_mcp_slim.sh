@@ -1,7 +1,6 @@
 #!/bin/sh
 set -e
 
-# If heavy ML deps are missing, replace vector_db with lightweight stub
 if ! python3 -c "import sentence_transformers" 2>/dev/null; then
   echo "Heavy ML deps not installed — using vector_db stub"
   AGENTS_DIR=$(python3 -c "import openclaw; import os; print(os.path.dirname(openclaw.__file__))")

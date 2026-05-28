@@ -16,6 +16,7 @@
 .pycharm_plugin
 .pytest_cache/
 .tmp_*
+.venv_*
 .tmp_dagster_home_*/
 .venv/
 .vscode
