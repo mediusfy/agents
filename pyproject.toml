@@ -13,7 +13,6 @@ dependencies = [
     "beautifulsoup4>=4.12,<5.0",
     "certifi",
     "chromadb>=0.4.0,<0.6",
-
     "duckduckgo-search>=5.0.0,<7.0",
     "fastapi",
     "google-generativeai",
@@ -29,6 +28,7 @@ dependencies = [
     "pip-system-certs",
     "pydantic>=2.9.0,<3.0",
     "pydantic-ai>=1.0.0,<2.0",
+    "pydantic-ai-slim[anthropic,deepseek,google,logfire,openai]>=1.61.0",
     "pydantic-settings>=2.5.0,<3.0",
     "pypdf",
     "pyyaml>=6.0,<7.0",

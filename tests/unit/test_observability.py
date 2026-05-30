@@ -35,6 +35,7 @@ def _clear_logfire_env(monkeypatch):
     monkeypatch.delenv("LOGFIRE_TOKEN", raising=False)
     monkeypatch.setattr("os.path.exists", lambda _: False)
     import openclaw.observability as _obs_mod
+
     _obs_mod.settings.logfire_token = ""
 
 

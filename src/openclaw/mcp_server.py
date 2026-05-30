@@ -68,12 +68,7 @@ async def run_agent_by_name(agent_name: str, request: str) -> str:
     with logfire.span("mcp.retrieve_context", agent_name=agent_name, _level="info"):
         context = retrieve_context(agent_name, request, top_k=3)
         if context:
-            enriched_request = (
-                f"Relevant Architecture Context from Knowledge Base:\n"
-                f"{context}\n\n"
-                f"---\n\n"
-                f"{request}"
-            )
+            enriched_request = f"Relevant Architecture Context from Knowledge Base:\n{context}\n\n---\n\n{request}"
     # ──────────────────────────────────────────────────────────────────────
 
     span_attrs: dict[str, Any] = {
@@ -370,11 +365,14 @@ def submit_async_task(task_type: str, payload: str, callback_tool: str = "") -> 
         _level="info",
     ):
         task_id = event_broker.submit(
-            Event(kind=EventKind.TASK_SUBMITTED, data={
-                "type": task_type,
-                "payload": payload,
-                "callback_tool": callback_tool,
-            })
+            Event(
+                kind=EventKind.TASK_SUBMITTED,
+                data={
+                    "type": task_type,
+                    "payload": payload,
+                    "callback_tool": callback_tool,
+                },
+            )
         )
         return f"Task '{task_id}' submitted. Use check_task_status('{task_id}') to poll for results."
 
@@ -386,11 +384,7 @@ def check_task_status(task_id: str) -> str:
         status = event_broker.get_status(task_id)
         if not status:
             return f"Task '{task_id}' not found."
-        return (
-            f"Task: {task_id}\n"
-            f"Status: {status.get('status', 'unknown')}\n"
-            f"Result: {status.get('result', 'pending')}"
-        )
+        return f"Task: {task_id}\nStatus: {status.get('status', 'unknown')}\nResult: {status.get('result', 'pending')}"
 
 
 @mcp.tool()
@@ -402,11 +396,7 @@ async def wait_for_task(task_id: str, timeout_seconds: int = 300) -> str:
         result = await asyncio.wait_for(event_broker.wait_for(task_id, timeout_seconds), timeout_seconds + 10)
         if result is None:
             return f"Task '{task_id}' timed out after {timeout_seconds}s."
-        return (
-            f"Task: {task_id}\n"
-            f"Status: {result.get('status', 'completed')}\n"
-            f"Result: {result.get('result', '')}"
-        )
+        return f"Task: {task_id}\nStatus: {result.get('status', 'completed')}\nResult: {result.get('result', '')}"
 
 
 # ── Vector DB Tools for Async Task Context ────────────────────────────────
@@ -464,7 +454,7 @@ def seed_project_context(project_path: str) -> str:
                 else:
                     domain = "architecture"
 
-                sanitized = rel.replace('/', '::').replace(chr(92), '::')
+                sanitized = rel.replace("/", "::").replace(chr(92), "::")
                 doc_id = f"file:{sanitized}"
                 vector_db.add_documents(
                     domain,
@@ -552,16 +542,13 @@ def sync_memory(all_runtimes: bool = True, max_entries: int = 50) -> str:
         max_entries: Max recent ChromaDB entries to process.
     """
     with logfire.span("mcp.sync_memory", all_runtimes=all_runtimes, _level="info"):
-        result = sync_memory_to_claude(max_entries=max_entries)
-        claude_result = sync_claude_to_chromadb()
+        synced_count = sync_memory_to_claude(max_entries=max_entries)
+        pulled_count = sync_claude_to_chromadb()
 
     return (
         f"Memory sync complete:\n"
-        f"  ChromaDB → Claude Code: {result.get('synced', 0)} entries\n"
-        f"  Claude Code → ChromaDB: {claude_result.get('synced', 0)} entries\n"
-        f"  Agent mappings: {result.get('agent_mappings', [])}\n"
-        f"  Claude memory files: {result.get('claude_memory_counts', {})}\n"
-        f"  Timestamp: {result.get('timestamp', 'now')}"
+        f"  ChromaDB → Claude Code: {synced_count} entries\n"
+        f"  Claude Code → ChromaDB: {pulled_count} entries"
     )
 
 

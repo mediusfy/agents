@@ -93,9 +93,7 @@ class EventBroker:
         record.completed_at = time.time()
         record._completion_event.set()
 
-        self._events.append(
-            Event(kind=EventKind.TASK_COMPLETED, data={"task_id": task_id, "result": result})
-        )
+        self._events.append(Event(kind=EventKind.TASK_COMPLETED, data={"task_id": task_id, "result": result}))
 
         # Store in vector DB for future context retrieval
         try:
@@ -126,9 +124,7 @@ class EventBroker:
         record.completed_at = time.time()
         record._completion_event.set()
 
-        self._events.append(
-            Event(kind=EventKind.TASK_FAILED, data={"task_id": task_id, "error": error})
-        )
+        self._events.append(Event(kind=EventKind.TASK_FAILED, data={"task_id": task_id, "error": error}))
 
         with logfire.span("event_broker.fail", task_id=task_id, _level="warn"):
             logger.warning("Task %s failed: %s", task_id, error)

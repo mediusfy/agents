@@ -185,9 +185,7 @@ async def run_existing_code_pipeline(
                 f"Understand the patterns before modifying. Return ONLY the changed files."
             )
         else:
-            eng_prompt = _build_remediation_prompt(
-                change_description, codebase_path, result.errors, attempt
-            )
+            eng_prompt = _build_remediation_prompt(change_description, codebase_path, result.errors, attempt)
 
         try:
             eng_result, _ = await _run_stage(
@@ -302,7 +300,9 @@ async def run_existing_code_pipeline(
         # ── Remediation Decision ────────────────────────────────────────
         logger.info(
             "Gates: quality_gate=%s, review=%s, test_errors=%s",
-            qg_passed, cv_passed, bool(test_failures),
+            qg_passed,
+            cv_passed,
+            bool(test_failures),
         )
 
         if qg_passed and cv_passed and not test_failures:
@@ -330,7 +330,8 @@ async def run_existing_code_pipeline(
     result.retries_used = MAX_RETRIES
     logger.error(
         "Pipeline failed after %d retries. Errors: %s",
-        MAX_RETRIES, result.errors,
+        MAX_RETRIES,
+        result.errors,
     )
     return result
 
@@ -376,6 +377,7 @@ def _sync_memory_after_pipeline() -> None:
     _logger = logging.getLogger(__name__)
     try:
         from openclaw.memory_bridge import sync_memory_to_claude
+
         sync_memory_to_claude(max_entries=25)
         _logger.info("Memory bridge synced after pipeline run")
     except Exception as e:

@@ -125,7 +125,7 @@ def store_artifact_context(
                 domain,
                 [content],
                 metadatas=[metadata or {}],
-                ids=[doc_id] if doc_id else None,
+                ids=[doc_id] if doc_id else [],
             )
             logger.info("Stored %d chars in domain '%s'", len(content), domain)
         except Exception as e:
