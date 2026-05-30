@@ -17,7 +17,7 @@ from openclaw.agents.registration import register_all_agents
 from openclaw.context_engine import retrieve_context
 from openclaw.event_broker import Event, EventKind, event_broker
 from openclaw.exceptions import AgentExecutionError, AgentNotFoundError
-from openclaw.memory_bridge import get_bridge_status, sync_claude_to_chromadb, sync_memory_to_claude
+from openclaw.memory_bridge import get_bridge_status, sync_claude_to_pgvector, sync_memory_to_claude
 from openclaw.observability import configure_observability
 from openclaw.registry import registry
 from openclaw.telemetry import telemetry
@@ -530,34 +530,34 @@ def task_context(task_id: str) -> str:
 
 @mcp.tool()
 def sync_memory(all_runtimes: bool = True, max_entries: int = 50) -> str:
-    """Sync memory across all agent runtimes (ChromaDB ↔ Claude Code ↔ Antigravity).
+    """Sync memory across all agent runtimes (pgvector ↔ Claude Code ↔ Antigravity).
 
-    First pushes recent ChromaDB activity logs into Claude Code's agent-memory
+    First pushes recent pgvector activity logs into Claude Code's agent-memory
     files and Antigravity's implicit memory. Then pulls Claude Code's memory
-    back into ChromaDB for discovery by OpenClaw agents.
+    back into pgvector for discovery by OpenClaw agents.
 
     Args:
         all_runtimes: If True, sync to both Claude Code and Antigravity.
-                      If False, only sync ChromaDB → Claude Code.
-        max_entries: Max recent ChromaDB entries to process.
+                      If False, only sync pgvector → Claude Code.
+        max_entries: Max recent pgvector entries to process.
     """
     with logfire.span("mcp.sync_memory", all_runtimes=all_runtimes, _level="info"):
         synced_count = sync_memory_to_claude(max_entries=max_entries)
-        pulled_count = sync_claude_to_chromadb()
+        pulled_count = sync_claude_to_pgvector()
 
     return (
         f"Memory sync complete:\n"
-        f"  ChromaDB → Claude Code: {synced_count} entries\n"
-        f"  Claude Code → ChromaDB: {pulled_count} entries"
+        f"  pgvector → Claude Code: {synced_count} entries\n"
+        f"  Claude Code → pgvector: {pulled_count} entries"
     )
 
 
 @mcp.tool()
 def memory_bridge_status() -> str:
-    """Get the current status of all memory systems (ChromaDB, Claude Code, Antigravity).
+    """Get the current status of all memory systems (pgvector, Claude Code, Antigravity).
 
     Reports how many memory files each Claude Code agent has, how many
-    Antigravity implicit entries exist, and ChromaDB collection health.
+    Antigravity implicit entries exist, and pgvector table health.
     """
     status = get_bridge_status()
     return (
@@ -565,7 +565,7 @@ def memory_bridge_status() -> str:
         f"  Claude Code agents: {len(status.get('claude_agent_memory', {}))}\n"
         f"  Claude memory files: {status.get('claude_agent_memory', {})}\n"
         f"  Antigravity implicit entries: {status.get('antigravity_implicit_count', 0)}\n"
-        f"  ChromaDB collections active: {list(status.get('chromadb_collections', {}).keys())}\n"
+        f"  pgvector tables active: {list(status.get('pgvector_tables', {}).keys())}\n"
         f"  Runtime: OpenClaw ↔ Claude Code ↔ Antigravity"
     )
 

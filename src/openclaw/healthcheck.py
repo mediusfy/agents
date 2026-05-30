@@ -42,12 +42,11 @@ def validate_api_keys() -> list[str]:
 
 
 def validate_directories() -> list[str]:
-    """Ensure output/checkpoint/vector-db directories are writable (read-only check, no FS mutation)."""
+    """Ensure output/checkpoint directories are writable (read-only check, no FS mutation)."""
     errors: list[str] = []
     for name, path in [
         ("OUTPUT_DIR", settings.output_dir),
         ("CHECKPOINT_DIR", settings.checkpoint_dir),
-        ("VECTOR_DB_DIR", settings.vector_db_dir),
     ]:
         try:
             resolved = Path(path).resolve()
@@ -63,11 +62,40 @@ def validate_directories() -> list[str]:
     return errors
 
 
+def validate_database() -> list[str]:
+    """Check pgvector database connectivity (async, runs in executor)."""
+    import asyncio
+
+    errors: list[str] = []
+    dsn = settings.database_url or os.environ.get("DATABASE_URL", "")
+    if not dsn:
+        errors.append("DATABASE_URL not set — pgvector vector store unavailable")
+        return errors
+
+    async def _check():
+        try:
+            import asyncpg
+
+            conn = await asyncpg.connect(dsn, timeout=5)
+            row = await conn.fetchrow("SELECT extversion FROM pg_extension WHERE extname = 'vector'")
+            if row is None:
+                errors.append("pgvector extension not installed in database")
+            else:
+                logger.info("pgvector extension version: %s", row["extversion"])
+            await conn.close()
+        except Exception as e:
+            errors.append(f"Database connection failed: {e}")
+        return errors
+
+    return asyncio.run(_check())
+
+
 def run_startup_checks() -> list[str]:
     """Run all startup checks and return a list of error messages."""
     errors: list[str] = []
     errors.extend(validate_api_keys())
     errors.extend(validate_directories())
+    errors.extend(validate_database())
     return errors
 
 

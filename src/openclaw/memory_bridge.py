@@ -1,8 +1,8 @@
-"""Cross-runtime memory bridge: OpenClaw ChromaDB ↔ Claude Code ↔ Antigravity.
+"""Cross-runtime memory bridge: OpenClaw pgvector ↔ Claude Code ↔ Antigravity.
 
-Writes context entries from ChromaDB activity_logs into Claude Code agent-memory
+Writes context entries from pgvector activity_logs into Claude Code agent-memory
 directories and Antigravity implicit memory, then pulls Claude's memory back
-into ChromaDB for a bidirectional sync.
+into pgvector for a bidirectional sync.
 """
 
 import hashlib
@@ -45,7 +45,7 @@ def claude_memory_count() -> dict[str, int]:
 
 
 def sync_memory_to_claude(max_entries: int = 50) -> int:
-    """Push recent ChromaDB activity entries to Claude Code agent-memory dirs.
+    """Push recent pgvector activity entries to Claude Code agent-memory dirs.
 
     Returns number of entries pushed.
     """
@@ -100,8 +100,8 @@ def sync_memory_to_claude(max_entries: int = 50) -> int:
     return pushed
 
 
-def sync_claude_to_chromadb(_max_entries: int = 50) -> int:
-    """Pull Claude Code agent-memory files back into ChromaDB.
+def sync_claude_to_pgvector(_max_entries: int = 50) -> int:
+    """Pull Claude Code agent-memory files back into pgvector.
 
     Returns number of documents added.
     """
@@ -129,9 +129,9 @@ def sync_claude_to_chromadb(_max_entries: int = 50) -> int:
                 )
                 added += 1
             except Exception as e:
-                logger.warning("Failed to add %s to ChromaDB: %s", fpath, e)
+                logger.warning("Failed to add %s to pgvector: %s", fpath, e)
     if added:
-        logger.info("Pulled %d entries from Claude Code agents into ChromaDB", added)
+        logger.info("Pulled %d entries from Claude Code agents into pgvector", added)
     return added
 
 
@@ -145,7 +145,7 @@ def get_bridge_status() -> dict[str, Any]:
         len(list(ANTIGRAVITY_ANNOTATIONS_DIR.glob("*"))) if ANTIGRAVITY_ANNOTATIONS_DIR.exists() else 0
     )
     return {
-        "chromadb_collections": {
+        "pgvector_tables": {
             "activity_logs": {"count": activity_count},
             "knowledge_base": {"count": "available"},
             "project": {"available": True},

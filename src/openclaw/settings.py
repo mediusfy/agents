@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     logfire_token: str | None = None
     logfire_api_key: str | None = None
 
+    database_url: str | None = None
+
     model_provider: str | None = "deepseek"
 
     redis_iris_url: str | None = None

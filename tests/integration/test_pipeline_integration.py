@@ -8,6 +8,7 @@ Verifies:
 - Telemetry logging
 """
 
+import contextlib
 import json
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -814,10 +815,112 @@ class TestMemoryBackendSelection:
         assert first is second
         assert isinstance(first, VectorMemory)
 
+    # ── pgvector test helpers ──────────────────────────────────────────────
+
+    @staticmethod
+    def _create_in_memory_pool_and_set():
+        """Create an in-memory pgvector mock for testing, and install it via _set_test_pool().
+
+        Returns the mock pool so the caller can inspect stored rows.
+        """
+        # We use a simple dict-based store: table_name -> {id: {content, embedding, metadata}}
+        # Embedding is mocked — all documents get a trivial vector so <=> does "some" ranking.
+        stores: dict[str, dict[str, dict]] = {}
+
+        class MockConnection:
+            """Simulates an asyncpg connection with execute() and fetch() that store/query in-memory dicts."""
+
+            def __init__(self, table_prefix: str = "v_"):
+                self._prefix = table_prefix
+
+            async def execute(self, query: str, *args, **kwargs):
+                # DDL: CREATE EXTENSION, CREATE TABLE, CREATE INDEX — no-op
+                stripped = query.strip().upper()
+                if stripped.startswith("CREATE"):
+                    return
+                # INSERT INTO v_xxx ... ON CONFLICT
+                if stripped.startswith("INSERT"):
+                    table_name = query.split()[2]  # v_collection
+                    doc_id = args[0]
+                    metadata = args[1]
+                    _embedding = args[2]
+                    content = args[3]
+                    stores.setdefault(table_name, {})[doc_id] = {
+                        "content": content,
+                        "embedding": _embedding,
+                        "metadata": metadata,
+                    }
+
+            async def fetch(self, query: str, *args, **kwargs):
+                # e.g. "SELECT content FROM v_xxx ORDER BY embedding <=> $1::vector LIMIT $2"
+                parts = query.split()
+                from_idx = next(i for i, p in enumerate(parts) if p.upper() == "FROM")
+                table_name = parts[from_idx + 1]
+                query_embedding = args[0]
+                # Parse LIMIT — it's either literal number or $2 / placeholder
+                limit_idx = next(i for i, p in enumerate(parts) if p.upper() == "LIMIT")
+                limit_raw = parts[limit_idx + 1]
+                try:
+                    limit = int(limit_raw)
+                except ValueError:
+                    # It's a placeholder like $2 — pull from args by index
+                    placeholder_idx = int(limit_raw.lstrip("$")) - 1
+                    limit = args[placeholder_idx]
+
+                table = stores.get(table_name, {})
+                if not table:
+                    return []
+                # Use cosine distance on the (mocked) embeddings
+                # Embeddings are lists of floats; compute cosine distance
+                scored = []
+                for _doc_id, record in table.items():
+                    emb = record["embedding"]
+                    if isinstance(emb, str):
+                        # pgvector format "[0.1,0.2,...]"
+                        import json
+
+                        emb = json.loads(emb.strip("[]").replace(" ", ","))  # simplified
+                    # Compute cosine distance
+                    import math
+
+                    q = query_embedding if isinstance(query_embedding, list) else [0.0]
+                    e = emb if isinstance(emb, list) else [0.0]
+                    # Dot product / (norm_a * norm_b)
+                    dot = sum(a * b for a, b in zip(q, e, strict=True))
+                    norm_q = math.sqrt(sum(a * a for a in q)) or 1
+                    norm_e = math.sqrt(sum(b * b for b in e)) or 1
+                    distance = 1.0 - (dot / (norm_q * norm_e))
+                    scored.append((distance, record["content"]))
+
+                scored.sort(key=lambda x: x[0])
+                # Return asyncpg-style Row proxies (dict-like)
+                rows = []
+                for _, content in scored[:limit]:
+                    row = MagicMock()
+                    row.__getitem__ = lambda _self, _k, _content=content: _content if _k == "content" else None
+                    rows.append(row)
+                return rows
+
+        class MockPool:
+            """Simulates asyncpg connection pool."""
+
+            @contextlib.asynccontextmanager
+            async def acquire(self):
+                yield MockConnection()
+
+            async def close(self):
+                pass
+
+        pool = MockPool()
+        from openclaw.vector_db import _set_test_pool
+
+        _set_test_pool(pool)  # type: ignore[arg-type]
+        return stores, pool
+
     @pytest.mark.asyncio
     async def test_vectormemory_add_and_get_relevant(self, tmp_path, monkeypatch):
         """VectorMemory add_memory and get_relevant_memories work end-to-end with mocked vector_db."""
-        monkeypatch.setattr("openclaw.memory.settings.vector_db_dir", str(tmp_path / ".claw-vectordb"))
+        stores, _ = self._create_in_memory_pool_and_set()
 
         vm = VectorMemory("test_integration")
 
@@ -837,7 +940,7 @@ class TestMemoryBackendSelection:
     @pytest.mark.asyncio
     async def test_vectormemory_consolidate(self, tmp_path, monkeypatch):
         """VectorMemory.consolidate returns a formatted text block of recent memories."""
-        monkeypatch.setattr("openclaw.memory.settings.vector_db_dir", str(tmp_path / ".claw-vectordb"))
+        stores, _ = self._create_in_memory_pool_and_set()
 
         vm = VectorMemory("test_consolidate")
 
@@ -851,7 +954,7 @@ class TestMemoryBackendSelection:
     @pytest.mark.asyncio
     async def test_vectormemory_roundtrip(self, tmp_path, monkeypatch):
         """Added memories are retrievable by semantic search."""
-        monkeypatch.setattr("openclaw.memory.settings.vector_db_dir", str(tmp_path / ".claw-vectordb"))
+        stores, _ = self._create_in_memory_pool_and_set()
 
         vm = VectorMemory("test_roundtrip")
 
