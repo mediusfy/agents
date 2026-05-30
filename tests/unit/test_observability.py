@@ -25,9 +25,21 @@ def reset_observability_state():
     observability._initialized = False
 
 
-def test_configure_is_a_noop_when_no_credentials(tmp_path, monkeypatch):
+def _clear_logfire_env(monkeypatch):
+    """Clear all Logfire credential sources for deterministic test setup.
+
+    The observability module imports a pydantic-settings singleton that loads
+    from .env at import time. We must also clear that singleton's value so
+    configure_observability() sees no credentials.
+    """
     monkeypatch.delenv("LOGFIRE_TOKEN", raising=False)
     monkeypatch.setattr("os.path.exists", lambda _: False)
+    import openclaw.observability as _obs_mod
+    _obs_mod.settings.logfire_token = ""
+
+
+def test_configure_is_a_noop_when_no_credentials(tmp_path, monkeypatch):
+    _clear_logfire_env(monkeypatch)
 
     from openclaw import observability
 
@@ -39,8 +51,7 @@ def test_configure_is_a_noop_when_no_credentials(tmp_path, monkeypatch):
 
 
 def test_configure_is_idempotent(monkeypatch):
-    monkeypatch.delenv("LOGFIRE_TOKEN", raising=False)
-    monkeypatch.setattr("os.path.exists", lambda _: False)
+    _clear_logfire_env(monkeypatch)
 
     from openclaw import observability
 

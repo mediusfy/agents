@@ -14,7 +14,10 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
 from openclaw.agents.registration import register_all_agents
+from openclaw.context_engine import retrieve_context
+from openclaw.event_broker import Event, EventKind, event_broker
 from openclaw.exceptions import AgentExecutionError, AgentNotFoundError
+from openclaw.memory_bridge import get_bridge_status, sync_claude_to_chromadb, sync_memory_to_claude
 from openclaw.observability import configure_observability
 from openclaw.registry import registry
 from openclaw.telemetry import telemetry
@@ -40,7 +43,14 @@ register_all_agents()
 
 
 async def run_agent_by_name(agent_name: str, request: str) -> str:
-    """Run a registered agent by its name, resolving dependencies and tracking telemetry."""
+    """Run a registered agent by its name, resolving dependencies and tracking telemetry.
+
+    FORTIFIED CONTEXT MANAGEMENT:
+    Before running the agent, this function retrieves relevant snippets from the
+    vector-indexed context store (ADRs, architecture rules, past decisions) and
+    prepends them to the request. This ensures agents are fed exactly the relevant
+    context without needing to manually hunt through the file system.
+    """
     try:
         agent = registry.get(agent_name)
     except ValueError as e:
@@ -52,9 +62,24 @@ async def run_agent_by_name(agent_name: str, request: str) -> str:
 
     _, _, deps_factory, _ = agent_tuple
 
+    # ── Context Enrichment ────────────────────────────────────────────────
+    # Pull relevant snippets from the vector-indexed knowledge base
+    enriched_request = request
+    with logfire.span("mcp.retrieve_context", agent_name=agent_name, _level="info"):
+        context = retrieve_context(agent_name, request, top_k=3)
+        if context:
+            enriched_request = (
+                f"Relevant Architecture Context from Knowledge Base:\n"
+                f"{context}\n\n"
+                f"---\n\n"
+                f"{request}"
+            )
+    # ──────────────────────────────────────────────────────────────────────
+
     span_attrs: dict[str, Any] = {
         "agent_name": agent_name,
         "request_length": len(request),
+        "context_retrieved": bool(context),
     }
 
     start = time.time()
@@ -62,7 +87,7 @@ async def run_agent_by_name(agent_name: str, request: str) -> str:
     try:
         with logfire.span("mcp.run_agent", **span_attrs, _level="info"):
             resolved_deps = deps_factory() if callable(deps_factory) else {}
-            result = await agent.run(request, deps=resolved_deps)
+            result = await agent.run(enriched_request, deps=resolved_deps)
             success = True
             if hasattr(result, "data"):
                 return str(result.data)
@@ -316,6 +341,246 @@ async def scaffold_and_build_service(service_name: str, bounded_context: str, re
         requirement = requirement or f"Build a {service_name} service for {bounded_context} bounded context."
         await main(project=service_name, step="all", resume=False, auto_yes=True, requirement=requirement)
         return f"Service '{service_name}' scaffolding pipeline completed. Artifacts in generated-app/{service_name}/."
+
+
+# ── Event-Driven Async Handoff Tools ──────────────────────────────────────
+
+
+@mcp.tool()
+def submit_async_task(task_type: str, payload: str, callback_tool: str = "") -> str:
+    """
+    Submit a heavy task for asynchronous execution via the internal event broker.
+
+    For long-running work (builds, test suites, deployments) that would timeout
+    under standard MCP request/response, submit here and poll for completion
+    via check_task_status.
+
+    Args:
+        task_type: One of "build", "test_suite", "deploy", "pipeline"
+        payload: JSON payload with task parameters
+        callback_tool: Optional tool name to call on completion
+
+    Returns:
+        task_id — use with check_task_status to poll for results.
+    """
+    with logfire.span(
+        "mcp.submit_async_task",
+        task_type=task_type,
+        payload_length=len(payload),
+        _level="info",
+    ):
+        task_id = event_broker.submit(
+            Event(kind=EventKind.TASK_SUBMITTED, data={
+                "type": task_type,
+                "payload": payload,
+                "callback_tool": callback_tool,
+            })
+        )
+        return f"Task '{task_id}' submitted. Use check_task_status('{task_id}') to poll for results."
+
+
+@mcp.tool()
+def check_task_status(task_id: str) -> str:
+    """Check the status of an async task submitted via submit_async_task."""
+    with logfire.span("mcp.check_task_status", task_id=task_id, _level="info"):
+        status = event_broker.get_status(task_id)
+        if not status:
+            return f"Task '{task_id}' not found."
+        return (
+            f"Task: {task_id}\n"
+            f"Status: {status.get('status', 'unknown')}\n"
+            f"Result: {status.get('result', 'pending')}"
+        )
+
+
+@mcp.tool()
+async def wait_for_task(task_id: str, timeout_seconds: int = 300) -> str:
+    """Wait synchronously for an async task to complete (up to timeout_seconds)."""
+    with logfire.span("mcp.wait_for_task", task_id=task_id, timeout=timeout_seconds, _level="info"):
+        import asyncio
+
+        result = await asyncio.wait_for(event_broker.wait_for(task_id, timeout_seconds), timeout_seconds + 10)
+        if result is None:
+            return f"Task '{task_id}' timed out after {timeout_seconds}s."
+        return (
+            f"Task: {task_id}\n"
+            f"Status: {result.get('status', 'completed')}\n"
+            f"Result: {result.get('result', '')}"
+        )
+
+
+# ── Vector DB Tools for Async Task Context ────────────────────────────────
+
+
+@mcp.tool()
+def seed_project_context(project_path: str) -> str:
+    """Seed the vector DB with project files (rules, workflows, READMEs, ADRs).
+
+    Scans the given project path for relevant context files (.md, .adr, rules/) and
+    indexes them into the vector DB so agent context retrieval can find them.
+
+    Args:
+        project_path: Absolute path to the project root (e.g., /Users/jocham/programming/rufkis)
+    """
+    import glob
+    import os
+
+    files_indexed = 0
+    errors = []
+
+    # Patterns to scan
+    patterns = [
+        os.path.join(project_path, ".agents", "rules", "*.md"),
+        os.path.join(project_path, ".agents", "workflows", "*.md"),
+        os.path.join(project_path, ".agents", "rules", "**", "*.md"),
+        os.path.join(project_path, ".agents", "workflows", "**", "*.md"),
+        os.path.join(project_path, "**", "ARCHITECTURE*.md"),
+        os.path.join(project_path, "**", "CONVENTIONS*.md"),
+        os.path.join(project_path, "**", "CODING_STANDARDS*.md"),
+        os.path.join(project_path, "**", "CONTRIBUTING*.md"),
+        os.path.join(project_path, "**", "*.adr"),
+        os.path.join(project_path, "*.md"),
+    ]
+
+    for pattern in patterns:
+        matches = glob.glob(pattern, recursive=True)
+        for fp in matches:
+            if not os.path.isfile(fp):
+                continue
+            try:
+                with open(fp, encoding="utf-8") as f:
+                    content = f.read()
+                if not content.strip():
+                    continue
+
+                # Determine domain from path
+                rel = os.path.relpath(fp, project_path).lower()
+                if "rule" in rel or "convention" in rel:
+                    domain = "conventions"
+                elif "adr" in rel or "architecture" in rel:
+                    domain = "adrs"
+                elif "workflow" in rel or "pipeline" in rel or "readme" in os.path.basename(fp).lower():
+                    domain = "project"
+                else:
+                    domain = "architecture"
+
+                sanitized = rel.replace('/', '::').replace(chr(92), '::')
+                doc_id = f"file:{sanitized}"
+                vector_db.add_documents(
+                    domain,
+                    [content],
+                    [{"source": fp, "domain": domain, "file": rel}],
+                    [doc_id],
+                )
+                files_indexed += 1
+            except Exception as e:
+                errors.append(f"{fp}: {e}")
+
+    summary = f"Indexed {files_indexed} files into vector DB"
+    if files_indexed > 0:
+        summary += " across domains: conventions, adrs, project, architecture"
+    if errors:
+        summary += f"\nErrors: {len(errors)}"
+        for err in errors[:5]:
+            summary += f"\n  - {err}"
+    return summary
+
+
+@mcp.tool()
+def query_context(query: str, domain: str = "", top_k: int = 5) -> str:
+    """Query the vector DB directly for relevant context about any topic.
+
+    Searches all knowledge domains (or a specific one) and returns
+    the most relevant snippets.
+
+    Args:
+        query: What to search for (e.g., "favorites system", "settings panel")
+        domain: Optional domain filter (adrs, architecture, conventions, project).
+                Empty string searches all domains.
+        top_k: Max results per domain (default 5)
+    """
+    domains = [domain] if domain else ["adrs", "architecture", "conventions", "project"]
+    all_results = []
+
+    for d in domains:
+        with logfire.span("mcp.query_context", domain=d, query_length=len(query), _level="info"):
+            try:
+                results = vector_db.search(d, query, n_results=top_k)
+                if results:
+                    all_results.append(f"\n=== Domain: {d} ===")
+                    for i, r in enumerate(results, 1):
+                        snippet = r[:300] + "..." if len(r) > 300 else r
+                        all_results.append(f"[{i}] {snippet}")
+            except Exception as e:
+                all_results.append(f"[Domain {d}] Error: {e}")
+
+    if not all_results:
+        return f"No context found for: {query}"
+
+    return "\n".join(all_results)
+
+
+@mcp.tool()
+def task_context(task_id: str) -> str:
+    """Get full context from the vector DB about a specific completed async task.
+
+    Searches the project domain for context related to a given task_id.
+
+    Args:
+        task_id: The task ID to look up context for
+    """
+    results = vector_db.search("project", task_id, n_results=3)
+    if not results:
+        return f"No context found for task: {task_id}"
+    return "\n---\n".join(results[:3])
+
+
+# ── Cross-Runtime Memory Bridge Tools ─────────────────────────────────────
+
+
+@mcp.tool()
+def sync_memory(all_runtimes: bool = True, max_entries: int = 50) -> str:
+    """Sync memory across all agent runtimes (ChromaDB ↔ Claude Code ↔ Antigravity).
+
+    First pushes recent ChromaDB activity logs into Claude Code's agent-memory
+    files and Antigravity's implicit memory. Then pulls Claude Code's memory
+    back into ChromaDB for discovery by OpenClaw agents.
+
+    Args:
+        all_runtimes: If True, sync to both Claude Code and Antigravity.
+                      If False, only sync ChromaDB → Claude Code.
+        max_entries: Max recent ChromaDB entries to process.
+    """
+    with logfire.span("mcp.sync_memory", all_runtimes=all_runtimes, _level="info"):
+        result = sync_memory_to_claude(max_entries=max_entries)
+        claude_result = sync_claude_to_chromadb()
+
+    return (
+        f"Memory sync complete:\n"
+        f"  ChromaDB → Claude Code: {result.get('synced', 0)} entries\n"
+        f"  Claude Code → ChromaDB: {claude_result.get('synced', 0)} entries\n"
+        f"  Agent mappings: {result.get('agent_mappings', [])}\n"
+        f"  Claude memory files: {result.get('claude_memory_counts', {})}\n"
+        f"  Timestamp: {result.get('timestamp', 'now')}"
+    )
+
+
+@mcp.tool()
+def memory_bridge_status() -> str:
+    """Get the current status of all memory systems (ChromaDB, Claude Code, Antigravity).
+
+    Reports how many memory files each Claude Code agent has, how many
+    Antigravity implicit entries exist, and ChromaDB collection health.
+    """
+    status = get_bridge_status()
+    return (
+        f"Memory Bridge Status:\n"
+        f"  Claude Code agents: {len(status.get('claude_agent_memory', {}))}\n"
+        f"  Claude memory files: {status.get('claude_agent_memory', {})}\n"
+        f"  Antigravity implicit entries: {status.get('antigravity_implicit_count', 0)}\n"
+        f"  ChromaDB collections active: {list(status.get('chromadb_collections', {}).keys())}\n"
+        f"  Runtime: OpenClaw ↔ Claude Code ↔ Antigravity"
+    )
 
 
 if __name__ == "__main__":

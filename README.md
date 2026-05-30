@@ -118,6 +118,7 @@ Additionally, the MCP server dynamically registers and exposes every agent in th
   - `run_quality_gate`: Quality Gate Checker
   - `run_service_engineer`: Service Engineer
   - `run_planner`: Goal Planner
+  
 - **Travel & Finance Agents:**
   - `run_accountant`: Budget/Expense Accountant
   - `run_asymmetric_reviewer`: Travel savings loopholes

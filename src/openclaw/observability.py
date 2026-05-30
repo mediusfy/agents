@@ -14,6 +14,8 @@ import os
 
 import logfire
 
+from openclaw.settings import settings
+
 logger = logging.getLogger(__name__)
 
 _initialized = False
@@ -25,6 +27,8 @@ LOGFIRE_CONFIGURE_ERROR: str | None = None
 def configure_observability() -> None:
     """Configure Logfire once per process.
 
+    - Reads LOGFIRE_TOKEN from pydantic-settings (which loads .env at import
+      time via SettingsConfigDict). Falls back to os.environ for direct usage.
     - Skips silently when no credentials are present (Logfire token or cached
       credentials file). The pipeline still runs; spans become no-ops.
     - Instruments pydantic-ai (per-model-call spans, token counts, tool calls),
@@ -37,7 +41,11 @@ def configure_observability() -> None:
         return
     _initialized = True
 
-    logfire_token = os.environ.get("LOGFIRE_TOKEN", "")
+    # Prefer the raw env var first (tests delete it to simulate no-creds), then
+    # fall back to the settings object which loads .env at import time.
+    # If the env var is empty/falsy but settings has a value, the .env is
+    # providing it — let through so Logfire actually works in prod.
+    logfire_token = os.environ.get("LOGFIRE_TOKEN", "") or getattr(settings, "logfire_token", "") or ""
     logfire_credentials = os.path.expanduser("~/.logfire/credentials.json")
     has_credentials = bool(logfire_token) or os.path.exists(logfire_credentials)
 

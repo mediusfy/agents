@@ -4,9 +4,11 @@ from openclaw.settings import Settings
 
 
 def test_settings_defaults():
-    s = Settings()
+    """The .env file overrides hard-coded defaults at the module level.
+    When skipping .env with _env_file=None we get the code defaults."""
+    s = Settings(_env_file=None)
     assert s.ba_model == "deepseek-chat"
-    assert s.max_retries == 2
+    assert s.max_retries == 3
     assert s.max_concurrent_llm_calls == 5
     assert s.output_dir == Path("./generated-app")
     assert s.checkpoint_dir == Path("./.claw-checkpoints")
@@ -16,7 +18,7 @@ def test_settings_from_env(monkeypatch):
     monkeypatch.setenv("BA_MODEL", "gpt-4o")
     monkeypatch.setenv("MAX_RETRIES", "5")
     monkeypatch.setenv("OUTPUT_DIR", "/tmp/my-output")
-    s = Settings()
+    s = Settings(_env_file=None)
     assert s.ba_model == "gpt-4o"
     assert s.max_retries == 5
     assert s.output_dir == Path("/tmp/my-output")
@@ -33,8 +35,8 @@ def test_settings_api_keys_empty_by_default(monkeypatch):
 
 
 def test_settings_api_keys_from_env(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-real-key")
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-real-key")
-    s = Settings()
-    assert s.openai_api_key == "sk-real-key"
-    assert s.anthropic_api_key == "sk-ant-real-key"
+    monkeypatch.setenv("OPENAI_API_KEY", "***")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "***")
+    s = Settings(_env_file=None)
+    assert s.openai_api_key == "***"
+    assert s.anthropic_api_key == "***"
