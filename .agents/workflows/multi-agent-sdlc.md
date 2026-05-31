@@ -14,38 +14,47 @@ Rufkis → BUDDY (Lead Orchestrator)
          └─ Autonomous Remediation Loop (quality gates + retries)
 ```
 
-## Mandatory: Testing Plan Before Any Code
+## Full Pipeline
 
-**Every feature request, before any agent writes a single line of code, MUST include a testing plan.** This is not optional and is enforced in the pipeline.
-
-### Pipeline — Per-Feature Execution
 ```
-Rufkis → BUDDY
-  │
-  ├── Step 1: TESTING PLAN (mandatory before any code)
-  │   ├── What functional behavior must be verified?
-  │   ├── What edge cases exist?
-  │   ├── How do we prove the feature actually works?
-  │   ├── What tests validate the acceptance criteria?
-  │   └── Approved by BUDDY before Step 2 begins
-  │
-  ├── Step 2: Architect review
-  │   └── Is the approach sound based on the testing plan?
-  │
-  ├── Step 3: Implementation + functional-tester verification
-  │   ├── service_engineer / agent writes code
-  │   ├── test_eng writes tests (TypeScript only)
-  │   └── functional-tester runs the feature and confirms it works
-  │
-  ├── Step 4: Parallel Verification Gates
-  │   ├── quality-gate (lint, test, build)
-  │   ├── code-reviewer (logic, architecture, security)
-  │   ├── library-curator (dependency health)
-  │   └── architect (structural integrity)
-  │
-  ├── Step 5: Remediation Loop (max 3 retries on gate failure)
-  │
-  └── BUDDY: Final Approval → ✅ All Ok
+Planning → System Design → Testing Plan → Architect → Implementation → Gates → functional-tester → Remediation → BUDDY ✅ All Ok
+```
+
+### Step 1: Planning 🗺️
+- Scope, goals, constraints, risks, timeline
+- High-level approach
+- Reviewed and approved by Rufkis
+
+### Step 2: System Design 🏗️
+- Architecture approach, component breakdown, data flow
+- API surface, database changes, integration points
+- Concrete enough for implementation
+- Reviewed and approved by Rufkis
+
+### Step 3: Testing Plan (mandatory before any code) ✅
+- Functional verification criteria
+- Edge cases, error handling, integration boundaries
+- Regression safety
+- Approved before any agent writes code
+
+### Step 4: Architect Review
+- Is the design sound?
+- Does the testing plan cover the right things?
+- Pattern compliance, structural integrity
+
+### Step 5: Implementation + Gates + functional-tester
+- service_engineer / agent writes code
+- test_eng writes tests (TypeScript only)
+- Parallel Verification Gates:
+  ├── quality-gate (lint, test, build)
+  ├── code-reviewer (logic, architecture, security)
+  ├── library-curator (dependency health)
+  └── architect (structural integrity)
+- functional-tester runs the feature and confirms it works per the plan
+
+### Step 6: Remediation Loop (max 3 retries on gate/functional failure)
+
+### Step 7: BUDDY: Final Approval → ✅ All Ok
 ```
 
 ### Testing Plan Requirements
@@ -101,11 +110,13 @@ At `~/.claude/agents/`: backend-go-engineer, board-of-review, business-analyst, 
 
 ## Quality Guarantees
 Every pipeline run includes:
-0. ✅ Testing Plan (mandatory, approved before any code)
-1. ✅ quality_gate (lint, complexity, standards)
-2. ✅ code_reviewer (logic, architecture, security)
-3. ✅ library-curator (dependency health)
-4. ✅ architect (structural integrity)
-5. ✅ functional-tester (runs the feature, confirms it works per the plan)
-6. ✅ Max 3 remediation retries
-7. ✅ BUDDY final approval with full agent suite
+0. ✅ Planning (scope, goals, constraints)
+1. ✅ System Design (architecture, data flow, API surface)
+2. ✅ Testing Plan (mandatory, approved before any code)
+3. ✅ Architect Review (design soundness, pattern compliance)
+4. ✅ quality_gate (lint, complexity, standards)
+5. ✅ code_reviewer (logic, architecture, security)
+6. ✅ library-curator (dependency health)
+7. ✅ functional-tester (runs the feature, confirms it works per the plan)
+8. ✅ Max 3 remediation retries
+9. ✅ BUDDY final approval with full agent suite
