@@ -6,7 +6,7 @@ cd "$(dirname "$0")"
 NUM_WORKERS=${1:-2}
 
 source .venv/bin/activate
-export LOGFIRE_SEND_TO_LOGFIRE=false
+export LOGFIRE_SEND_TO_LOGFIRE=if-token-present
 export PYTHONPATH=$PYTHONPATH:$(pwd)/src
 export DAGSTER_HOME=$(pwd)/.dagmem
 

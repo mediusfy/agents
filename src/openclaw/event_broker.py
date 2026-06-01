@@ -6,17 +6,12 @@ Instead of synchronous MCP calls that may timeout on long-running operations
 model. The Orchestrator fires an event → worker agents pick it up → publish
 a "Task Complete" event back.
 
-This module provides:
-  - Event types (TaskSubmitted, TaskComplete, TaskFailed)
-  - In-memory event broker with task tracking
-  - Polling interface (check_task_status)
-  - Awaitable interface (wait_for)
-
-For production, this could be backed by Redis pub/sub, NATS, or similar.
+This module provides a PostgreSQL-backed persistent event broker.
 """
 
 import asyncio
 import enum
+import json
 import logging
 import time
 import uuid
@@ -24,6 +19,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import logfire
+
+from openclaw.vector_db import _get_pool
 
 logger = logging.getLogger(__name__)
 
@@ -44,56 +41,85 @@ class Event:
     timestamp: float = field(default_factory=time.time)
 
 
-@dataclass
-class TaskRecord:
-    id: str
-    status: str = "pending"  # pending, running, completed, failed, timeout
-    result: str | None = None
-    created_at: float = field(default_factory=time.time)
-    completed_at: float | None = None
-    _completion_event: asyncio.Event = field(default_factory=asyncio.Event)
-
-
-class EventBroker:
-    """In-memory event broker for async task handoffs.
+class PersistentEventBroker:
+    """PostgreSQL-backed persistent event broker for async task handoffs.
 
     Handles task submission, status tracking, and completion notification.
     Worker agents check for pending tasks and publish completion events.
     """
 
     def __init__(self) -> None:
-        self._tasks: dict[str, TaskRecord] = {}
-        self._events: list[Event] = []
+        self._tables_ensured = False
 
-    def submit(self, event: Event) -> str:
-        """Submit a task event and return a task ID for polling."""
+    async def _ensure_tables(self):
+        if self._tables_ensured:
+            return
+        pool = await _get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS broker_tasks (
+                    id TEXT PRIMARY KEY,
+                    status TEXT NOT NULL,
+                    result TEXT,
+                    created_at FLOAT NOT NULL,
+                    completed_at FLOAT
+                );
+                CREATE TABLE IF NOT EXISTS broker_events (
+                    id TEXT PRIMARY KEY,
+                    kind TEXT NOT NULL,
+                    data JSONB NOT NULL,
+                    timestamp FLOAT NOT NULL
+                );
+            """)
+        self._tables_ensured = True
+
+    async def _async_submit(self, event: Event) -> str:
+        await self._ensure_tables()
         task_id = f"task_{uuid.uuid4().hex[:12]}"
-        record = TaskRecord(id=task_id)
-        self._tasks[task_id] = record
-        self._events.append(event)
+        pool = await _get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO broker_tasks (id, status, created_at) VALUES ($1, $2, $3)", task_id, "pending", time.time()
+            )
+            await conn.execute(
+                "INSERT INTO broker_events (id, kind, data, timestamp) VALUES ($1, $2, $3::jsonb, $4)",
+                event.id,
+                event.kind.value,
+                json.dumps(event.data),
+                event.timestamp,
+            )
 
         with logfire.span("event_broker.submit", task_id=task_id, kind=event.kind.value, _level="info"):
             logger.info("Task %s submitted (%s)", task_id, event.kind.value)
 
         return task_id
 
-    def complete(self, task_id: str, result: str) -> None:
-        """Mark a task as completed with a result.
+    def submit(self, event: Event) -> str:
+        """Submit a task event and return a task ID for polling."""
+        return _run_sync(self._async_submit(event))
 
-        Also stores the task result in the vector DB so future context
-        retrieval can find it (vector-indexed task history).
-        """
-        record = self._tasks.get(task_id)
-        if not record:
-            logger.warning("Cannot complete unknown task: %s", task_id)
-            return
+    async def _async_complete(self, task_id: str, result: str) -> None:
+        await self._ensure_tables()
+        pool = await _get_pool()
+        async with pool.acquire() as conn:
+            res = await conn.execute(
+                "UPDATE broker_tasks SET status = 'completed', result = $1, completed_at = $2 WHERE id = $3",
+                result,
+                time.time(),
+                task_id,
+            )
+            if res == "UPDATE 0":
+                logger.warning("Cannot complete unknown task: %s", task_id)
+                return
 
-        record.status = "completed"
-        record.result = result
-        record.completed_at = time.time()
-        record._completion_event.set()
-
-        self._events.append(Event(kind=EventKind.TASK_COMPLETED, data={"task_id": task_id, "result": result}))
+            evt = Event(kind=EventKind.TASK_COMPLETED, data={"task_id": task_id, "result": result})
+            await conn.execute(
+                "INSERT INTO broker_events (id, kind, data, timestamp) VALUES ($1, $2, $3::jsonb, $4)",
+                evt.id,
+                evt.kind.value,
+                json.dumps(evt.data),
+                evt.timestamp,
+            )
 
         # Store in vector DB for future context retrieval
         try:
@@ -112,90 +138,141 @@ class EventBroker:
         with logfire.span("event_broker.complete", task_id=task_id, _level="info"):
             logger.info("Task %s completed (stored in vector DB)", task_id)
 
-    def fail(self, task_id: str, error: str) -> None:
-        """Mark a task as failed with an error message."""
-        record = self._tasks.get(task_id)
-        if not record:
-            logger.warning("Cannot fail unknown task: %s", task_id)
-            return
+    def complete(self, task_id: str, result: str) -> None:
+        """Mark a task as completed with a result."""
+        _run_sync(self._async_complete(task_id, result))
 
-        record.status = "failed"
-        record.result = error
-        record.completed_at = time.time()
-        record._completion_event.set()
+    async def _async_fail(self, task_id: str, error: str) -> None:
+        await self._ensure_tables()
+        pool = await _get_pool()
+        async with pool.acquire() as conn:
+            res = await conn.execute(
+                "UPDATE broker_tasks SET status = 'failed', result = $1, completed_at = $2 WHERE id = $3",
+                error,
+                time.time(),
+                task_id,
+            )
+            if res == "UPDATE 0":
+                logger.warning("Cannot fail unknown task: %s", task_id)
+                return
 
-        self._events.append(Event(kind=EventKind.TASK_FAILED, data={"task_id": task_id, "error": error}))
+            evt = Event(kind=EventKind.TASK_FAILED, data={"task_id": task_id, "error": error})
+            await conn.execute(
+                "INSERT INTO broker_events (id, kind, data, timestamp) VALUES ($1, $2, $3::jsonb, $4)",
+                evt.id,
+                evt.kind.value,
+                json.dumps(evt.data),
+                evt.timestamp,
+            )
 
         with logfire.span("event_broker.fail", task_id=task_id, _level="warn"):
             logger.warning("Task %s failed: %s", task_id, error)
 
+    def fail(self, task_id: str, error: str) -> None:
+        """Mark a task as failed with an error message."""
+        _run_sync(self._async_fail(task_id, error))
+
+    async def _async_get_status(self, task_id: str) -> dict[str, Any] | None:
+        await self._ensure_tables()
+        pool = await _get_pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT * FROM broker_tasks WHERE id = $1", task_id)
+            if not row:
+                return None
+            return {
+                "status": row["status"],
+                "result": row["result"] if row["status"] in ("completed", "failed") else "pending",
+                "created_at": row["created_at"],
+                "completed_at": row["completed_at"],
+                "elapsed_seconds": round(time.time() - row["created_at"], 1),
+            }
+
     def get_status(self, task_id: str) -> dict[str, Any] | None:
         """Get the current status of a task."""
-        record = self._tasks.get(task_id)
-        if not record:
-            return None
-
-        return {
-            "status": record.status,
-            "result": record.result if record.status in ("completed", "failed") else "pending",
-            "created_at": record.created_at,
-            "completed_at": record.completed_at,
-            "elapsed_seconds": round(time.time() - record.created_at, 1),
-        }
+        return _run_sync(self._async_get_status(task_id))
 
     async def wait_for(self, task_id: str, timeout_seconds: int = 300) -> dict[str, Any] | None:
-        """Wait asynchronously for a task to complete.
+        """Wait asynchronously for a task to complete via polling."""
+        start_time = time.time()
+        while time.time() - start_time < timeout_seconds:
+            status = await self._async_get_status(task_id)
+            if not status:
+                return None
+            if status["status"] in ("completed", "failed"):
+                return status
+            await asyncio.sleep(2)
 
-        Args:
-            task_id: The task to wait for.
-            timeout_seconds: Max time to wait (default 5 min).
+        # Timeout
+        pool = await _get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE broker_tasks SET status = 'timeout' WHERE id = $1 AND status = 'pending'", task_id
+            )
 
-        Returns:
-            Status dict, or None if timeout.
-        """
-        record = self._tasks.get(task_id)
-        if not record:
-            return None
+        with logfire.span("event_broker.timeout", task_id=task_id, timeout=timeout_seconds, _level="warn"):
+            logger.warning("Task %s timed out after %ds", task_id, timeout_seconds)
 
-        if record.status in ("completed", "failed"):
-            return self.get_status(task_id)
+        return {
+            "status": "timeout",
+            "result": f"Timed out after {timeout_seconds}s",
+            "created_at": status["created_at"] if status else start_time,
+            "completed_at": None,
+            "elapsed_seconds": timeout_seconds,
+        }
 
-        try:
-            await asyncio.wait_for(record._completion_event.wait(), timeout=timeout_seconds)
-            return self.get_status(task_id)
-        except TimeoutError:
-            record.status = "timeout"
-            with logfire.span("event_broker.timeout", task_id=task_id, timeout=timeout_seconds, _level="warn"):
-                logger.warning("Task %s timed out after %ds", task_id, timeout_seconds)
-            return {
-                "status": "timeout",
-                "result": f"Timed out after {timeout_seconds}s",
-                "created_at": record.created_at,
-                "completed_at": None,
-                "elapsed_seconds": timeout_seconds,
-            }
+    async def _async_get_pending_tasks(self) -> list[dict[str, Any]]:
+        await self._ensure_tables()
+        pool = await _get_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch("SELECT id, status, created_at FROM broker_tasks WHERE status = 'pending'")
+            return [{"id": r["id"], "status": r["status"], "created_at": r["created_at"]} for r in rows]
 
     def get_pending_tasks(self) -> list[dict[str, Any]]:
         """Get all pending tasks — for worker agents to discover work."""
-        return [
-            {"id": tid, "status": rec.status, "created_at": rec.created_at}
-            for tid, rec in self._tasks.items()
-            if rec.status == "pending"
-        ]
+        return _run_sync(self._async_get_pending_tasks())
+
+    async def _async_get_events(self, since_id: str | None = None) -> list[Event]:
+        await self._ensure_tables()
+        pool = await _get_pool()
+        async with pool.acquire() as conn:
+            if since_id:
+                # Find the timestamp of since_id
+                row = await conn.fetchrow("SELECT timestamp FROM broker_events WHERE id = $1", since_id)
+                if row:
+                    rows = await conn.fetch(
+                        "SELECT * FROM broker_events WHERE timestamp > $1 ORDER BY timestamp ASC", row["timestamp"]
+                    )
+                else:
+                    rows = []
+            else:
+                rows = await conn.fetch("SELECT * FROM broker_events ORDER BY timestamp ASC")
+
+            return [
+                Event(
+                    kind=EventKind(r["kind"]),
+                    data=json.loads(r["data"]) if isinstance(r["data"], str) else r["data"],
+                    id=r["id"],
+                    timestamp=r["timestamp"],
+                )
+                for r in rows
+            ]
 
     def get_events(self, since_id: str | None = None) -> list[Event]:
         """Get all events since a given event ID."""
-        if since_id is None:
-            return list(self._events)
-        found = False
-        result: list[Event] = []
-        for evt in self._events:
-            if found:
-                result.append(evt)
-            elif evt.id == since_id:
-                found = True
-        return result
+        return _run_sync(self._async_get_events(since_id))
+
+
+def _run_sync(coro):
+    """Run a coroutine synchronously, handling running event loops."""
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            future = asyncio.run_coroutine_threadsafe(coro, loop)
+            return future.result(timeout=60)
+        return loop.run_until_complete(coro)
+    except RuntimeError:
+        return asyncio.run(coro)
 
 
 # Singleton
-event_broker = EventBroker()
+event_broker = PersistentEventBroker()

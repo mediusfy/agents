@@ -260,42 +260,40 @@ async def run_existing_code_pipeline(
             artifact_count=len(result.artifacts),
             _level="info",
         ):
-            tasks = []
+            tasks: list[Any] = []
             if run_quality_gate:
                 tasks.append(_run_quality_gate(result.artifacts))
             else:
-                tasks.append(asyncio.sleep(0, result=True))
+                tasks.append(asyncio.sleep(0, result=(True, 0, [])))
 
             if run_review:
                 tasks.append(_run_code_review(result.artifacts))
             else:
-                tasks.append(asyncio.sleep(0, result=True))
+                tasks.append(asyncio.sleep(0, result=(True, "low", [])))
 
             gate_results = await asyncio.gather(*tasks, return_exceptions=True)
 
             gate_idx = 0
-            if run_quality_gate:
-                qr = gate_results[gate_idx]
-                if isinstance(qr, Exception):
-                    qg_passed = False
-                    qg_feedback = [f"Quality Gate exception: {qr}"]
-                else:
-                    qg_passed, score, qg_feedback = qr
-                    result.quality_gate_score = score
-                    result.quality_gate_feedback = qg_feedback
-                gate_idx += 1
+            qr = gate_results[gate_idx]
+            if isinstance(qr, BaseException):
+                qg_passed = False
+                qg_feedback = [f"Quality Gate exception: {qr}"]
+            else:
+                qg_passed, score, qg_feedback = qr
+                result.quality_gate_score = score
+                result.quality_gate_feedback = qg_feedback
+            gate_idx += 1
 
-            if run_review:
-                rr = gate_results[gate_idx]
-                if isinstance(rr, Exception):
-                    cv_passed = False
-                    cv_feedback = [f"Code Review exception: {rr}"]
-                else:
-                    cv_passed, risk, cv_feedback = rr
-                    result.review_risk = risk
-                    # Collect code review feedback as errors too
-                    result.errors.extend(cv_feedback)
-                gate_idx += 1
+            rr = gate_results[gate_idx]
+            if isinstance(rr, BaseException):
+                cv_passed = False
+                cv_feedback = [f"Code Review exception: {rr}"]
+            else:
+                cv_passed, risk, cv_feedback = rr
+                result.review_risk = risk
+                # Collect code review feedback as errors too
+                result.errors.extend(cv_feedback)
+            gate_idx += 1
 
         # ── Remediation Decision ────────────────────────────────────────
         logger.info(

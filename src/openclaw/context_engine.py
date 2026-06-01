@@ -17,6 +17,7 @@ The engine uses the existing vector_db module for storage and retrieval.
 """
 
 import logging
+import uuid
 from typing import Any
 
 import logfire
@@ -125,7 +126,7 @@ def store_artifact_context(
                 domain,
                 [content],
                 metadatas=[metadata or {}],
-                ids=[doc_id] if doc_id else [],
+                ids=[doc_id] if doc_id else [f"auto_{uuid.uuid4().hex[:12]}"],
             )
             logger.info("Stored %d chars in domain '%s'", len(content), domain)
         except Exception as e:

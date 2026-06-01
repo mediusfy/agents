@@ -3,9 +3,15 @@ from pathlib import Path
 from openclaw.settings import Settings
 
 
-def test_settings_defaults():
+def test_settings_defaults(monkeypatch):
     """The .env file overrides hard-coded defaults at the module level.
     When skipping .env with _env_file=None we get the code defaults."""
+    monkeypatch.delenv("BA_MODEL", raising=False)
+    monkeypatch.delenv("MAX_RETRIES", raising=False)
+    monkeypatch.delenv("MAX_CONCURRENT_LLM_CALLS", raising=False)
+    monkeypatch.delenv("OUTPUT_DIR", raising=False)
+    monkeypatch.delenv("CHECKPOINT_DIR", raising=False)
+    
     s = Settings(_env_file=None)
     assert s.ba_model == "deepseek-chat"
     assert s.max_retries == 3

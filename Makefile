@@ -13,7 +13,7 @@ ifneq (,$(wildcard .env))
     export
 endif
 
-.PHONY: all mcp run run-resume run-dry-run setup clean test lint build
+.PHONY: all mcp run run-resume run-dry-run setup clean test lint build no-auto-run frontend-build
 
 PROJECT ?= default
 
@@ -52,6 +52,18 @@ lint:
 	$(PYTHON) -m ruff format --check src/ tests/
 	$(PYTHON) -m mypy src/openclaw
 	@echo "=== Lint passed ==="
+
+# Frontend dev server (Vite), bypasses the generation pipeline
+FRONTEND_DIR = generated-app/default/frontend
+
+no-auto-run:
+	@echo "=== Starting Rufkis Dashboard (no pipeline auto-run) ==="
+	cd $(FRONTEND_DIR) && npm install && npm run dev
+
+# Vite build for production
+frontend-build:
+	@echo "=== Building Rufkis Dashboard for production ==="
+	cd $(FRONTEND_DIR) && npm ci && npm run build
 
 build:
 	$(PYTHON) -c "import openclaw; print('Build OK')"

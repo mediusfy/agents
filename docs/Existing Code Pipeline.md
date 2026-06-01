@@ -42,44 +42,29 @@ Runs: service_engineer (pydantic_ai) → test_eng → quality_gate → review
 
 ## Architecture
 
-```
-                 ┌─────────────────────────┐
-                 │  service_engineer        │  pydantic_ai Agent
-                 │  - read_file tool        │  Output: Artifact (changed files)
-                 │  - list_directory tool   │  Rules: library-first, DRY, YAGNI
-                 │  - gofmt check tool      │  CODING_STANDARDS compliance
-                 └──────────┬──────────────┘
-                            │ artifacts
-                            ▼
-                 ┌─────────────────────────┐
-                 │  go_test_agent           │  pydantic_ai Agent
-                 │  - table-driven tests    │  testify, mockery, t.Parallel()
-                 │  - success + error paths │  discarding logger pattern
-                 └──────────┬──────────────┘
-                            │ artifacts + tests
-                            ▼
-                 ┌─────────────────────────┐
-                 │  quality_gate            │  pydantic_ai Agent
-                 │  - complexity score 0-100│  Fail if >60
-                 │  - over-engineering      │  premature abstraction
-                 └──────────┬──────────────┘
-                            │ if passed
-                            ▼
-                 ┌─────────────────────────┐
-                 │  review                  │  pydantic_ai Agent
-                 │  - security audit        │  Final approval/rejection
-                 │  - architecture fit      │
-                 └──────────┬──────────────┘
-                            │ result
-                            ▼
-                 ┌─────────────────────────┐
-                 │  ExistingCodeResult      │
-                 │  passed: bool            │
-                 │  changed_files: []       │
-                 │  test_files: []          │
-                 │  quality_gate_score: int │
-                 │  errors: []              │
-                 └─────────────────────────┘
+The pipeline uses an **Autonomous Remediation Loop** with **Parallel Verification Gates**. Instead of failing out immediately or running sequentially, the pipeline attempts to auto-fix code up to 3 times by feeding gate failures back to the `service_engineer`.
+
+```mermaid
+flowchart TD
+    Start([Pipeline Triggered]) --> SE[service_engineer Agent]
+    
+    SE --> |Creates Artifacts| TE[test_eng Agent]
+    TE --> |Generates Tests| Gates{Parallel Verification Gates}
+    
+    Gates --> QG[quality_gate Agent<br>Deterministic checks]
+    Gates --> CR[review Agent<br>Heuristic & Architecture checks]
+    
+    QG --> Merge[Gate Results]
+    CR --> Merge[Gate Results]
+    
+    Merge --> Check{Did Both Pass?}
+    
+    Check -->|No| Retry{Retries < 3?}
+    Retry -->|Yes| Remediation[Compile Error Feedback]
+    Remediation --> SE
+    
+    Retry -->|No| Fail([Escalate to Lead Orchestrator])
+    Check -->|Yes| Success([Pipeline Passed & Memory Synced])
 ```
 
 ## Quality Rules Enforced
