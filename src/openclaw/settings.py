@@ -97,6 +97,9 @@ class Settings(BaseSettings):
             if provider == "gemini":
                 # All agents use gemini-2.0-flash for consistency
                 return "gemini:gemini-2.0-flash"
+            if provider == "vertexai":
+                # Use Google Cloud ADC (OAuth) instead of AI Studio API keys
+                return "vertexai:gemini-2.0-flash"
             if provider == "openai":
                 return "openai:gpt-4o"
             # Generic provider — pass through with prefix if needed

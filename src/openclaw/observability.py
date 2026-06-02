@@ -57,7 +57,7 @@ def configure_observability() -> None:
         return
 
     try:
-        logfire.configure(inspect_arguments=False)
+        logfire.configure(service_name="openclaw", inspect_arguments=False)
         logfire.instrument_pydantic()
         logfire.instrument_httpx(
             capture_request_headers=False,
@@ -79,7 +79,7 @@ def configure_observability() -> None:
     except TypeError:
         # Older Logfire signatures lack capture_*_body kwargs; retry without them.
         try:
-            logfire.configure(inspect_arguments=False)
+            logfire.configure(service_name="openclaw", inspect_arguments=False)
             logfire.instrument_pydantic()
             logfire.instrument_httpx(capture_request_headers=False, capture_response_headers=False)
             with contextlib.suppress(AttributeError, ModuleNotFoundError):
