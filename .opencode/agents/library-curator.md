@@ -5,7 +5,7 @@ description: >
   no custom implementations of stdlib patterns exist and that existing
   dependencies are used where appropriate. Runs after service-coder.
 mode: subagent
-model: deepseek/deepseek-chat
+model: deepseek/deepseek-reasoner
 permission:
   read: allow
   grep: allow

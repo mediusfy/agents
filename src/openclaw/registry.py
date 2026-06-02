@@ -8,7 +8,7 @@ from collections.abc import Callable
 from typing import Any
 
 import logfire
-from pydantic_ai import Agent
+from pydantic_ai import Agent, UsageLimits
 
 from openclaw.exceptions import AgentExecutionError, AgentNotFoundError
 from openclaw.telemetry import telemetry
@@ -130,9 +130,9 @@ class AgentRegistry:
             if deps_factory and not deps:
                 resolved_deps = deps_factory() if callable(deps_factory) else {}
             if timeout:
-                result = await asyncio.wait_for(agent.run(prompt, deps=resolved_deps), timeout=timeout)  # type: ignore
+                result = await asyncio.wait_for(agent.run(prompt, deps=resolved_deps, usage_limits=UsageLimits(request_limit=500)), timeout=timeout)  # type: ignore
             else:
-                result = await agent.run(prompt, deps=resolved_deps)  # type: ignore
+                result = await agent.run(prompt, deps=resolved_deps, usage_limits=UsageLimits(request_limit=500))  # type: ignore
             if hasattr(result, "data"):
                 return str(result.data)
             return str(result.output) if hasattr(result, "output") else str(result)

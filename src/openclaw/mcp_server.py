@@ -12,6 +12,7 @@ from typing import Any
 import logfire
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
+from pydantic_ai import UsageLimits
 
 from openclaw.agents.registration import register_all_agents
 from openclaw.context_engine import retrieve_context
@@ -82,7 +83,7 @@ async def run_agent_by_name(agent_name: str, request: str) -> str:
     try:
         with logfire.span("mcp.run_agent", **span_attrs, _level="info"):
             resolved_deps = deps_factory() if callable(deps_factory) else {}
-            result = await agent.run(enriched_request, deps=resolved_deps)
+            result = await agent.run(enriched_request, deps=resolved_deps, usage_limits=UsageLimits(request_limit=500))
             success = True
             if hasattr(result, "data"):
                 return str(result.data)
@@ -245,7 +246,7 @@ async def plan_and_execute(goal: str) -> str:
         from openclaw.agents.planner_agent import planner_agent
         from openclaw.registry import instrumented_query
 
-        plan_response = await planner_agent.run(f"Create a plan to achieve this goal: {goal}")
+        plan_response = await planner_agent.run(f"Create a plan to achieve this goal: {goal}", usage_limits=UsageLimits(request_limit=500))
         plan = plan_response.output
 
         completed: set[str] = set()

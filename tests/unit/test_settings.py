@@ -13,7 +13,7 @@ def test_settings_defaults(monkeypatch):
     monkeypatch.delenv("CHECKPOINT_DIR", raising=False)
     
     s = Settings(_env_file=None)
-    assert s.ba_model == "deepseek-chat"
+    assert s.ba_model == "deepseek-reasoner"
     assert s.max_retries == 3
     assert s.max_concurrent_llm_calls == 5
     assert s.output_dir == Path("./generated-app")

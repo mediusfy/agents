@@ -874,15 +874,18 @@ class TestMemoryBackendSelection:
                 scored = []
                 for _doc_id, record in table.items():
                     emb = record["embedding"]
+                    import json
                     if isinstance(emb, str):
                         # pgvector format "[0.1,0.2,...]"
-                        import json
-
-                        emb = json.loads(emb.strip("[]").replace(" ", ","))  # simplified
+                        emb = json.loads(emb)
                     # Compute cosine distance
                     import math
 
-                    q = query_embedding if isinstance(query_embedding, list) else [0.0]
+                    q_raw = query_embedding
+                    if isinstance(q_raw, str):
+                        q_raw = json.loads(q_raw)
+
+                    q = q_raw if isinstance(q_raw, list) else [0.0]
                     e = emb if isinstance(emb, list) else [0.0]
                     # Dot product / (norm_a * norm_b)
                     dot = sum(a * b for a, b in zip(q, e, strict=True))

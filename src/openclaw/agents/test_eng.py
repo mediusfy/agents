@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from pydantic_ai import Agent, RunContext
+from pydantic_ai import Agent, UsageLimits, RunContext
 
 from openclaw.models.core import Artifact
 from openclaw.models.factory import create_model
@@ -38,7 +38,7 @@ test_gen = Agent(
 @test_eng_agent.tool
 async def generate_test_suite(ctx: RunContext[str], user_story_gherkin: str) -> str:
     """Converts Gherkin to Playwright TypeScript tests: data-testid selectors, async/await, page object pattern, backend event validation."""
-    res = await test_gen.run(f"Write a playwright test for {user_story_gherkin}.")
+    res = await test_gen.run(f"Write a playwright test for {user_story_gherkin}.", usage_limits=UsageLimits(request_limit=500))
     return res.output.code
 
 
@@ -95,6 +95,7 @@ async def generate_go_table_driven_tests(ctx: RunContext[str], source_file: str,
     """Generate table-driven Go tests for an existing function. Reads the source file, analyzes the function signature, and produces testify-based tests with mocks, t.Parallel(), and a discarding logger."""
     res = await go_test_agent.run(
         f"Generate table-driven tests for the function '{function_name}' in {source_file}.\n"
-        f"Read {source_file} first to understand the function signature and dependencies."
+        f"Read {source_file} first to understand the function signature and dependencies.",
+        usage_limits=UsageLimits(request_limit=500),
     )
     return f"{res.output.filepath}\n```go\n{res.output.code}\n```"

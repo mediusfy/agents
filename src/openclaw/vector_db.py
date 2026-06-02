@@ -132,6 +132,7 @@ class VectorDBManager:
         async with pool.acquire() as conn:
             for doc_text, meta, doc_id in zip(documents, metadatas, ids, strict=True):
                 embedding = _to_embedding(doc_text)
+                embedding_str = '[' + ','.join(str(x) for x in embedding) + ']'
                 await conn.execute(
                     f"""
                     INSERT INTO v_{collection_name} (id, metadata, embedding, content)
@@ -143,7 +144,7 @@ class VectorDBManager:
                     """,
                     doc_id,
                     _serialize_meta(meta),
-                    embedding,
+                    embedding_str,
                     doc_text,
                 )
 
@@ -174,6 +175,7 @@ class VectorDBManager:
     ) -> list[str]:
         await _ensure_table(collection_name)
         embedding = _to_embedding(query)
+        embedding_str = '[' + ','.join(str(x) for x in embedding) + ']'
         pool = await _get_pool()
         async with pool.acquire() as conn:
             rows = await conn.fetch(
@@ -183,7 +185,7 @@ class VectorDBManager:
                 ORDER BY embedding <=> $1::vector
                 LIMIT $2
                 """,
-                embedding,
+                embedding_str,
                 n_results,
             )
             return [row["content"] for row in rows]

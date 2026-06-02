@@ -4,7 +4,7 @@ description: >
   Runs `go test ./...` on the changed codebase and reports results.
   Verifies tests compile and pass. Runs after test-generator.
 mode: subagent
-model: deepseek/deepseek-chat
+model: deepseek/deepseek-reasoner
 permission:
   read: allow
   bash:

@@ -28,6 +28,7 @@ CRITICAL WORKFLOW:
 """,
     output_type=Artifact,
     defer_model_check=True,
+    model_settings={"max_tokens": 8192},
 )
 
 

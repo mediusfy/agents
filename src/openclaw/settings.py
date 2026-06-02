@@ -3,7 +3,7 @@
 All environment variables are validated and typed here.
 Usage:
     from openclaw.settings import settings
-    settings.ba_model       # "deepseek-chat" by default
+    settings.ba_model       # "deepseek-reasoner" by default
     settings.max_retries    # 2 by default
 """
 
@@ -40,15 +40,15 @@ class Settings(BaseSettings):
     # model names through the provider. So these defaults serve as capability tiers
     # and are resolved at runtime — actual model used depends on model_provider and
     # the resolve_model mapping below.
-    ba_model: str = "deepseek-chat"
+    ba_model: str = "deepseek-reasoner"
     backend_model: str = "claude-sonnet-4-20250514"
     frontend_model: str = "gpt-4o"
-    test_model: str = "deepseek-chat"
+    test_model: str = "deepseek-reasoner"
     sre_model: str = "gemini-2.0-flash"
     review_model: str = "claude-sonnet-4-20250514"
-    database_model: str = "deepseek-chat"
-    devops_model: str = "deepseek-chat"
-    docs_model: str = "deepseek-chat"
+    database_model: str = "deepseek-reasoner"
+    devops_model: str = "deepseek-reasoner"
+    docs_model: str = "deepseek-reasoner"
     security_model: str = "claude-sonnet-4-20250514"
     ux_model: str = "claude-sonnet-4-20250514"
     cto_model: str = "claude-sonnet-4-20250514"
@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     region_analyzer_model: str = "gpt-4o"
     asymmetric_reviewer_model: str = "gpt-4o"
     current_events_model: str = "gpt-4o"
-    weather_model: str = "deepseek-chat"
+    weather_model: str = "deepseek-reasoner"
     accountant_model: str = "gpt-4o"
     price_analyst_model: str = "gemini-2.0-pro"
     market_shark_model: str = "gemini-2.0-pro"
@@ -85,7 +85,7 @@ class Settings(BaseSettings):
         prefixes added only for models pydantic_ai doesn't know natively.
 
         Behavior:
-        - provider="deepseek": all models → deepseek:deepseek-chat
+        - provider="deepseek": all models → deepseek:deepseek-reasoner
         - provider="gemini": all models → gemini:gemini-2.0-flash
         - provider="openai": all models → openai:gpt-4o
         - None: pass through with prefix for deepseek-* models only

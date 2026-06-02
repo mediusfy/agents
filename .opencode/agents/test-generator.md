@@ -5,7 +5,7 @@ description: >
   Go tests. Uses testify assertions, mockery mocks, t.Parallel(), and
   discarding loggers. Runs after service-coder.
 mode: subagent
-model: deepseek/deepseek-chat
+model: deepseek/deepseek-reasoner
 permission:
   read: allow
   edit: allow

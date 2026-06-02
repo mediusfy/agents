@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from pydantic_ai import Agent, RunContext
+from pydantic_ai import Agent, UsageLimits, RunContext
 
 from openclaw.models.core import Artifact
 from openclaw.models.factory import create_model
@@ -37,6 +37,7 @@ component_gen = Agent(
 async def create_component(ctx: RunContext[str], component_name: str, requirements: str, test_id: str) -> str:
     """Calls model to generate a production-ready Vue 3 TSX component with: WCAG 2.1 ARIA labels, data-testid attribute, TypeScript props interface, Tailwind/CSS module styling, proper event handler typing."""
     res = await component_gen.run(
-        f"Generate Vue 3 TSX component {component_name} using Composition API with requirements: {requirements}. Use data-testid={test_id}."
+        f"Generate Vue 3 TSX component {component_name} using Composition API with requirements: {requirements}. Use data-testid={test_id}.",
+        usage_limits=UsageLimits(request_limit=500),
     )
     return res.output.code

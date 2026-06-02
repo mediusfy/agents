@@ -34,7 +34,7 @@ def create_model(model_spec: str):
     Supports two forms:
     - Plain model name (e.g. "gpt-4o-mini", "claude-sonnet-4-20250514"):
       returns the string as-is for pydantic_ai's built-in provider inference.
-    - Provider-prefixed (e.g. "deepseek:deepseek-chat"):
+    - Provider-prefixed (e.g. "deepseek:deepseek-reasoner"):
       creates an OpenAIModel pointed at the provider's base URL.
 
     Returns either a str (for native inference) or a pydantic_ai Model instance.

@@ -81,7 +81,7 @@ src/openclaw/
 ### 2.2 Pydantic-Settings Configuration
 `settings.py` — Environment-driven configuration with `.env` file support. Per-agent model overrides enable fine-grained model selection.
 
-**Recommendation:** Add a `resolve_model()` helper that maps model name strings to provider-specific model objects (already done for DeepSeek). Currently all agents use `deepseek-chat` — consider adding a tiered model strategy where complex reviews use `deepseek-reasoner` (but note: DeepSeek reasoning models don't support tool calls).
+**Recommendation:** Add a `resolve_model()` helper that maps model name strings to provider-specific model objects (already done for DeepSeek). Currently all agents use `deepseek-reasoner` — consider adding a tiered model strategy where complex reviews use `deepseek-reasoner` (but note: DeepSeek reasoning models don't support tool calls).
 
 ### 2.3 Tool Injection
 `tools/registry.py` + `tool_assignments.py` — Tools are registered globally and injected into agents based on capability categories. Decouples tool definitions from agent logic.

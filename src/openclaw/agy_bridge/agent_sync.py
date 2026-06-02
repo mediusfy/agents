@@ -45,7 +45,7 @@ def _find_agy_brain_dirs() -> list[Path]:
 def _describe_model(model_spec: str) -> str:
     """Map a pydantic_ai model spec to a human-readable agy model name."""
     model_map: dict[str, str] = {
-        "deepseek-chat": "deepseek:deepseek-chat",
+        "deepseek-reasoner": "deepseek:deepseek-reasoner",
         "claude-sonnet-4-20250514": "claude:claude-sonnet-4-20250514",
         "gpt-4o": "openai:gpt-4o",
         "gemini-2.0-flash": "gemini:gemini-2.0-flash",

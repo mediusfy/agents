@@ -2,7 +2,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from pydantic_ai import Agent, RunContext
+from pydantic_ai import Agent, UsageLimits, RunContext
 
 from openclaw.exceptions import PathTraversalError
 from openclaw.models.core import Artifact

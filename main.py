@@ -5,6 +5,7 @@ import logging
 from typing import Any
 
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from pydantic_ai import UsageLimits
 
 from openclaw.observability import configure_observability
 from openclaw.registry import registry
@@ -48,7 +49,7 @@ async def run_agent(
             reraise=True,
         )
         async def _run_with_retry():
-            coro = agent.run(prompt, deps=deps) if deps is not None else agent.run(prompt)
+            coro = agent.run(prompt, deps=deps, usage_limits=UsageLimits(request_limit=500)) if deps is not None else agent.run(prompt, usage_limits=UsageLimits(request_limit=500))
             return await asyncio.wait_for(coro, timeout=timeout)
 
         return await telemetry.track(agent_name, _run_with_retry)
@@ -95,10 +96,19 @@ async def run_advisory_stage(semaphore, user_stories, checkpoint_mgr, state: Pip
     advisory_results = await asyncio.gather(cto_task, ux_task, return_exceptions=True)
 
     state.advisory_results = {}
+    state.cto_approved = True
+    cto_blockers = []
     if not isinstance(advisory_results[0], BaseException):
         cto_data = advisory_results[0].output
         recs = cto_data.recommendations
         state.advisory_results["cto"] = "CTO Guidelines:\n" + "\n".join(recs) if recs else ""
+        state.cto_approved = cto_data.approved_to_proceed
+        cto_blockers = cto_data.bottlenecks_identified
+        logger.info(f"CTO decision: approved_to_proceed={state.cto_approved}")
+        if not state.cto_approved:
+            state.advisory_results["cto_blockers"] = cto_blockers
+            logger.warning(f"CTO rejected. Bottlenecks: {cto_blockers}")
+            logger.warning("Pipeline paused — CTO must approve before implementation proceeds.")
     else:
         logger.warning(f"CTO agent failed: {advisory_results[0]}")
 
@@ -360,6 +370,11 @@ async def main(
     cto_advice = state.advisory_results.get("cto", "")
     ux_advice = state.advisory_results.get("ux", "")
     max_retries = settings.max_retries if step == "all" else 1
+
+    # ── CTO Approval Gate ────────────────────────────────────────────
+    from openclaw.cto_gate import apply as cto_gate
+    if not await cto_gate(state, project=project):
+        return
 
     if dry_run:
         logger.info("DRY RUN: Generating mock artifacts.")

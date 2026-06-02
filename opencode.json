@@ -11,13 +11,13 @@
     "backend-engineer": {
       "description": "Lead Go backend engineer for high-concurrency, event-driven, hexagonal services. Scaffolds Go services, designs gRPC/Protobuf APIs, writes idempotent NATS/Kafka consumers, wires OpenTelemetry + Prometheus.",
       "mode": "subagent",
-      "model": "deepseek/deepseek-chat",
+      "model": "deepseek/deepseek-reasoner",
       "permission": { "read": "allow", "edit": "allow", "bash": "allow", "grep": "allow", "glob": "allow" }
     },
     "business-analyst": {
       "description": "Senior Business Analyst grounded in Domain-Driven Design. Turns raw product requirements into structured user stories and identifies bounded contexts.",
       "mode": "subagent",
-      "model": "deepseek/deepseek-chat",
+      "model": "deepseek/deepseek-reasoner",
       "permission": { "read": "allow", "edit": "allow", "grep": "allow", "glob": "allow" }
     },
     "code-reviewer": {
@@ -35,25 +35,25 @@
     "database-engineer": {
       "description": "Senior database engineer. Writes PostgreSQL migrations, designs normalized schemas, configures Redis/caching, writes data-seeding scripts.",
       "mode": "subagent",
-      "model": "deepseek/deepseek-chat",
+      "model": "deepseek/deepseek-reasoner",
       "permission": { "read": "allow", "edit": "allow", "bash": "allow", "grep": "allow", "glob": "allow" }
     },
     "devops-engineer": {
       "description": "Principal DevOps engineer. Designs CI/CD (GitHub Actions/GitLab CI), local Docker Compose stacks, and Makefiles.",
       "mode": "subagent",
-      "model": "deepseek/deepseek-chat",
+      "model": "deepseek/deepseek-reasoner",
       "permission": { "read": "allow", "edit": "allow", "bash": "allow", "grep": "allow", "glob": "allow" }
     },
     "docs-writer": {
       "description": "Technical writer and API documentation specialist. Generates OpenAPI specs, READMEs, runbooks, AGENTS.md, and API reference docs.",
       "mode": "subagent",
-      "model": "deepseek/deepseek-chat",
+      "model": "deepseek/deepseek-reasoner",
       "permission": { "read": "allow", "edit": "allow", "grep": "allow", "glob": "allow" }
     },
     "frontend-engineer": {
       "description": "Lead Vue 3 frontend engineer. Builds Composition-API + TSX components, WCAG 2.1 AA compliant, testable, real-time event-driven UIs.",
       "mode": "subagent",
-      "model": "deepseek/deepseek-chat",
+      "model": "deepseek/deepseek-reasoner",
       "permission": { "read": "allow", "edit": "allow", "bash": "allow", "grep": "allow", "glob": "allow" }
     },
     "planner-agent": {
@@ -65,7 +65,7 @@
     "quality-gate": {
       "description": "Over-engineering detector and standards compliance checker. Spot-checks for unnecessary complexity, reinvented wheels, premature abstractions, and CODING_STANDARDS.md violations.",
       "mode": "subagent",
-      "model": "deepseek/deepseek-chat",
+      "model": "deepseek/deepseek-reasoner",
       "permission": { "read": "allow", "grep": "allow", "glob": "allow", "bash": { "grep": "allow", "*": "ask" } }
     },
     "security-engineer": {
@@ -77,19 +77,19 @@
     "sre-engineer": {
       "description": "Senior SRE for multi-cloud Kubernetes. Writes Terraform/OpenTofu + Crossplane, designs GitOps deploys, configures HPAs and NetworkPolicies, plans multi-region failover.",
       "mode": "subagent",
-      "model": "deepseek/deepseek-chat",
+      "model": "deepseek/deepseek-reasoner",
       "permission": { "read": "allow", "edit": "allow", "bash": "allow", "grep": "allow", "glob": "allow" }
     },
     "test-engineer": {
       "description": "QA automation engineer for BDD-style Playwright tests and Go table-driven unit tests with testify mocks and testcontainers integration tests.",
       "mode": "subagent",
-      "model": "deepseek/deepseek-chat",
+      "model": "deepseek/deepseek-reasoner",
       "permission": { "read": "allow", "edit": "allow", "bash": "allow", "grep": "allow", "glob": "allow" }
     },
     "ux-designer": {
       "description": "Principal UX agent. Evaluates product requirements and user stories from a modern UI/UX perspective — flow, accessibility, perceived control, transparency — before frontend work begins.",
       "mode": "subagent",
-      "model": "deepseek/deepseek-chat",
+      "model": "deepseek/deepseek-reasoner",
       "permission": { "read": "allow" }
     }
   }

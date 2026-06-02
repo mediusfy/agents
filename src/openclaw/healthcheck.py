@@ -63,9 +63,7 @@ def validate_directories() -> list[str]:
 
 
 def validate_database() -> list[str]:
-    """Check pgvector database connectivity (async, runs in executor)."""
-    import asyncio
-
+    """Check pgvector database connectivity (async safe)."""
     errors: list[str] = []
     dsn = settings.database_url or os.environ.get("DATABASE_URL", "")
     if not dsn:
@@ -75,7 +73,6 @@ def validate_database() -> list[str]:
     async def _check():
         try:
             import asyncpg
-
             conn = await asyncpg.connect(dsn, timeout=5)
             row = await conn.fetchrow("SELECT extversion FROM pg_extension WHERE extname = 'vector'")
             if row is None:
@@ -87,7 +84,14 @@ def validate_database() -> list[str]:
             errors.append(f"Database connection failed: {e}")
         return errors
 
-    return asyncio.run(_check())
+    import asyncio
+    try:
+        loop = asyncio.get_running_loop()
+        # already inside an event loop — can't call asyncio.run()
+        logger.warning("Skipping database validation: already inside async context")
+        return errors
+    except RuntimeError:
+        return asyncio.run(_check())
 
 
 def run_startup_checks() -> list[str]:
@@ -96,6 +100,8 @@ def run_startup_checks() -> list[str]:
     errors.extend(validate_api_keys())
     errors.extend(validate_directories())
     errors.extend(validate_database())
+    if errors:
+        logger.debug("startup checks found %d issue(s): %s", len(errors), errors)
     return errors
 
 

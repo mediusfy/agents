@@ -21,8 +21,8 @@ import os
 import time
 from dataclasses import dataclass, field
 from typing import Any
-
 import logfire
+from pydantic_ai import UsageLimits
 
 from openclaw.models.core import Artifact
 from openclaw.registry import registry
@@ -73,7 +73,7 @@ async def _run_stage(
             **span_attrs,
             _level="info",
         ):
-            result = await agent.run(prompt)
+            result = await agent.run(prompt, usage_limits=UsageLimits(request_limit=500))
             success = True
             return result, success
     except Exception:

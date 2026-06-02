@@ -10,7 +10,7 @@ Each BridgeAgent instance maps to one registry entry. It handles:
 Usage:
     from openclaw.agy_bridge.bridge_agent import BridgeAgent
     agent = BridgeAgent.from_registry("ux")
-    result = await agent.run("Evaluate this user flow")
+    result = await agent.run("Evaluate this user flow", usage_limits=UsageLimits(request_limit=500))
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ from __future__ import annotations
 import contextlib
 import logging
 import time
+from pydantic_ai import UsageLimits
 from dataclasses import dataclass, field
 from typing import Any, Awaitable
 
@@ -265,7 +266,7 @@ class BridgeAgent:
 
         try:
             resolved_deps = self._deps_factory() if callable(self._deps_factory) else {}
-            result = await self._agent.run(enriched, deps=resolved_deps)
+            result = await self._agent.run(enriched, deps=resolved_deps, usage_limits=UsageLimits(request_limit=500))
             success = True
 
             if hasattr(result, "data"):

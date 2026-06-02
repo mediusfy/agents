@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from pydantic_ai import Agent, RunContext
+from pydantic_ai import Agent, UsageLimits, RunContext
 
 from openclaw.models.core import EventTrigger, UserStory
 from openclaw.models.factory import create_model
@@ -50,12 +50,12 @@ event_mapper = Agent(
 @ba_agent.tool
 async def define_user_stories(ctx: RunContext[str], raw_requirements: str) -> list[UserStory]:
     """Converts raw text requirements into structured UserStory models using an LLM."""
-    res = await extractor.run(f"Extract user stories from: {raw_requirements}")
+    res = await extractor.run(f"Extract user stories from: {raw_requirements}", usage_limits=UsageLimits(request_limit=500))
     return res.output
 
 
 @ba_agent.tool
 async def map_event_triggers(ctx: RunContext[str], story_id: str, gherkin: str) -> list[EventTrigger]:
     """Identifies specific events necessary for the Go backend and QA automation pipelines."""
-    res = await event_mapper.run(f"Identify event triggers for story {story_id} with gherkin: {gherkin}")
+    res = await event_mapper.run(f"Identify event triggers for story {story_id} with gherkin: {gherkin}", usage_limits=UsageLimits(request_limit=500))
     return res.output

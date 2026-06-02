@@ -79,5 +79,6 @@ class PipelineState(BaseModel):
     attempt: int = 1
     user_stories: list[UserStory] = Field(default_factory=list)
     advisory_results: dict[str, str] = Field(default_factory=dict)
+    cto_approved: bool = Field(default=True, description="CTO gate: true when approved_to_proceed")
     artifacts: list[Artifact] = Field(default_factory=list)
     feedback: str | None = None

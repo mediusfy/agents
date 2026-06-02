@@ -6,7 +6,7 @@ description: >
   in the existing-code workflow. Triggers on "review this code", "check
   for issues", "audit", "inspect", "quality check".
 mode: subagent
-model: deepseek/deepseek-chat
+model: deepseek/deepseek-reasoner
 permission:
   read: allow
   grep: allow
