@@ -4,8 +4,8 @@ Usage:
     while true; do clear; python3 -m openclaw.live_trace; sleep 5; done
 """
 
+import contextlib
 import json
-import time
 import sys
 from collections import Counter, defaultdict
 from datetime import datetime
@@ -18,10 +18,8 @@ def load_entries(filepath: str = "telemetry.jsonl") -> list[dict]:
             for line in f:
                 line = line.strip()
                 if line:
-                    try:
+                    with contextlib.suppress(json.JSONDecodeError):
                         entries.append(json.loads(line))
-                    except json.JSONDecodeError:
-                        pass
     except FileNotFoundError:
         pass
     return entries
@@ -34,7 +32,6 @@ def show_status(entries: list[dict]):
 
     now = entries[-1]["timestamp"]
     start = entries[0]["timestamp"]
-    elapsed = now - start
 
     # Windows: last 2 min and last 10 min
     two_m = now - 120
@@ -81,7 +78,7 @@ def show_status(entries: list[dict]):
     # ── Recent failures ──
     recent_failures = [e for e in entries if not e["success"]][-5:]
     if recent_failures:
-        print(f"╠═══ Recent failures ═══╣")
+        print("╠═══ Recent failures ═══╣")
         for f in recent_failures:
             dt = datetime.fromtimestamp(f["timestamp"]).strftime("%H:%M:%S")
             print(f"║ ✗ {f['agent']:<22s} at {dt} ({f['duration_sec']:.0f}s)")

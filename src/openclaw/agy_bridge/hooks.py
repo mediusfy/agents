@@ -29,7 +29,7 @@ from __future__ import annotations
 import functools
 import logging
 from collections.abc import Awaitable, Callable
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from openclaw.agy_bridge.bridge_agent import HookResult, Hooks
@@ -37,13 +37,13 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Global hook registry keyed by agent name.
-_hook_registry: dict[str, "Hooks"] = {}
+_hook_registry: dict[str, Hooks] = {}
 
 
 # ── Registry helpers ─────────────────────────────────────────────────
 
 
-def _ensure_hooks(agent_name: str) -> "Hooks":
+def _ensure_hooks(agent_name: str) -> Hooks:
     """Get or create a Hooks container for an agent."""
     if agent_name not in _hook_registry:
         from openclaw.agy_bridge.bridge_agent import Hooks
@@ -51,7 +51,7 @@ def _ensure_hooks(agent_name: str) -> "Hooks":
     return _hook_registry[agent_name]
 
 
-def get_hooks(agent_name: str) -> "Hooks | None":
+def get_hooks(agent_name: str) -> Hooks | None:
     """Retrieve the Hooks container for a given agent, if any hooks registered."""
     return _hook_registry.get(agent_name)
 
@@ -78,7 +78,7 @@ def on_session_start(agent_name: str) -> Callable[[Callable[..., Awaitable[None]
             await fn(*args, **kwargs)
 
         # Fix: Must be an async function that returns HookResult or None
-        async def session_start_shim(prompt: str):
+        async def session_start_shim(_prompt: str):
             await fn()
             return None
 
@@ -100,7 +100,7 @@ def on_session_end(agent_name: str) -> Callable[[Callable[..., Awaitable[None]]]
             await fn(*args, **kwargs)
 
         # Fix: Must be an async function
-        async def session_end_shim(output: str):
+        async def session_end_shim(_output: str):
             await fn()
 
         hooks.post_turn.append(session_end_shim)
@@ -116,18 +116,18 @@ def on_session_end(agent_name: str) -> Callable[[Callable[..., Awaitable[None]]]
 def pre_turn(
         agent_name: str,
 ) -> Callable[
-    [Callable[[str], Awaitable["HookResult | None"]]],
-    Callable[[str], Awaitable["HookResult | None"]],
+    [Callable[[str], Awaitable[HookResult | None]]],
+    Callable[[str], Awaitable[HookResult | None]],
 ]:
     """Decorator: register a pre-turn hook for an agent."""
 
     def decorator(
-            fn: Callable[[str], Awaitable["HookResult | None"]],
-    ) -> Callable[[str], Awaitable["HookResult | None"]]:
+            fn: Callable[[str], Awaitable[HookResult | None]],
+    ) -> Callable[[str], Awaitable[HookResult | None]]:
         hooks = _ensure_hooks(agent_name)
 
         @functools.wraps(fn)
-        async def wrapper(prompt: str) -> "HookResult | None":
+        async def wrapper(prompt: str) -> HookResult | None:
             return await fn(prompt)
 
         hooks.pre_turn.append(wrapper)
@@ -162,18 +162,18 @@ def post_turn(
 def pre_tool_call(
         agent_name: str,
 ) -> Callable[
-    [Callable[[dict], Awaitable["HookResult | None"]]],
-    Callable[[dict], Awaitable["HookResult | None"]],
+    [Callable[[dict], Awaitable[HookResult | None]]],
+    Callable[[dict], Awaitable[HookResult | None]],
 ]:
     """Decorator: register a pre-tool-call hook for an agent."""
 
     def decorator(
-            fn: Callable[[dict], Awaitable["HookResult | None"]],
-    ) -> Callable[[dict], Awaitable["HookResult | None"]]:
+            fn: Callable[[dict], Awaitable[HookResult | None]],
+    ) -> Callable[[dict], Awaitable[HookResult | None]]:
         hooks = _ensure_hooks(agent_name)
 
         @functools.wraps(fn)
-        async def wrapper(tool_call: dict) -> "HookResult | None":
+        async def wrapper(tool_call: dict) -> HookResult | None:
             return await fn(tool_call)
 
         hooks.pre_tool_call.append(wrapper)

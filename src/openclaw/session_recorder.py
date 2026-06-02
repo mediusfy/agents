@@ -10,9 +10,10 @@ import contextlib
 import json
 import logging
 import time
+from collections.abc import AsyncIterator
 from contextvars import ContextVar
-from dataclasses import dataclass, field, asdict
-from typing import Any, AsyncIterator, Optional
+from dataclasses import asdict, dataclass, field
+from typing import Any
 
 import logfire
 
@@ -39,14 +40,14 @@ class AgentRunRecord:
     pipeline_stage: str  # ba | advisory | implementation
     prompt: str
     context_summary: str  # any additional context passed via deps or metadata
-    story_id: Optional[str]  # CLUSTER-01, etc.
+    story_id: str | None  # CLUSTER-01, etc.
     story_gherkin: str  # full gherkin if applicable
     tool_calls: list[ToolCallRecord] = field(default_factory=list)
     output: str = ""
     output_json: dict[str, Any] = field(default_factory=dict)
     success: bool = False
     duration_sec: float = 0.0
-    error: Optional[str] = None
+    error: str | None = None
     token_usage: dict[str, int] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -61,7 +62,7 @@ class SessionRecorder:
 
     def __init__(self, filepath: str = "session_trace.jsonl"):
         self.filepath = filepath
-        self._current: Optional[AgentRunRecord] = None
+        self._current: AgentRunRecord | None = None
         self._write_lock = False
 
     def start_run(
@@ -110,9 +111,9 @@ class SessionRecorder:
         self,
         success: bool,
         output: Any = None,
-        error: Optional[str] = None,
-        token_usage: Optional[dict[str, int]] = None,
-    ) -> Optional[dict[str, Any]]:
+        error: str | None = None,
+        token_usage: dict[str, int] | None = None,
+    ) -> dict[str, Any] | None:
         """Finalize the current agent run and write to JSONL."""
         if self._current is None:
             return None

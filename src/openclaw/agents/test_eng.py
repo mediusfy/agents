@@ -52,7 +52,9 @@ _test_struct = Agent(
 @test_eng_agent.tool
 async def generate_test_suite(ctx: RunContext[str], user_story_gherkin: str) -> str:
     """Converts Gherkin to Playwright TypeScript tests: data-testid selectors, async/await, page object pattern, backend event validation."""
-    raw = await test_gen.run(f"Write a playwright test for {user_story_gherkin}.", usage_limits=UsageLimits(request_limit=500))
+    raw = await test_gen.run(
+        f"Write a playwright test for {user_story_gherkin}.", usage_limits=UsageLimits(request_limit=500)
+    )
     structured = await _test_struct.run(
         f"Wrap this generated Playwright test code: {raw.output}",
         usage_limits=UsageLimits(request_limit=500),

@@ -11,7 +11,7 @@ def test_settings_defaults(monkeypatch):
     monkeypatch.delenv("MAX_CONCURRENT_LLM_CALLS", raising=False)
     monkeypatch.delenv("OUTPUT_DIR", raising=False)
     monkeypatch.delenv("CHECKPOINT_DIR", raising=False)
-    
+
     s = Settings(_env_file=None)
     assert s.ba_model == "deepseek-reasoner"
     assert s.max_retries == 3

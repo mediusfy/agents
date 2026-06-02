@@ -1,23 +1,23 @@
-import sys
-import json
 import asyncio
+import json
 import logging
-from datetime import datetime, timezone
+import sys
+from datetime import UTC, datetime
 
-from openclaw.registry import registry
-from openclaw.exceptions import AgentNotFoundError
-from openclaw.agy_bridge.bridge_agent import BridgeAgent
 from openclaw.agy_bridge.agent_sync import sync_agent_definitions
+from openclaw.agy_bridge.bridge_agent import BridgeAgent
+from openclaw.exceptions import AgentNotFoundError
+from openclaw.registry import registry
 
 logger = logging.getLogger(__name__)
 
 async def _handle_command(cmd: dict) -> dict:
     """Handle an incoming command dictionary and return a response dictionary."""
     command = cmd.get("command")
-    
+
     if command == "ping":
-        return {"response": "pong", "timestamp": datetime.now(timezone.utc).isoformat()}
-        
+        return {"response": "pong", "timestamp": datetime.now(UTC).isoformat()}
+
     elif command == "list-agents":
         agent_names = registry.list_agents()
         agents_meta = []
@@ -34,7 +34,7 @@ async def _handle_command(cmd: dict) -> dict:
                 "agents": agents_meta
             }
         }
-        
+
     elif command == "get-agent":
         agent_name = cmd.get("agent_name")
         try:
@@ -48,11 +48,11 @@ async def _handle_command(cmd: dict) -> dict:
             }
         except AgentNotFoundError:
             return {"error": f"Agent '{agent_name}' not registered"}
-            
+
     elif command == "sync-definitions":
         count = await sync_agent_definitions()
         return {"response": {"synced": count}}
-        
+
     else:
         return {"error": f"unknown command: {command}"}
 
@@ -82,9 +82,8 @@ async def run_server_loop() -> None:
     register_all_agents()
     logger.info("Agy bridge server started with %d agents", len(registry.list_agents()))
 
-    print(
-        json.dumps({"event": "server_started", "agents": len(registry.list_agents())}),
-        file=sys.stderr,
+    sys.stderr.write(
+        json.dumps({"event": "server_started", "agents": len(registry.list_agents())}) + "\n"
     )
 
     # Read initial command asynchronously
@@ -97,16 +96,17 @@ async def run_server_loop() -> None:
             response = await _handle_command(cmd_data)
             if "id" in cmd_data:
                 response["id"] = cmd_data["id"]
-            print(json.dumps(response), flush=True)
+            sys.stdout.write(json.dumps(response) + "\n")
+            sys.stdout.flush()
         except json.JSONDecodeError as e:
-            print(json.dumps({"error": f"invalid JSON: {e}"}), flush=True)
+            sys.stdout.write(json.dumps({"error": f"invalid JSON: {e}"}) + "\n")
+            sys.stdout.flush()
         return
 
     # Interactive/daemon mode: continuous asynchronous read loop
     logger.info("Starting interactive command loop")
-    print(
-        json.dumps({"event": "ready", "agents": len(registry.list_agents())}),
-        file=sys.stderr,
+    sys.stderr.write(
+        json.dumps({"event": "ready", "agents": len(registry.list_agents())}) + "\n"
     )
 
     loop = asyncio.get_running_loop()
@@ -123,17 +123,20 @@ async def run_server_loop() -> None:
 
         try:
             cmd_data = json.loads(line)
-            # You can wrap this in asyncio.create_task() if you want commands 
+            # You can wrap this in asyncio.create_task() if you want commands
             # to process entirely concurrently without waiting for the previous to finish.
             response = await _handle_command(cmd_data)
             if "id" in cmd_data:
                 response["id"] = cmd_data["id"]
-            print(json.dumps(response), flush=True)
+            sys.stdout.write(json.dumps(response) + "\n")
+            sys.stdout.flush()
         except json.JSONDecodeError as e:
-            print(json.dumps({"error": f"invalid JSON: {e}"}), flush=True)
+            sys.stdout.write(json.dumps({"error": f"invalid JSON: {e}"}) + "\n")
+            sys.stdout.flush()
         except Exception as e:
             logger.exception("Unhandled error processing command")
-            print(json.dumps({"error": f"internal error: {e}"}), flush=True)
+            sys.stdout.write(json.dumps({"error": f"internal error: {e}"}) + "\n")
+            sys.stdout.flush()
 
 if __name__ == "__main__":
     asyncio.run(run_server_loop())

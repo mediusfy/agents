@@ -226,17 +226,45 @@ def list_openclaw_capabilities() -> str:
 
 @mcp.tool()
 async def run_openclaw_pipeline(project_name: str, requirement: str) -> str:
-    """Run the entire multi-agent OpenClaw pipeline end-to-end for a given project requirement."""
-    with logfire.span(
-        "mcp.run_pipeline",
-        project_name=project_name,
-        requirement_length=len(requirement),
-        _level="info",
-    ):
-        from main import main
+    """Run the entire multi-agent OpenClaw pipeline end-to-end for a given project requirement.
 
-        await main(project=project_name, step="all", resume=False, auto_yes=True, requirement=requirement)
-        return f"Pipeline completed for {project_name}. Artifacts written to disk."
+    Because the pipeline can take 10+ minutes, this tool submits the pipeline
+    as a background task and returns immediately with a run_id. Poll for
+    completion using check_pipeline_status.
+    """
+    from openclaw.pipeline_runner import submit_pipeline_run
+
+    run_id = await submit_pipeline_run(project_name, requirement)
+    return (
+        f"Pipeline run '{run_id}' submitted for project '{project_name}' in the background.\n"
+        f"Poll for completion with: check_pipeline_status(run_id='{run_id}')"
+    )
+
+
+@mcp.tool()
+def check_pipeline_status(run_id: str) -> str:
+    """Check the status of a background pipeline run.
+
+    Returns current status (pending/running/completed/failed) and any result.
+    """
+    from openclaw.pipeline_runner import PIPELINE_RUNS
+
+    run = PIPELINE_RUNS.get(run_id)
+    if not run:
+        return f"No pipeline run found with id '{run_id}'."
+
+    line = f"Run ID: {run_id}\nStatus: {run['status']}\n"
+    if run.get("result"):
+        line += f"Result: {run['result']}\n"
+    if run.get("error"):
+        line += f"Error: {run['error']}\n"
+    if run.get("completed_at"):
+        from datetime import datetime
+        dt = datetime.fromisoformat(run["completed_at"])
+        line += f"Completed at: {dt.strftime('%Y-%m-%d %H:%M:%S')}\n"
+        elapsed = run.get("elapsed_seconds", 0)
+        line += f"Elapsed: {elapsed:.1f}s\n"
+    return line
 
 
 @mcp.tool()

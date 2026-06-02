@@ -1,8 +1,9 @@
 """Go build and vet tools for shift-left validation during code generation."""
 
+import asyncio
+import contextlib
 import os
 import tempfile
-import asyncio
 
 from openclaw.tools.registry import register_tool
 
@@ -22,11 +23,9 @@ async def _run_cmd(*args: str, cwd: str, timeout: float = 30.0) -> None:
     )
     try:
         await asyncio.wait_for(proc.communicate(), timeout=timeout)
-    except asyncio.TimeoutError:
-        try:
+    except TimeoutError:
+        with contextlib.suppress(ProcessLookupError):
             proc.kill()
-        except ProcessLookupError:
-            pass
         raise
 
 
@@ -37,6 +36,62 @@ async def _write_files(temp_dir: str, files: dict[str, str]) -> None:
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
         with open(filepath, "w") as f:
             f.write(content)
+
+
+async def _init_and_tidy(temp_dir: str) -> str | None:
+    """Initialize go module and run go mod tidy. Returns error string or None."""
+    try:
+        await _run_cmd("go", "mod", "init", "tempmodule", cwd=temp_dir, timeout=GO_MOD_INIT_TIMEOUT)
+    except TimeoutError:
+        return "'go mod init' timed out."
+    try:
+        await _run_cmd("go", "mod", "tidy", cwd=temp_dir, timeout=GO_MOD_TIDY_TIMEOUT)
+    except TimeoutError:
+        return (
+            "'go mod tidy' timed out — the generated code likely imports "
+            "a private or non-existent module. Check import paths."
+        )
+    return None
+
+
+async def _run_build(temp_dir: str) -> str:
+    """Run go build and return result string."""
+    build_proc = await asyncio.create_subprocess_exec(
+        "go", "build", "./...",
+        cwd=temp_dir,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    try:
+        _, stderr = await asyncio.wait_for(build_proc.communicate(), timeout=GO_BUILD_TIMEOUT)
+    except TimeoutError:
+        with contextlib.suppress(ProcessLookupError):
+            build_proc.kill()
+        return "BUILD FAILED: 'go build' timed out (possible circular dependency or slow proxy)."
+
+    if build_proc.returncode == 0:
+        return "SUCCESS: Code compiled successfully."
+    return f"BUILD FAILED:\n{stderr.decode()}"
+
+
+async def _run_vet(temp_dir: str) -> str:
+    """Run go vet and return result string."""
+    vet_proc = await asyncio.create_subprocess_exec(
+        "go", "vet", "./...",
+        cwd=temp_dir,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    try:
+        _, stderr = await asyncio.wait_for(vet_proc.communicate(), timeout=GO_VET_TIMEOUT)
+    except TimeoutError:
+        with contextlib.suppress(ProcessLookupError):
+            vet_proc.kill()
+        return "VET FAILED: 'go vet' timed out."
+
+    if vet_proc.returncode == 0:
+        return "SUCCESS: Code passed go vet."
+    return f"VET FAILED:\n{stderr.decode()}"
 
 
 async def run_go_build(files: dict[str, str]) -> str:
@@ -51,38 +106,10 @@ async def run_go_build(files: dict[str, str]) -> str:
     """
     with tempfile.TemporaryDirectory() as temp_dir:
         await _write_files(temp_dir, files)
-
-        try:
-            await _run_cmd("go", "mod", "init", "tempmodule", cwd=temp_dir, timeout=GO_MOD_INIT_TIMEOUT)
-        except asyncio.TimeoutError:
-            return "BUILD FAILED: 'go mod init' timed out."
-
-        try:
-            await _run_cmd("go", "mod", "tidy", cwd=temp_dir, timeout=GO_MOD_TIDY_TIMEOUT)
-        except asyncio.TimeoutError:
-            return (
-                "BUILD FAILED: 'go mod tidy' timed out — the generated code likely "
-                "imports a private or non-existent module. Check import paths."
-            )
-
-        build_proc = await asyncio.create_subprocess_exec(
-            "go", "build", "./...",
-            cwd=temp_dir,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        try:
-            _, stderr = await asyncio.wait_for(build_proc.communicate(), timeout=GO_BUILD_TIMEOUT)
-        except asyncio.TimeoutError:
-            try:
-                build_proc.kill()
-            except ProcessLookupError:
-                pass
-            return "BUILD FAILED: 'go build' timed out (possible circular dependency or slow proxy)."
-
-        if build_proc.returncode == 0:
-            return "SUCCESS: Code compiled successfully."
-        return f"BUILD FAILED:\n{stderr.decode()}"
+        err = await _init_and_tidy(temp_dir)
+        if err:
+            return f"BUILD FAILED: {err}"
+        return await _run_build(temp_dir)
 
 
 async def run_go_vet(files: dict[str, str]) -> str:
@@ -97,38 +124,10 @@ async def run_go_vet(files: dict[str, str]) -> str:
     """
     with tempfile.TemporaryDirectory() as temp_dir:
         await _write_files(temp_dir, files)
-
-        try:
-            await _run_cmd("go", "mod", "init", "tempmodule", cwd=temp_dir, timeout=GO_MOD_INIT_TIMEOUT)
-        except asyncio.TimeoutError:
-            return "VET FAILED: 'go mod init' timed out."
-
-        try:
-            await _run_cmd("go", "mod", "tidy", cwd=temp_dir, timeout=GO_MOD_TIDY_TIMEOUT)
-        except asyncio.TimeoutError:
-            return (
-                "VET FAILED: 'go mod tidy' timed out — the generated code likely "
-                "imports a private or non-existent module. Check import paths."
-            )
-
-        vet_proc = await asyncio.create_subprocess_exec(
-            "go", "vet", "./...",
-            cwd=temp_dir,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        try:
-            _, stderr = await asyncio.wait_for(vet_proc.communicate(), timeout=GO_VET_TIMEOUT)
-        except asyncio.TimeoutError:
-            try:
-                vet_proc.kill()
-            except ProcessLookupError:
-                pass
-            return "VET FAILED: 'go vet' timed out."
-
-        if vet_proc.returncode == 0:
-            return "SUCCESS: Code passed go vet."
-        return f"VET FAILED:\n{stderr.decode()}"
+        err = await _init_and_tidy(temp_dir)
+        if err:
+            return f"VET FAILED: {err}"
+        return await _run_vet(temp_dir)
 
 
 register_tool(

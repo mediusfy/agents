@@ -18,9 +18,11 @@ from __future__ import annotations
 import contextlib
 import logging
 import time
-from pydantic_ai import UsageLimits
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any, Awaitable
+from typing import Any, TypeAlias
+
+from pydantic_ai import UsageLimits
 
 from openclaw.exceptions import AgentExecutionError, AgentNotFoundError
 from openclaw.registry import registry
@@ -68,10 +70,10 @@ class HookResult:
     modified_input: str | None = None
 
 
-type PreTurnHook = callable[[str], Awaitable[HookResult | None]]
-type PostTurnHook = callable[[str], Awaitable[None]]
-type PreToolHook = callable[[dict], Awaitable[HookResult | None]]
-type PostToolHook = callable[[dict], Awaitable[None]]
+PreTurnHook: TypeAlias = Callable[[str], Awaitable[HookResult | None]]
+PostTurnHook: TypeAlias = Callable[[str], Awaitable[None]]
+PreToolHook: TypeAlias = Callable[[dict], Awaitable[HookResult | None]]
+PostToolHook: TypeAlias = Callable[[dict], Awaitable[None]]
 
 
 class Hooks:
@@ -147,8 +149,8 @@ class BridgeAgent:
         for tool in self._agent._function_tools:
             original_func = tool.func
 
-            async def hooked_tool(run_context, *args, **kwargs):
-                payload = {"tool": tool.name, "args": args, "kwargs": kwargs}
+            async def hooked_tool(run_context, *args, _tool=tool, _original_func=original_func, **kwargs):
+                payload = {"tool": _tool.name, "args": args, "kwargs": kwargs}
 
                 # ── Hook: pre-tool-call ──
                 for hook in self._hooks.pre_tool_call:
@@ -158,10 +160,10 @@ class BridgeAgent:
 
                 # Execute original tool
                 try:
-                    tool_result = await original_func(run_context, *args, **kwargs)
+                    tool_result = await _original_func(run_context, *args, **kwargs)
                 except TypeError:
                     # Fallback if the tool doesn't expect run_context
-                    tool_result = await original_func(*args, **kwargs)
+                    tool_result = await _original_func(*args, **kwargs)
 
                 # ── Hook: post-tool-call ──
                 payload["result"] = tool_result
@@ -195,7 +197,7 @@ class BridgeAgent:
                     return "\n\n".join(str(p) for p in prompts if p)
             if hasattr(self._agent, "_system_prompt"):
                 prompt = self._agent._system_prompt
-                if hasattr(prompt, "__call__"):
+                if callable(prompt):
                     return prompt() if callable(prompt) else str(prompt)
                 return str(prompt)
         return ""
@@ -258,7 +260,10 @@ class BridgeAgent:
         enriched = modified_prompt
         if context:
             # Bug fix: use modified_prompt instead of context for user_task
-            enriched = f"Context from IDE:\n<ide_context>\n{context}\n</ide_context>\n\nTask:\n<user_task>\n{modified_prompt}\n</user_task>"
+            enriched = (
+                f"Context from IDE:\n<ide_context>\n{context}\n"
+                f"</ide_context>\n\nTask:\n<user_task>\n{modified_prompt}\n</user_task>"
+            )
         # ──────────────────────────────────────────────────────────────────
 
         start = time.time()

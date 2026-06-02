@@ -86,7 +86,7 @@ def validate_database() -> list[str]:
 
     import asyncio
     try:
-        loop = asyncio.get_running_loop()
+        asyncio.get_running_loop()
         # already inside an event loop — can't call asyncio.run()
         logger.warning("Skipping database validation: already inside async context")
         return errors

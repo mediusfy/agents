@@ -1,8 +1,11 @@
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 from openclaw.agy_bridge.bridge_agent import BridgeAgent, Conversation
 from openclaw.exceptions import AgentNotFoundError
+
 
 @pytest.fixture
 def mock_registry():
@@ -34,9 +37,9 @@ def test_from_registry_not_found():
 async def test_run_agent(mock_registry):
     agent = BridgeAgent("test_agent")
     agent._agent.run = AsyncMock(return_value=MagicMock(data="Test response"))
-    
+
     response = await agent.run("Test prompt")
-    
+
     assert response == "Test response"
     agent._agent.run.assert_called_once()
 
@@ -44,11 +47,11 @@ async def test_run_agent(mock_registry):
 async def test_run_with_conversation(mock_registry):
     agent = BridgeAgent("test_agent")
     agent._agent.run = AsyncMock(return_value=MagicMock(data="Test response"))
-    
+
     conversation = Conversation(conversation_id="123", agent_name="test_agent", model="test_model")
-    
+
     await agent.run("Test prompt", conversation=conversation)
-    
+
     assert len(conversation.history) == 2
     assert conversation.history[0]["content"] == "Test prompt"
     assert conversation.history[1]["content"] == "Test response"

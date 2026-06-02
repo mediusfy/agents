@@ -1,8 +1,10 @@
 
-import sys
 import asyncio
 import json
+import sys
+
 import pytest
+
 
 @pytest.mark.asyncio
 async def test_server_ping_integration():
@@ -18,16 +20,16 @@ async def test_server_ping_integration():
     )
 
     command = json.dumps({"command": "ping"}) + "\n"
-    
+
     try:
         stdout, stderr = await asyncio.wait_for(proc.communicate(input=command.encode()), timeout=5)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         proc.kill()
         await proc.wait()
         pytest.fail("Server process timed out.")
 
     assert proc.returncode == 0
-    
+
     response = json.loads(stdout)
     assert "response" in response
     assert response["response"] == "pong"

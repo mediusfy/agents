@@ -1,6 +1,6 @@
-import time
-import logging
 import inspect
+import logging
+import time
 from collections.abc import Callable
 from functools import wraps
 
