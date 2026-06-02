@@ -1,0 +1,288 @@
+
+
+openapi: "3.0.3"
+info:
+  title: Notification Ingestion API
+  description: |
+    A lightweight, production-ready API for ingesting and persisting notifications.
+    Accepts notification messages with an optional priority level, validates inputs,
+    stores them in PostgreSQL, and returns a normalized response with a unique
+    identifier and creation timestamp.
+  version: "1.0.0"
+  contact:
+    name: API Support
+    email: support@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://{environment}.api.example.com/v1
+    description: Production server
+    variables:
+      environment:
+        default: api
+        enum:
+          - api
+          - staging-api
+  - url: http://localhost:{port}
+    description: Local development server
+    variables:
+      port:
+        default: "3000"
+        enum:
+          - "3000"
+          - "8080"
+
+tags:
+  - name: Notifications
+    description: Operations related to notification ingestion
+  - name: Health
+    description: Service health and readiness checks
+
+paths:
+  /api/notify:
+    post:
+      tags:
+        - Notifications
+      summary: Ingest a notification
+      operationId: ingestNotification
+      description: >
+        Accepts a notification message, validates it against business rules,
+        persists it to the database, and returns the created resource.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationRequest"
+            example:
+              message: "Payment of $150.00 received from Client A"
+              priority: high
+      responses:
+        "201":
+          description: Notification created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationResponse"
+              example:
+                id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                message: "Payment of $150.00 received from Client A"
+                priority: high
+                created_at: "2026-06-02T20:45:00.123456Z"
+        "400":
+          description: Validation error – malformed or invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              examples:
+                missingMessage:
+                  summary: Missing required field
+                  value:
+                    code: VALIDATION_ERROR
+                    message: "The field 'message' is required."
+                    details:
+                      field: message
+                      reason: required
+                emptyMessage:
+                  summary: Empty message
+                  value:
+                    code: VALIDATION_ERROR
+                    message: "The field 'message' must not be empty."
+                    details:
+                      field: message
+                      reason: minLength
+                      constraint: 1
+                invalidPriority:
+                  summary: Invalid priority value
+                  value:
+                    code: VALIDATION_ERROR
+                    message: "The field 'priority' must be one of: low, medium, high."
+                    details:
+                      field: priority
+                      reason: enum
+                      allowed_values:
+                        - low
+                        - medium
+                        - high
+                malformedJson:
+                  summary: Malformed JSON body
+                  value:
+                    code: PARSE_ERROR
+                    message: "Request body contains invalid JSON."
+                    details:
+                      reason: syntax_error
+        "413":
+          description: Payload too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                code: PAYLOAD_TOO_LARGE
+                message: "The 'message' field exceeds the maximum length of 1000 characters."
+                details:
+                  field: message
+                  reason: maxLength
+                  constraint: 1000
+        "415":
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                code: UNSUPPORTED_MEDIA_TYPE
+                message: "Content-Type must be application/json."
+                details:
+                  reason: invalid_content_type
+                  supported_types:
+                    - application/json
+        "429":
+          description: Too Many Requests – rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                code: RATE_LIMIT_EXCEEDED
+                message: "Rate limit exceeded. Please retry after the specified delay."
+                details:
+                  retry_after_seconds: 30
+                  limit: 100
+                  window: "1 minute"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                code: INTERNAL_ERROR
+                message: "An unexpected error occurred. Please try again later."
+                details:
+                  reason: internal_failure
+        "503":
+          description: Service unavailable (e.g., database unreachable)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                code: SERVICE_UNAVAILABLE
+                message: "The service is temporarily unavailable. Please retry later."
+                details:
+                  reason: database_connection_failed
+
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check endpoint
+      operationId: checkHealth
+      description: Returns the current health status of the API and its dependencies.
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - healthy
+                    example: healthy
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2026-06-02T20:45:00.123456Z"
+                  uptime_seconds:
+                    type: integer
+                    example: 84321
+                  database:
+                    type: string
+                    enum:
+                      - connected
+                      - disconnected
+                    example: connected
+
+components:
+  schemas:
+    NotificationRequest:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: The notification message content
+          minLength: 1
+          maxLength: 1000
+          example: "Payment of $150.00 received from Client A"
+        priority:
+          type: string
+          description: Priority level of the notification
+          enum:
+            - low
+            - medium
+            - high
+          default: medium
+          example: high
+      additionalProperties: false
+
+    NotificationResponse:
+      type: object
+      required:
+        - id
+        - message
+        - priority
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the notification
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        message:
+          type: string
+          description: The notification message content
+          example: "Payment of $150.00 received from Client A"
+        priority:
+          type: string
+          description: Priority level of the notification
+          enum:
+            - low
+            - medium
+            - high
+          example: high
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp of when the notification was created (RFC 3339)
+          example: "2026-06-02T20:45:00.123456Z"
+
+    ApiError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          description: Human-readable error description
+          example: "The field 'message' is required."
+        details:
+          type: object
+          description: Additional context about the error (optional)
+          example:
+            field: message
+            reason: required
+      additionalProperties: true

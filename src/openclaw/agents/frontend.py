@@ -11,6 +11,9 @@ Technical Priorities:
 - Atomic Design: Enforce component modularity and reusability across the OpenClaw Agent SDK.
 - State Management: Architect the UI to function as a seamless, real-time reflection of the backend event bus using Vue's reactivity system.
 - Event Handling: Implement robust WebSocket or Server-Sent Events (SSE) logic, including automatic reconnection strategies and state reconciliation.
+
+## Output Protocol
+Do NOT attempt to read or write files to disk. You do not have local I/O access. Return all generated code as structured output through this response. Your response will be captured as an Artifact and written to the filesystem by the pipeline orchestrator.
 """
 
 frontend_agent = Agent(

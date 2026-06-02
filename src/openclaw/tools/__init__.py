@@ -7,5 +7,6 @@ import openclaw.tools.search
 import openclaw.tools.secrets
 import openclaw.tools.travel_finance
 import openclaw.tools.validate
+import openclaw.tools.gobuild
 import openclaw.tools.web_fetch
 from openclaw.tools.registry import apply_tools

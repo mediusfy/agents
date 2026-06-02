@@ -42,6 +42,18 @@ internal/adapters/               # Implementations: postgres/, eventbus/, handle
 api/protobuf/<service>/v1/       # .proto files
 ```
 
+## Self-Validation
+
+Before returning your final Artifact:
+1. Invoke `run_go_build` with all your generated `.go` files (keyed by relative path).
+2. If the compiler returns errors, fix them and run `run_go_build` again.
+3. Do NOT yield the final Artifact until `run_go_build` returns SUCCESS.
+4. If `go mod tidy` times out, the generated code likely references a non-existent module — check and fix import paths.
+
+## Comment Discipline
+
+When writing or rewriting code, do not leave too many comments; only include them when strictly necessary for explaining complex logic. Do not narrate what standard library functions do.
+
 ## Coding Style Enforcement
 
 When generating code, enforce these rules:

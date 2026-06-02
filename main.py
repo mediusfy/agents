@@ -16,20 +16,17 @@ from openclaw.telemetry import telemetry
 from openclaw.gates import HumanInTheLoopGate
 from openclaw.validators import CodeValidator
 from openclaw.utils import format_artifacts
+from openclaw.session_recorder import recorder
+from openclaw.settings import settings
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
 configure_observability()
 
-from openclaw.settings import settings
-
 DEFAULT_REQUIREMENT = "Build a message processing service that processes incoming message then and emits 'NotificationDetailsEvent' or 'NotificationStatus' events."
-
-STEP_CHOICES = ["ba", "backend", "frontend", "test", "sre", "review",
-                "database", "devops", "docs", "security", "all"]
-
-DEFAULT_AGENT_TIMEOUT = 300.0  # seconds
+STEP_CHOICES = ["ba", "backend", "frontend", "test", "sre", "review", "database", "devops", "docs", "security", "all"]
+DEFAULT_AGENT_TIMEOUT = 600.0
 
 
 async def run_agent(
@@ -41,7 +38,6 @@ async def run_agent(
     timeout: float = DEFAULT_AGENT_TIMEOUT,
 ) -> Any:
     async with semaphore:
-
         @retry(
             stop=stop_after_attempt(3),
             wait=wait_exponential(multiplier=1, min=2, max=30),
@@ -56,19 +52,23 @@ async def run_agent(
 
 
 async def run_ba_stage(semaphore, state: PipelineState, raw_requirements: str, checkpoint_mgr) -> PipelineState:
-    """Run the Business Analyst stage."""
+    prompt = f"Process these requirements: {raw_requirements}"
     logger.info(f"BA Agent processing: {raw_requirements}")
-    ba_agent = registry.get("ba")
-    ba_result = await run_agent(semaphore, "ba", ba_agent, f"Process these requirements: {raw_requirements}")
-    state.user_stories = ba_result.output
+    async with recorder.record_span(
+        run_id=state.run_id, agent_name="ba", pipeline_stage="ba",
+        prompt=prompt, context_summary=raw_requirements,
+    ) as rec:
+        ba_agent = registry.get("ba")
+        ba_result = await run_agent(semaphore, "ba", ba_agent, prompt)
+        state.user_stories = ba_result.output if hasattr(ba_result, "output") else None
 
-    if not state.user_stories:
-        logger.warning("BA returned no user stories. Exiting.")
-        return state
+        if not state.user_stories:
+            logger.warning("BA returned no user stories. Exiting.")
+            return state
 
-    logger.info(f"BA generated {len(state.user_stories)} stories:")
-    for us in state.user_stories:
-        logger.info(f"  [{us.id}] {us.title}")
+        logger.info(f"BA generated {len(state.user_stories)} stories:")
+        for us in state.user_stories:
+            logger.info(f"  [{us.id}] {us.title}")
 
     state.stage = "ba"
     checkpoint_mgr.save("ba", state)
@@ -76,58 +76,70 @@ async def run_ba_stage(semaphore, state: PipelineState, raw_requirements: str, c
 
 
 async def run_advisory_stage(semaphore, user_stories, checkpoint_mgr, state: PipelineState) -> PipelineState:
-    """Run the CTO and UX advisory stage."""
     logger.info("Running CTO & UX Advisory...")
-    story_context = "\n".join(
-        f"- {us.id}: {us.title}\n  {us.gherkin}" for us in user_stories
-    )
+    story_context = "\n".join(f"- {us.id}: {us.title}\n  {us.gherkin}" for us in user_stories)
 
     cto_agent = registry.get("cto")
     ux_agent = registry.get("ux")
 
     from openclaw.agents.cto import OrgContext
-    org_ctx = OrgContext(tech_stack=["Go", "Vue", "PostgreSQL", "Redis"], compliance_tier="Standard", monthly_cloud_budget=1000.0)
+    org_ctx = OrgContext(tech_stack=["Go", "Vue", "PostgreSQL", "Redis"],
+                         compliance_tier="Standard", monthly_cloud_budget=1000.0)
 
-    cto_task = run_agent(semaphore, "cto", cto_agent,
-                         f"Review these user stories and provide architectural advice:\n{story_context}", deps=org_ctx)
-    ux_task = run_agent(semaphore, "ux", ux_agent,
-                        f"Review these user stories and provide UX/UI advice:\n{story_context}")
+    cto_prompt = f"Review these user stories and provide architectural advice:\n{story_context}"
+    ux_prompt = f"Review these user stories and provide UX/UI advice:\n{story_context}"
 
-    advisory_results = await asyncio.gather(cto_task, ux_task, return_exceptions=True)
+    async def _run_cto():
+        async with recorder.record_span(
+            run_id=state.run_id, agent_name="cto", pipeline_stage="advisory",
+            prompt=cto_prompt, context_summary=f"{len(user_stories)} stories",
+        ) as rec:
+            result = await run_agent(semaphore, "cto", cto_agent, cto_prompt, deps=org_ctx)
+            rec.set_output(result)
+            return result
+
+    async def _run_ux():
+        async with recorder.record_span(
+            run_id=state.run_id, agent_name="ux", pipeline_stage="advisory",
+            prompt=ux_prompt, context_summary=f"{len(user_stories)} stories",
+        ) as rec:
+            result = await run_agent(semaphore, "ux", ux_agent, ux_prompt)
+            rec.set_output(result)
+            return result
+
+    advisory_results = await asyncio.gather(_run_cto(), _run_ux(), return_exceptions=True)
 
     state.advisory_results = {}
     state.cto_approved = True
     cto_blockers = []
+
     if not isinstance(advisory_results[0], BaseException):
         cto_data = advisory_results[0].output
-        recs = cto_data.recommendations
-        state.advisory_results["cto"] = "CTO Guidelines:\n" + "\n".join(recs) if recs else ""
+        recs = cto_data.recommendations or []
+        cto_text = "CTO Guidelines:\n" + "\n".join(recs) if recs else "CTO Guidelines: (none)"
+        state.advisory_results["cto"] = cto_text
         state.cto_approved = cto_data.approved_to_proceed
-        cto_blockers = cto_data.bottlenecks_identified
-        logger.info(f"CTO decision: approved_to_proceed={state.cto_approved}")
-        if not state.cto_approved:
-            state.advisory_results["cto_blockers"] = cto_blockers
-            logger.warning(f"CTO rejected. Bottlenecks: {cto_blockers}")
-            logger.warning("Pipeline paused — CTO must approve before implementation proceeds.")
+        cto_blockers = cto_data.bottlenecks_identified or []
+        logger.info(f"CTO recs={len(recs)}, blockers={len(cto_blockers)}, approved={state.cto_approved}")
     else:
         logger.warning(f"CTO agent failed: {advisory_results[0]}")
 
     if not isinstance(advisory_results[1], BaseException):
         ux_data = advisory_results[1].output
-        recs = ux_data.recommendations
-        state.advisory_results["ux"] = "UX Guidelines:\n" + "\n".join(recs) if recs else ""
+        recs = ux_data.recommendations or []
+        ux_text = "UX Guidelines:\n" + "\n".join(recs) if recs else "UX Guidelines: (none)"
+        state.advisory_results["ux"] = ux_text
+        logger.info(f"UX recs={len(recs)}")
     else:
         logger.warning(f"UX agent failed: {advisory_results[1]}")
+        state.advisory_results["ux"] = "UX Guidelines: (failed)"
 
     state.stage = "advisory"
     checkpoint_mgr.save("advisory", state)
     return state
 
 
-async def run_implementation_stage(semaphore, user_stories, max_retries, cto_advice, ux_advice, raw_requirements) -> (
-    tuple[list[Any], str | None]
-):
-    """Run the implementation loops (backend, frontend, database, devops, docs, test, SRE)."""
+async def run_implementation_stage(semaphore, user_stories, max_retries, cto_advice, ux_advice, raw_requirements, state: PipelineState | None = None) -> tuple[list[Any], str | None]:
     state_feedback = None
     all_artifacts = []
 
@@ -140,33 +152,68 @@ async def run_implementation_stage(semaphore, user_stories, max_retries, cto_adv
 
         project_state = ProjectState(base_path="/app/default", environment="dev", team_owner="platform-engineering")
 
-        async def run_tagged(sem, agent, prompt, story_id=None, deps=None):
-            try:
-                res = await run_agent(sem, agent, registry.get(agent), prompt, deps=deps)
-                res.output.metadata["user_story_id"] = story_id or "global"
+        async def _instrumented_test(sem, state, us):
+            async with recorder.record_span(
+                run_id=state.run_id, agent_name="test_eng", pipeline_stage="implementation",
+                prompt=f"Write tests for gherkin: {us.gherkin}", story_id=us.id, story_gherkin=us.gherkin,
+            ) as rec:
+                res = await run_agent(sem, "test_eng", registry.get("test_eng"),
+                    f"Write tests for gherkin: {us.gherkin}")
+                rec.set_output(res)
+                res.output.metadata["user_story_id"] = us.id
                 return res.output
-            except TimeoutError:
-                logger.error(f"Agent '{agent}' timed out for story {story_id or 'global'}")
-                return None
-            except Exception as e:
-                logger.error(f"Agent '{agent}' failed for story {story_id or 'global'}: {e}")
-                return None
+
+        async def run_tagged(sem, agent, prompt, story_id=None, deps=None):
+            label = f"{story_id or 'global'}:{agent}"
+            logger.info(f"▶ AGENT_START [{label}] — {prompt[:120]}")
+            async with recorder.record_span(
+                run_id=state.run_id, agent_name=agent, pipeline_stage="implementation",
+                prompt=prompt, story_id=story_id or "",
+            ) as rec:
+                res = await run_agent(sem, agent, registry.get(agent), prompt, deps=deps)
+                rec.set_output(res)
+                res.output.metadata["user_story_id"] = story_id or "global"
+                logger.info(f"✓ AGENT_END   [{label}]")
+                return res.output
 
         per_story_tasks = []
         for us in user_stories:
-            per_story_tasks.append(run_tagged(semaphore, "backend",
-                f"Implement backend for story {us.id}: {us.title}\n{cto_advice}",
-                story_id=us.id, deps=project_state))
-            per_story_tasks.append(run_tagged(semaphore, "frontend",
-                f"Implement frontend for story {us.id}: {us.title}\n{cto_advice}\n{ux_advice}",
-                story_id=us.id))
-            per_story_tasks.append(run_tagged(semaphore, "database",
-                f"Generate database schema/migrations for story {us.id}: {us.title}",
-                story_id=us.id))
+            for agent, prompt_template, extra in [
+                ("backend",
+                 f"Implement backend for story {us.id}: {us.title}\n\nFULL GHERKIN:\n{us.gherkin}\n\nEVENTS:\n" +
+                 "\n".join(f" - {e.name}: {e.description}" for e in (us.event_triggers or [])) +
+                 f"\n\nCTO ADVICE:\n{cto_advice}",
+                 f"story_id={us.id}, gherkin_len={len(us.gherkin)}, events={len(us.event_triggers or [])}"),
+                ("frontend",
+                 f"Implement frontend for story {us.id}: {us.title}\n\nFULL GHERKIN:\n{us.gherkin}\n\nCTO ADVICE:\n{cto_advice}\n\nUX GUIDELINES:\n{ux_advice}",
+                 f"story_id={us.id}, gherkin_len={len(us.gherkin)}, ux_len={len(ux_advice)}"),
+                ("database",
+                 f"Generate database schema/migrations for story {us.id}: {us.title}\n\nFULL GHERKIN:\n{us.gherkin}\n\nEVENTS:\n" +
+                 "\n".join(f" - {e.name}: {e.description}" for e in (us.event_triggers or [])),
+                 f"story_id={us.id}, gherkin_len={len(us.gherkin)}"),
+            ]:
+                ctx_size = len(prompt_template)
+                logger.info(f"CONTEXT [{agent}] → {extra} | prompt_size={ctx_size}")
+                logger.info(f"CONTEXT_PREVIEW [{agent}]: {prompt_template[:300]}...")
+                per_story_tasks.append(run_tagged(semaphore, agent, prompt_template,
+                                                  story_id=us.id,
+                                                  deps=project_state if agent == "backend" else None))
+
+        devops_prompt = (
+            f"Generate CI/CD pipelines and Docker Compose configurations for a project with these stories:\n" +
+            "\n".join(f"- {us.id}: {us.title} — {us.gherkin[:200]}" for us in user_stories)
+        )
+        docs_prompt = (
+            f"Generate API docs and README for: {raw_requirements}\n\n"
+            f"Stories:\n" +
+            "\n".join(f"- {us.id}: {us.title}\n  {us.gherkin[:200]}" for us in user_stories)
+        )
+        logger.info(f"CONTEXT [devops] → {len(user_stories)} stories | prompt_size={len(devops_prompt)}")
+        logger.info(f"CONTEXT [docs] → {len(user_stories)} stories | prompt_size={len(docs_prompt)}")
 
         global_tasks = [
-            run_tagged(semaphore, "devops", "Generate CI/CD pipelines and Docker Compose configurations"),
-            run_tagged(semaphore, "docs", f"Generate API docs and README for: {raw_requirements}"),
+            run_tagged(semaphore, "devops", devops_prompt),
+            run_tagged(semaphore, "docs", docs_prompt),
         ]
 
         per_story_results = await asyncio.gather(*per_story_tasks, return_exceptions=True)
@@ -179,28 +226,29 @@ async def run_implementation_stage(semaphore, user_stories, max_retries, cto_adv
                 logger.error(f"Implementation task raised: {r}")
 
         logger.info("Running Test agents per story...")
-        test_tasks = [
-            run_agent(semaphore, "test", registry.get("test_eng"),
-                      f"Write tests for gherkin: {us.gherkin}")
-            for us in user_stories
-        ]
+        test_tasks = []
+        for us in user_stories:
+            test_tasks.append(
+                _instrumented_test(semaphore, state, us)
+            )
         test_results = await asyncio.gather(*test_tasks, return_exceptions=True)
-        for i, res in enumerate(test_results):
+        for t, res in zip(test_tasks, test_results):
             if isinstance(res, BaseException):
                 logger.error(f"Test agent failed: {res}")
                 continue
-            res.output.metadata["user_story_id"] = user_stories[i].id
-            artifacts.append(res.output)
+            res.metadata["user_story_id"] = res.metadata.get("user_story_id", "?")
+            artifacts.append(res)
 
         logger.info("Running SRE Agent...")
-        try:
-            sre_res = await run_agent(semaphore, "sre", registry.get("sre"),
-                "Provision infrastructure and apply Helm charts for the services.")
+        async with recorder.record_span(
+            run_id=state.run_id, agent_name="sre", pipeline_stage="implementation",
+            prompt="Provision infrastructure and apply Helm charts for the services.",
+        ) as rec:
+            sre_res = await run_agent(semaphore, "sre", registry.get("sre"), "Provision infrastructure and apply Helm charts for the services.")
+            rec.set_output(sre_res)
             sre_res.output.metadata["user_story_id"] = "infrastructure"
             sre_res.output.agent_name = "infrastructure"
             artifacts.append(sre_res.output)
-        except Exception as e:
-            logger.error(f"SRE agent failed: {e}")
 
         full_text = format_artifacts(artifacts, max_chars=80_000)
 
@@ -213,9 +261,13 @@ async def run_implementation_stage(semaphore, user_stories, max_retries, cto_adv
             return [], state_feedback
 
         logger.info("Running Security Audit...")
-        try:
+        async with recorder.record_span(
+            run_id=state.run_id, agent_name="security", pipeline_stage="implementation",
+            prompt=f"Audit the following code for vulnerabilities:\n{full_text}",
+        ) as rec:
             sec_res = await run_agent(semaphore, "security", registry.get("security"),
                 f"Audit the following code for vulnerabilities:\n{full_text}")
+            rec.set_output(sec_res)
             sec_result = sec_res.output
             logger.info(f"Security: passed={sec_result.passed}, score={sec_result.score}")
             if not sec_result.passed:
@@ -224,25 +276,21 @@ async def run_implementation_stage(semaphore, user_stories, max_retries, cto_adv
                     continue
                 logger.error("Security audit failed after all retries.")
                 return [], state_feedback
-        except Exception as e:
-            logger.error(f"Security agent failed: {e}")
-            if attempt < max_retries - 1:
-                continue
-            return [], state_feedback
 
         logger.info("Running Quality Gate...")
-        try:
+        async with recorder.record_span(
+            run_id=state.run_id, agent_name="quality_gate", pipeline_stage="implementation",
+            prompt=f"Perform quality gate check on these artifacts:",
+        ) as rec:
             q_res = await run_agent(semaphore, "quality_gate", registry.get("quality_gate"),
                 f"Perform quality gate check on these artifacts:\n{full_text}")
+            rec.set_output(q_res)
             q_result = q_res.output
             logger.info(f"Quality Gate: passed={q_result.passed}, complexity={q_result.complexity_score}")
             if not q_result.passed:
                 logger.warning("Quality Gate rejected. Retrying...")
                 state_feedback = "\n".join(q_result.feedback)
                 continue
-        except Exception as e:
-            logger.error(f"Quality Gate failed: {e}")
-            break
 
         logger.info("Running Board of Review...")
         review_prompt = (
@@ -252,26 +300,25 @@ async def run_implementation_stage(semaphore, user_stories, max_retries, cto_adv
         if state_feedback:
             review_prompt += f"\n\nAddress previous feedback: {state_feedback}"
 
-        try:
+        async with recorder.record_span(
+            run_id=state.run_id, agent_name="review", pipeline_stage="implementation",
+            prompt=review_prompt,
+        ) as rec:
             review_res = await run_agent(semaphore, "review", registry.get("review"), review_prompt)
+            rec.set_output(review_res)
             result = review_res.output
             logger.info(f"Review: approved={result.approved}, risk={result.risk_level}, security_score={result.security_score}")
-        except Exception as e:
-            logger.error(f"Review agent failed: {e}")
-            break
-
-        if result.approved:
-            all_artifacts = artifacts
-            break
-        else:
-            logger.warning("Review rejected. Retrying...")
-            state_feedback = "\n".join(result.feedback)
+            if result.approved:
+                all_artifacts = artifacts
+                break
+            else:
+                logger.warning("Review rejected. Retrying...")
+                state_feedback = "\n".join(result.feedback)
 
     return all_artifacts, state_feedback
 
 
 async def write_artifacts(artifacts, project: str, auto_yes: bool = False, checkpoint_mgr=None):
-    """Write artifacts to disk after optional human-in-the-loop gate."""
     if not artifacts:
         logger.warning("No artifacts to write.")
         return
@@ -371,7 +418,6 @@ async def main(
     ux_advice = state.advisory_results.get("ux", "")
     max_retries = settings.max_retries if step == "all" else 1
 
-    # ── CTO Approval Gate ────────────────────────────────────────────
     from openclaw.cto_gate import apply as cto_gate
     if not await cto_gate(state, project=project):
         return
@@ -392,6 +438,7 @@ async def main(
                      metadata={"user_story_id": "US-001"}),
         ]
         state.stage = "implementation"
+
     should_run_implementation = True
     if dry_run:
         should_run_implementation = False
@@ -408,7 +455,7 @@ async def main(
         state.feedback = None
         state.artifacts = []
         state.artifacts, state.feedback = await run_implementation_stage(
-            semaphore, user_stories, max_retries, cto_advice, ux_advice, raw_requirements
+            semaphore, user_stories, max_retries, cto_advice, ux_advice, raw_requirements, state=state
         )
 
         if state.artifacts:

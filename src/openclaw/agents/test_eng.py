@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from pydantic_ai import Agent, UsageLimits, RunContext
+from pydantic_ai import Agent, RunContext, UsageLimits
 
 from openclaw.models.core import Artifact
 from openclaw.models.factory import create_model
@@ -13,6 +13,9 @@ Testing Strategy & Execution:
 - Asynchronous Validation: Ensure that events emitted by UI interactions are correctly acknowledged and side-effects executed by the Go backend.
 - Agentic-User Simulation: Mimic highly complex, non-linear user journeys to aggressively stress-test frontend state management logic.
 - Test Coverage: Guarantee 100% test coverage mapping back to the event-driven triggers outlined by the Business Analyst.
+
+## Output Protocol
+Do NOT attempt to read or write files to disk. You do not have local I/O access. Return all generated code as structured output through this response. Your response will be captured as an Artifact and written to the filesystem by the pipeline orchestrator.
 """
 
 test_eng_agent = Agent(
@@ -28,20 +31,33 @@ class TestOutput(BaseModel):
     code: str
 
 
+# Text-first agent: generates Playwright test code as free text (no output_type constraint)
 test_gen = Agent(
     create_model(settings.resolve_model(settings.test_model)),
     system_prompt=test_prompt,
-    output_type=TestOutput,
     defer_model_check=True,
     retries=5,
+)
+
+# Structured output agent: wraps raw Playwright code into TestOutput
+_test_struct = Agent(
+    create_model("deepseek:deepseek-chat"),
+    system_prompt="You format generated test code into the requested structure. Return ONLY valid JSON.",
+    output_type=TestOutput,
+    defer_model_check=True,
+    retries=3,
 )
 
 
 @test_eng_agent.tool
 async def generate_test_suite(ctx: RunContext[str], user_story_gherkin: str) -> str:
     """Converts Gherkin to Playwright TypeScript tests: data-testid selectors, async/await, page object pattern, backend event validation."""
-    res = await test_gen.run(f"Write a playwright test for {user_story_gherkin}.", usage_limits=UsageLimits(request_limit=500))
-    return res.output.code
+    raw = await test_gen.run(f"Write a playwright test for {user_story_gherkin}.", usage_limits=UsageLimits(request_limit=500))
+    structured = await _test_struct.run(
+        f"Wrap this generated Playwright test code: {raw.output}",
+        usage_limits=UsageLimits(request_limit=500),
+    )
+    return structured.output.code
 
 
 # ── Go Table-Driven Test Agent (new for existing code) ──────────────────
@@ -84,21 +100,34 @@ class GoTestOutput(BaseModel):
     description: str
 
 
-go_test_agent = Agent(
+# Text-first agent: generates Go test code as free text (no output_type constraint)
+go_test_gen = Agent(
     create_model(settings.resolve_model(settings.test_model)),
     system_prompt=go_test_prompt,
-    output_type=GoTestOutput,
     defer_model_check=True,
     retries=5,
+)
+
+# Structured output agent: wraps raw Go test code into GoTestOutput
+_go_test_struct = Agent(
+    create_model("deepseek:deepseek-chat"),
+    system_prompt="You format generated Go test code into the requested structure. Return ONLY valid JSON.",
+    output_type=GoTestOutput,
+    defer_model_check=True,
+    retries=3,
 )
 
 
 @test_eng_agent.tool
 async def generate_go_table_driven_tests(ctx: RunContext[str], source_file: str, function_name: str) -> str:
     """Generate table-driven Go tests for an existing function. Reads the source file, analyzes the function signature, and produces testify-based tests with mocks, t.Parallel(), and a discarding logger."""
-    res = await go_test_agent.run(
+    raw = await go_test_gen.run(
         f"Generate table-driven tests for the function '{function_name}' in {source_file}.\n"
         f"Read {source_file} first to understand the function signature and dependencies.",
         usage_limits=UsageLimits(request_limit=500),
     )
-    return f"{res.output.filepath}\n```go\n{res.output.code}\n```"
+    structured = await _go_test_struct.run(
+        f"Wrap this generated Go test code: {raw.output}",
+        usage_limits=UsageLimits(request_limit=500),
+    )
+    return f"{structured.output.filepath}\n```go\n{structured.output.code}\n```"

@@ -11,6 +11,7 @@ import logfire
 from pydantic_ai import Agent, UsageLimits
 
 from openclaw.exceptions import AgentExecutionError, AgentNotFoundError
+from openclaw.session_recorder import current_run_context
 from openclaw.telemetry import telemetry
 
 logger = logging.getLogger(__name__)
@@ -151,6 +152,7 @@ async def instrumented_query(
     span_name: str = "registry.query",
     attributes: dict[str, Any] | None = None,
     timeout: float | None = None,
+    delegation_depth: int = 0,
 ) -> str:
     """Query an agent by capability with full Logfire + JSONL telemetry instrumentation.
 
@@ -159,6 +161,7 @@ async def instrumented_query(
     - A Logfire span recording the capability, agent name, and timing
     - telemetry.track() for JSONL telemetry
     - Error attribution to the right agent
+    - Delegation depth propagation to prevent infinite delegation loops
     """
     owners = registry.owners_of(capability)
     agent_name = owners[0] if owners else "unknown"
@@ -171,12 +174,24 @@ async def instrumented_query(
 
     start = time.time()
     success = False
+
+    # Propagate delegation depth into context so the callee inherits the counter
+    ctx_data = current_run_context.get()
+    token = None
+    if delegation_depth > 0:
+        token = current_run_context.set({
+            **ctx_data,
+            "delegation_depth": delegation_depth,
+        })
+
     try:
         with logfire.span(span_name, **span_attrs, _level="info"):
             result = await registry.query(capability, prompt, timeout=timeout)
             success = True
             return result
     finally:
+        if token is not None:
+            current_run_context.reset(token)
         duration = time.time() - start
         with contextlib.suppress(Exception):
             await telemetry.log_call(agent_name, duration, success, metadata=span_attrs)

@@ -45,7 +45,7 @@ def register_all_agents() -> None:
     from openclaw.agents.security import security_agent
     from openclaw.agents.service_engineer import service_engineer_agent
     from openclaw.agents.sre import sre_agent
-    from openclaw.agents.test_eng import go_test_agent, test_eng_agent, test_gen
+    from openclaw.agents.test_eng import go_test_gen, test_eng_agent, test_gen
     from openclaw.agents.ux import ux_agent
 
     registry.register("ba", ba_agent, ["ba", "requirements"])
@@ -59,7 +59,7 @@ def register_all_agents() -> None:
     registry.register("sre", sre_agent, ["sre", "infrastructure"])
     registry.register("test_eng", test_eng_agent, ["test", "testing"])
     registry.register("test_gen", test_gen, ["test_gen", "test_generation"])
-    registry.register("go_test", go_test_agent, ["go_test", "go_testing"])
+    registry.register("go_test", go_test_gen, ["go_test", "go_testing"])
     registry.register("review", review_agent, ["review", "code_review"])
     registry.register("security", security_agent, ["security", "audit"])
     registry.register("ux", ux_agent, ["ux", "design"])
