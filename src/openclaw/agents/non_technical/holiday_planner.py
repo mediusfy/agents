@@ -21,4 +21,5 @@ holiday_planner_agent = Agent(
     system_prompt=planner_prompt,
     output_type=str,
     defer_model_check=True,
+    retries=5,
 )

@@ -21,4 +21,5 @@ accountant_agent = Agent(
     system_prompt=accountant_prompt,
     output_type=str,
     defer_model_check=True,
+    retries=5,
 )

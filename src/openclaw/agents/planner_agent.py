@@ -18,4 +18,5 @@ planner_agent = Agent(
     system_prompt=system_prompt,
     output_type=Plan,
     defer_model_check=True,
+    retries=5,
 )

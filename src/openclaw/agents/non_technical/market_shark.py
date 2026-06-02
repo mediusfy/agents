@@ -27,4 +27,5 @@ market_shark_agent = Agent(
     system_prompt=shark_prompt,
     output_type=str,
     defer_model_check=True,
+    retries=5,
 )

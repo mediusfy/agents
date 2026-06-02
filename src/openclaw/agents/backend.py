@@ -70,6 +70,7 @@ backend_agent = Agent(
     system_prompt=backend_prompt,
     output_type=Artifact,
     defer_model_check=True,
+    retries=5,
 )
 
 

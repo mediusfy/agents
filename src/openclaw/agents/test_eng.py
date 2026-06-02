@@ -20,6 +20,7 @@ test_eng_agent = Agent(
     system_prompt=test_prompt,
     output_type=Artifact,
     defer_model_check=True,
+    retries=5,
 )
 
 
@@ -32,6 +33,7 @@ test_gen = Agent(
     system_prompt=test_prompt,
     output_type=TestOutput,
     defer_model_check=True,
+    retries=5,
 )
 
 
@@ -87,6 +89,7 @@ go_test_agent = Agent(
     system_prompt=go_test_prompt,
     output_type=GoTestOutput,
     defer_model_check=True,
+    retries=5,
 )
 
 

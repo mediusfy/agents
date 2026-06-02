@@ -29,25 +29,27 @@ def _get_api_key(provider: str) -> str | None:
 
 
 def create_model(model_spec: str):
-    """Create a pydantic_ai model instance from a model spec string.
+    """Create a pydantic_ai model instance.
 
     Supports two forms:
     - Plain model name (e.g. "gpt-4o-mini", "claude-sonnet-4-20250514"):
       returns the string as-is for pydantic_ai's built-in provider inference.
     - Provider-prefixed (e.g. "deepseek:deepseek-reasoner"):
       creates an OpenAIModel pointed at the provider's base URL.
-
-    Returns either a str (for native inference) or a pydantic_ai Model instance.
     """
     if ":" not in model_spec:
-        return model_spec  # Native inference
+        return model_spec
 
     provider, _, model_name = model_spec.partition(":")
     provider = provider.lower()
 
     base_url = PROVIDER_BASE_URLS.get(provider)
     if not base_url:
-        logger.warning("Unknown provider prefix '%s' in model spec '%s', using native inference", provider, model_spec)
+        logger.warning(
+            "Unknown provider prefix '%s' in model spec '%s', using native inference",
+            provider,
+            model_spec,
+        )
         return model_spec
 
     api_key = _get_api_key(provider)
@@ -60,6 +62,16 @@ def create_model(model_spec: str):
         return model_spec
 
     from pydantic_ai.models.openai import OpenAIChatModel
+
+    if provider == "deepseek":
+        from pydantic_ai.providers.deepseek import DeepSeekProvider
+
+        logger.info("Creating %s model '%s' via %s", provider, model_name, base_url)
+        return OpenAIChatModel(
+            model_name,
+            provider=DeepSeekProvider(api_key=api_key),
+        )
+
     from pydantic_ai.providers.openai import OpenAIProvider
 
     logger.info("Creating %s model '%s' via %s", provider, model_name, base_url)

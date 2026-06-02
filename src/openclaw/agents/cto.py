@@ -50,4 +50,5 @@ cto_agent = Agent(
     system_prompt=cto_prompt,
     output_type=AgentAdvice,
     defer_model_check=True,
+    retries=5,
 )
