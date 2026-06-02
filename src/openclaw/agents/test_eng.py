@@ -41,7 +41,7 @@ test_gen = Agent(
 
 # Structured output agent: wraps raw Playwright code into TestOutput
 _test_struct = Agent(
-    create_model("deepseek:deepseek-chat"),
+    create_model(settings.resolve_model(settings.test_model)),
     system_prompt="You format generated test code into the requested structure. Return ONLY valid JSON.",
     output_type=TestOutput,
     defer_model_check=True,
@@ -53,11 +53,14 @@ _test_struct = Agent(
 async def generate_test_suite(ctx: RunContext[str], user_story_gherkin: str) -> str:
     """Converts Gherkin to Playwright TypeScript tests: data-testid selectors, async/await, page object pattern, backend event validation."""
     raw = await test_gen.run(
-        f"Write a playwright test for {user_story_gherkin}.", usage_limits=UsageLimits(request_limit=500)
+        f"Write a playwright test for {user_story_gherkin}.",
+        usage_limits=UsageLimits(request_limit=500),
+        model_settings={"max_tokens": 16384},
     )
     structured = await _test_struct.run(
         f"Wrap this generated Playwright test code: {raw.output}",
         usage_limits=UsageLimits(request_limit=500),
+        model_settings={"max_tokens": 16384},
     )
     return structured.output.code
 
@@ -112,7 +115,7 @@ go_test_gen = Agent(
 
 # Structured output agent: wraps raw Go test code into GoTestOutput
 _go_test_struct = Agent(
-    create_model("deepseek:deepseek-chat"),
+    create_model(settings.resolve_model(settings.test_model)),
     system_prompt="You format generated Go test code into the requested structure. Return ONLY valid JSON.",
     output_type=GoTestOutput,
     defer_model_check=True,
@@ -127,9 +130,11 @@ async def generate_go_table_driven_tests(ctx: RunContext[str], source_file: str,
         f"Generate table-driven tests for the function '{function_name}' in {source_file}.\n"
         f"Read {source_file} first to understand the function signature and dependencies.",
         usage_limits=UsageLimits(request_limit=500),
+        model_settings={"max_tokens": 16384},
     )
     structured = await _go_test_struct.run(
         f"Wrap this generated Go test code: {raw.output}",
         usage_limits=UsageLimits(request_limit=500),
+        model_settings={"max_tokens": 16384},
     )
     return f"{structured.output.filepath}\n```go\n{structured.output.code}\n```"
