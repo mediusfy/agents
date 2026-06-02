@@ -47,14 +47,15 @@ _component_struct = Agent(
 @frontend_agent.tool
 async def create_component(ctx: RunContext[str], component_name: str, requirements: str, test_id: str) -> str:
     """Calls model to generate a production-ready Vue 3 TSX component with: WCAG 2.1 ARIA labels, data-testid attribute, TypeScript props interface, Tailwind/CSS module styling, proper event handler typing."""
-    # Step 1: reasoner generates code as free text
+    # reasoner generates code as free text
     raw = await component_gen.run(
         f"Generate Vue 3 TSX component {component_name} using Composition API with requirements: {requirements}. Use data-testid={test_id}.",
         usage_limits=UsageLimits(request_limit=500),
     )
-    # Step 2: deepseek-chat structures it into ComponentOutput
+    # extract text — no output_type means .output is a str
+    generated_code = raw.output
     structured = await _component_struct.run(
-        f"Wrap this generated code: {raw.data}",
+        f"Wrap this generated code: {generated_code}",
         usage_limits=UsageLimits(request_limit=500),
     )
     return structured.output.code
