@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=1200"><title>04-auth403</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"SF Pro Display","SF Pro Text","Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;min-height:100vh}
+.p{width:420px;background:#fff;border-radius:16px;border:1px solid rgba(0,0,0,0.08);box-shadow:0 8px 40px rgba(0,0,0,0.15);padding:24px}
+.i4{width:48px;height:48px;border-radius:999px;background:rgba(255,149,0,0.08);color:#FF9500;display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+.p h3{font-size:16px;font-weight:600;color:#1C1C1E;margin-bottom:6px}.p p{font-size:13px;color:#999;line-height:1.5;margin-bottom:6px}
+.p .det{font-size:11px;color:#999;background:rgba(0,0,0,0.02);border-radius:8px;padding:10px;margin-bottom:16px;font-family:SF Mono,monospace;white-space:pre}
+.btns{display:flex;gap:8px;justify-content:flex-end}.btn{padding:8px 18px;border-radius:10px;border:1px solid rgba(0,0,0,0.06);background:#fff;color:#555;font-size:13px;font-family:inherit;cursor:pointer;font-weight:500}.btn.p4{background:#2264D1;color:#fff;border-color:#2264D1}
+
+</style></head><body><div class="p"><div class="i4"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" cy="11"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div><h3>Access denied</h3><p>You don't have permission to delete resources in namespace <strong>production</strong>.</p><div class="det">Missing verb: delete
+Resource: pods
+Namespace: production
+Scope: cluster-wide</div><div class="btns"><button class="btn">Request access</button><button class="btn p4">Dismiss</button></div></div></body></html>

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=1440"><title>Rufkis — Config</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,sans-serif;background:#F5F5F7;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.app{width:1440px;height:900px;display:flex;background:#fff;overflow:hidden;border-radius:12px;box-shadow:0 4px 40px rgba(0,0,0,0.06)}
+.leftnav{width:240px;background:#F9F9FB;border-right:1px solid #EBEBED;display:flex;flex-direction:column;flex-shrink:0}
+.ln-h{padding:16px 16px 8px;display:flex;align-items:center;gap:8px}
+.ln-logo{width:28px;height:28px;border-radius:8px;background:#6C31FF;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px}
+.ln-name{font-size:14px;font-weight:600;color:#1A1A1A}
+.ln-s{padding:12px 16px 4px;font-size:10px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.04em}
+.ln-i,.ln-fl{display:flex;align-items:center;gap:8px;padding:7px 16px;margin:0 8px;border-radius:6px;font-size:13px;font-weight:500;color:#555;cursor:pointer;position:relative}
+.ln-i:hover{background:rgba(108,49,255,0.04);color:#333}
+.ln-i .active-bar{display:none}
+.ln-i.active .active-bar{display:block;position:absolute;left:-8px;width:3px;height:16px;border-radius:0 3px 3px 0;background:#6C31FF}
+.ln-i.active{background:rgba(108,49,255,0.08);color:#6C31FF;font-weight:600}
+.ln-i:focus-visible{outline:2px solid #6C31FF;outline-offset:-2px}
+.ln-i .ic{width:16px;height:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ln-i .ic svg{width:16px;height:16px}
+.ln-i .bd{margin-left:auto;font-size:10px;padding:1px 6px;border-radius:999px;background:rgba(108,49,255,0.1);color:#6C31FF;font-weight:600}
+.ln-ft{margin-top:auto;padding:12px;border-top:1px solid #EBEBED}
+.ln-fl{padding:7px 10px;margin:0;font-size:12px;color:#777}
+.ln-fl:hover{background:rgba(108,49,255,0.03);color:#333}
+.av{width:20px;height:20px;border-radius:6px;background:linear-gradient(135deg,#6C31FF,#8A5CFF);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:52px;border-bottom:1px solid #EBEBED;display:flex;align-items:center;padding:0 24px;gap:16px;flex-shrink:0}
+.topbar h1{font-size:18px;font-weight:600;color:#1A1A1A;letter-spacing:-.01em}
+.topbar-actions{margin-left:auto;display:flex;gap:6px;align-items:center}
+.tb-btn{display:flex;align-items:center;gap:5px;padding:7px 14px;border-radius:6px;border:1px solid #E2E2E5;background:#fff;color:#555;font-size:12px;font-family:inherit;cursor:pointer;font-weight:500}
+.tb-btn:hover{background:#F5F5F7;color:#333;border-color:#C0C0C6}
+.tb-btn:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.tb-btn.purple{background:#6C31FF;color:#fff;border-color:#6C31FF}
+.tb-btn.purple:hover{background:#5B28E0}
+.tb-av{width:30px;height:30px;border-radius:999px;background:linear-gradient(135deg,#6C31FF,#8A5CFF);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;cursor:pointer}
+.content{flex:1;overflow-y:auto;padding:24px;background:#F5F5F7;scrollbar-width:thin;scrollbar-color:#D0D0D4 transparent}
+.sdot{width:6px;height:6px;flex-shrink:0;display:inline-block}
+.sdot.green{border-radius:2px;background:#00C875}
+.sdot.orange{border-radius:999px;background:#FFAD42}
+.sdot.purple{border-radius:999px;background:#6C31FF}
+.sdot.red{border-radius:999px;background:#D93025}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:500}
+.pill.green{background:#E3F5E5;color:#1B8A2F}
+.pill.orange{background:#FFF1E0;color:#E57800}
+.pill.purple{background:#E8E6FF;color:#6C31FF}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:8px 10px;font-weight:600;color:#7A7A80;font-size:10px;text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid #EBEBED}
+td{padding:8px 10px;border-bottom:1px solid #F2F2F4;color:#555;font-size:12px}
+tr:hover td{background:#F9F9FB}
+.tabs{display:flex;gap:4px;border-bottom:1px solid #EBEBED;margin-bottom:16px}
+.tab{padding:8px 16px;font-size:12px;font-weight:500;color:#7A7A80;cursor:pointer;border-bottom:2px solid transparent}
+.tab:hover{color:#555}
+.tab.active{color:#6C31FF;border-bottom-color:#6C31FF}
+.tab .tc{font-size:10px;padding:1px 5px;border-radius:999px;background:#E4E4E8;color:#7A7A80;margin-left:4px;font-weight:600}
+.tab.active .tc{background:rgba(108,49,255,0.1);color:#6C31FF}
+.tab:focus-visible{outline:2px solid #6C31FF;outline-offset:-2px}
+.section-title{font-size:13px;font-weight:600;color:#1A1A1A;margin:16px 0 8px;display:flex;align-items:center;gap:6px}
+.section-title svg{width:14px;height:14px;stroke:#6C31FF}
+.search-bar{display:flex;gap:8px;margin-bottom:12px}
+.search-bar input{flex:1;height:32px;padding:0 12px;border-radius:6px;border:1px solid #E2E2E5;background:#fff;font-size:12px;font-family:inherit;color:#1A1A1A;outline:none;max-width:280px}
+.search-bar input:focus{border-color:#6C31FF;box-shadow:0 0 0 3px rgba(108,49,255,0.08)}
+.search-bar input::placeholder{color:#999}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="leftnav">
+  <div class="ln-h"><div class="ln-logo">R</div><div class="ln-name">Rufkis</div></div>
+  <div class="ln-s">Workspace</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>Home</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><circle cx="12" cy="13" r="1"/><circle cx="8" cy="13" r="1"/><circle cx="16" cy="13" r="1"/></svg></div>Agents<span class="bd">5</span></div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>Workloads<span class="bd">48</span></div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a2 2 0 012 2v2h3a3 3 0 013 3v9a3 3 0 01-3 3H7a3 3 0 01-3-3V9a3 3 0 013-3h3V4a2 2 0 012-2z"/></svg></div>Automations</div>
+
+  <div class="ln-s">Observability</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>Monitoring</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg></div>Cluster</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="M12 4v12"/><path d="M8 8l4 4 4-8"/></svg></div>Networking</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></div>Storage</div>
+  <div class="ln-i active"><div class="active-bar"></div><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>Config</div>
+  <div class="ln-s" style="margin-top:4px;">Configure</div></div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>Logs</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>Notes</div>
+  <div class="ln-ft"><div class="ln-fl"><div class="av">D</div>Drew Jocham</div></div>
+</div>
+<div class="main">
+  <div class="topbar">
+    <h1>Config</h1>
+    <div class="topbar-actions">
+      <button class="tb-btn" aria-label="Compare configs"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 7 16 12"/><line x1="21" y1="7" x2="3" y2="7"/><line x1="8" y1="17" x2="3" y2="12"/><line x1="3" y1="12" x2="8" y2="12"/></svg> Diff</button>
+      <button class="tb-btn purple" aria-label="Create new ConfigMap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New ConfigMap</button>
+      <div class="tb-av" aria-label="Drew Jocham avatar" role="img">D</div>
+    </div>
+  </div>
+  <div class="content">
+    <!-- ConfigMaps -->
+    <div class="section-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg> ConfigMaps</div>
+    <div class="search-bar">
+      <input type="text" placeholder="Search ConfigMaps…" aria-label="Search ConfigMaps">
+    </div>
+    <div style="background:#fff;border-radius:10px;border:1px solid #E8E8EC;overflow:hidden;margin-bottom:20px;">
+      <table>
+        <thead><tr><th>Name</th><th>Namespace</th><th>Data Keys</th><th>Age</th></tr></thead>
+        <tbody>
+          <tr tabindex="0">
+            <td style="font-weight:500;font-family:monospace;font-size:11px;color:#1A1A1A;">api-gateway-config</td>
+            <td>default</td>
+            <td>6</td>
+            <td>30d</td>
+          </tr>
+          <tr tabindex="0">
+            <td style="font-weight:500;font-family:monospace;font-size:11px;color:#1A1A1A;">orders-svc-config</td>
+            <td>default</td>
+            <td>4</td>
+            <td>7d</td>
+          </tr>
+          <tr tabindex="0">
+            <td style="font-weight:500;font-family:monospace;font-size:11px;color:#1A1A1A;">logging-config</td>
+            <td>monitoring</td>
+            <td>3</td>
+            <td>60d</td>
+          </tr>
+          <tr tabindex="0">
+            <td style="font-weight:500;font-family:monospace;font-size:11px;color:#1A1A1A;">fluent-bit-config</td>
+            <td>monitoring</td>
+            <td>8</td>
+            <td>14d</td>
+          </tr>
+          <tr tabindex="0">
+            <td style="font-weight:500;font-family:monospace;font-size:11px;color:#1A1A1A;">prometheus-rules</td>
+            <td>monitoring</td>
+            <td>12</td>
+            <td>45d</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Secrets -->
+    <div class="section-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Secrets</div>
+    <div class="search-bar">
+      <input type="text" placeholder="Search Secrets…" aria-label="Search Secrets">
+    </div>
+    <div style="background:#fff;border-radius:10px;border:1px solid #E8E8EC;overflow:hidden;">
+      <table>
+        <thead><tr><th>Name</th><th>Namespace</th><th>Type</th><th>Data Keys</th><th>Age</th></tr></thead>
+        <tbody>
+          <tr tabindex="0">
+            <td style="font-weight:500;font-family:monospace;font-size:11px;color:#1A1A1A;">db-credentials</td>
+            <td>default</td>
+            <td>Opaque</td>
+            <td>2</td>
+            <td>30d</td>
+          </tr>
+          <tr tabindex="0">
+            <td style="font-weight:500;font-family:monospace;font-size:11px;color:#1A1A1A;">api-tls-cert</td>
+            <td>default</td>
+            <td>kubernetes.io/tls</td>
+            <td>2</td>
+            <td>14d</td>
+          </tr>
+          <tr tabindex="0">
+            <td style="font-weight:500;font-family:monospace;font-size:11px;color:#1A1A1A;">webhook-secret</td>
+            <td>default</td>
+            <td>Opaque</td>
+            <td>1</td>
+            <td>2h</td>
+          </tr>
+          <tr tabindex="0">
+            <td style="font-weight:500;font-family:monospace;font-size:11px;color:#1A1A1A;">docker-regcred</td>
+            <td>default</td>
+            <td>kubernetes.io/dockerconfigjson</td>
+            <td>1</td>
+            <td>60d</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Empty state skeleton -->
+    <div style="margin-top:16px;padding:12px 16px;border-radius:10px;background:#fff;border:1px solid #E8E8EC;">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div style="width:12px;height:12px;border-radius:3px;background:#E8E8EC;animation:pulse 1.5s ease-in-out infinite;"></div>
+        <div style="width:200px;height:10px;border-radius:3px;background:#E8E8EC;animation:pulse 1.5s ease-in-out infinite;"></div>
+        <div style="margin-left:auto;width:60px;height:10px;border-radius:3px;background:#E8E8EC;animation:pulse 1.5s ease-in-out infinite;"></div>
+      </div>
+    </div>
+    <style>@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}</style>
+  </div>
+</div>
+</div>
+</body>
+</html>

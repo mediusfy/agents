@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=1440"><title>Rufkis — Smart Toasts</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,sans-serif;background:#1A1A1A;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+/* Dark app background to show toasts */
+.app{width:1440px;height:900px;display:flex;background:#F5F5F7;overflow:hidden;border-radius:12px;position:relative;box-shadow:0 4px 40px rgba(0,0,0,0.06);}
+.leftnav{width:240px;background:#F9F9FB;border-right:1px solid #EBEBED;display:flex;flex-direction:column;flex-shrink:0;}
+.ln-header{padding:16px 16px 8px;display:flex;align-items:center;gap:8px;}
+.ln-logo{width:28px;height:28px;border-radius:8px;background:#6C31FF;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;}
+.ln-title{font-size:14px;font-weight:600;color:#1A1A1A;}
+.ln-section{padding:12px 12px 4px;font-size:10px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.05em;}
+.ln-item{display:flex;align-items:center;gap:8px;padding:7px 12px;margin:0 6px;border-radius:6px;font-size:13px;font-weight:500;color:#555;cursor:pointer;}
+.ln-item:hover{background:rgba(108,49,255,0.04);color:#333;}
+.ln-item{position:relative}
+.ln-item.active{background:rgba(108,49,255,0.08);color:#6C31FF;font-weight:600;
+.ln-item .active-bar{display:none}
+.ln-item.active .active-bar{display:block;position:absolute;left:-6px;width:3px;height:16px;border-radius:0 3px 3px 0;background:#6C31FF}
+.ln-item:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}}
+.ln-item .ic{width:16px;height:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.ln-item .badge{margin-left:auto;font-size:10px;padding:1px 6px;border-radius:999px;background:rgba(223,82,100,0.1);color:#DF5264;font-weight:600;}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.topbar{height:52px;border-bottom:1px solid #EBEBED;display:flex;align-items:center;padding:0 24px;gap:16px;flex-shrink:0;}
+.topbar h1{font-size:18px;font-weight:600;color:#1A1A1A;}
+.topbar-actions{margin-left:auto;display:flex;gap:6px;}
+.tb-avatar{width:30px;height:30px;border-radius:999px;background:linear-gradient(135deg,#6C31FF,#8A5CFF);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;cursor:pointer;}
+.content{flex:1;overflow-y:auto;padding:24px;background:#F5F5F7;}
+/* Empty state - just space */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#999;}
+.empty-state h3{font-size:16px;font-weight:600;color:#333;margin-bottom:4px;}
+.empty-state p{font-size:12px;color:#999;}
+/* Toast stack - top right */
+.toast-stack{position:absolute;top:16px;right:16px;display:flex;flex-direction:column;gap:8px;z-index:100;pointer-events:none;}
+.toast{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;box-shadow:0 4px 24px rgba(0,0,0,0.10);pointer-events:auto;max-width:380px;}
+.toast.green{background:#fff;border:1px solid #E3F5E5;color:#1B8A2F;}
+.toast.blue{background:#fff;border:1px solid #E8E6FF;color:#6C31FF;}
+.toast .t-icon{width:20px;height:20px;border-radius:999px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;}
+.toast.green .t-icon{background:#E3F5E5;}
+.toast.blue .t-icon{background:#E8E6FF;}
+.toast .t-msg{font-size:12px;font-weight:500;color:#333;flex:1;}
+.toast .t-undo{font-size:11px;color:#6C31FF;cursor:pointer;font-weight:600;padding:2px 6px;border-radius:4px;border:1px solid rgba(108,49,255,0.2);}
+.toast .t-undo:hover{background:rgba(108,49,255,0.04);}
+.toast .t-time{font-size:10px;color:#BBB;}
+
+/* ── A11Y additions ── */
+.ln-item .active-bar{display:none}
+.ln-item.active .active-bar{display:block;position:absolute;left:-6px;width:3px;height:16px;border-radius:0 3px 3px 0;background:#6C31FF}
+.ln-item:focus-visible,.tb-btn:focus-visible,.item-card:focus-visible,.tpl-card:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.tb-btn:hover{border-color:#C0C0C6;color:#1A1A1A}
+.status-dot{shape-rendering:geometricPrecision}
+.status-dot.green{border-radius:2px} /* square for green = active */
+.status-dot.purple,.status-dot.orange,.status-dot.red{border-radius:999px}
+/* Status pills: always pair with icon/text */
+.status-pill{display:inline-flex;align-items:center;gap:4px}
+.gdpr-foot{margin-top:20px;padding:12px 16px;border-radius:10px;background:#F0F0F2;border:1px solid #E0E0E4;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:14px;color:#1A1A1A}
+.gdpr-item{font-size:10.5px;color:#666;padding:3px 8px;border-radius:5px;cursor:pointer;display:flex;align-items:center;gap:4px}
+.gdpr-item:hover{background:#E4E4E8;color:#1A1A1A}
+.gdpr-badge{font-size:9px;padding:1px 5px;border-radius:3px;background:#E3F5E5;color:#0D5E1A;margin-left:4px}
+
+</style></head>
+<body><div class="app">
+<div class="leftnav">
+<div class="ln-header"><div class="ln-logo">R</div><div class="ln-title">Rufkis</div></div>
+<div class="ln-section">Workspace</div>
+<div class="ln-item active"><div class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>Home</div>
+<div class="ln-item"><div class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>Workloads</div>
+</div>
+<div class="main">
+<div class="topbar"><h1>Home</h1><div class="topbar-actions"><div class="tb-avatar">D</div></div></div>
+<div class="content">
+<div class="empty-state"><h3>Welcome back, Drew</h3><p>No active alerts. Your cluster is healthy.</p></div>
+</div>
+</div>
+<!-- Toast stack -->
+<div class="toast-stack">
+<div class="toast green">
+
+<span class="t-msg">Pod api-gateway updated successfully</span>
+<span class="t-undo">Undo</span>
+<span class="t-time">2s ago</span>
+</div>
+<div class="toast blue">
+<div class="t-icon">i</div>
+<span class="t-msg">Ingress migration: 3 of 4 steps complete</span>
+<span class="t-time">just now</span>
+</div>
+</div>
+</div>
+
+    <div class="gdpr-foot">
+      <span style="font-size:11px;font-weight:600;color:#444;"><span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;flex-shrink:0;vertical-align:middle;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span> Data &amp; Privacy</span>
+      <span class="gdpr-item" role="button" tabindex="0"><span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;flex-shrink:0;vertical-align:middle;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span> Export My Data</span>
+      <span class="gdpr-item" role="button" tabindex="0"><span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;flex-shrink:0;vertical-align:middle;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></span> Delete My Data</span>
+      <span class="gdpr-item" role="button" tabindex="0">⚙ Consent Preferences</span>
+      <span class="gdpr-item" role="button" tabindex="0"><span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;flex-shrink:0;vertical-align:middle;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg></span> Audit Log</span>
+      <span class="gdpr-item" style="cursor:default;"><span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;flex-shrink:0;vertical-align:middle;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span> Retention: 90 days <span class="gdpr-badge">GDPR</span></span>
+    </div>
+
+</body></html>

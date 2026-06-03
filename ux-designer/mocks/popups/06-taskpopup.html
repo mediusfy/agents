@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=1440"><title>Task Detail — Rufkis</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;min-height:100vh;font-size:14px;color:#1A1A1A}
+.popup{width:480px;background:#FFFFFF;border-radius:12px;border:1px solid #E8E8EC;box-shadow:0 8px 32px rgba(0,0,0,0.12);overflow:hidden}
+.popup:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.header{padding:14px 16px;border-bottom:1px solid #E8E8EC;display:flex;align-items:center;gap:8px}
+.header h2{font-size:14px;font-weight:600;color:#1A1A1A;flex:1}
+.header .status-badge{font-size:10px;padding:2px 8px;border-radius:999px;font-weight:600}
+.header .status-badge.in-progress{background:#E3F5E5;color:#1B8A2F}
+.step{display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid #F2F2F4}
+.step .bar{width:4px;border-radius:2px;flex-shrink:0}
+.step .bar.green{background:#00C875}
+.step .bar.purple{background:#6C31FF}
+.step .bar.orange{background:#FFAD42}
+.step .content{flex:1}
+.step .content .step-label{font-size:12.5px;font-weight:500;color:#1A1A1A}
+.step .content .step-desc{font-size:11px;color:#7A7A80;margin-top:2px}
+.step .status-pill{font-size:10px;padding:2px 6px;border-radius:4px;height:fit-content;font-weight:500}
+.step .status-pill.done{background:#E3F5E5;color:#1B8A2F}
+.step .status-pill.active{background:#E8E6FF;color:#6C31FF}
+.step .status-pill.pending{background:#FFF1E0;color:#E57800}
+.actions{display:flex;gap:6px;padding:10px 16px}
+.actions .pb{flex:1;padding:5px 12px;border-radius:6px;border:1px solid #E2E2E5;background:#fff;color:#555;font-size:11px;font-family:'Inter',sans-serif;cursor:pointer;font-weight:500}
+.actions .pb:hover{background:#F5F5F7;border-color:#C0C0C6}
+.actions .pb:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.actions .pb.primary{background:#6C31FF;color:#fff;border-color:#6C31FF}
+.actions .pb.primary:hover{background:#5B28E0}
+</style>
+</head>
+<body>
+<div class="popup" role="dialog" aria-label="Task detail" aria-modal="true" data-testid="task-popup">
+  <div class="header">
+    <h2>Task: ingress migration</h2>
+    <span class="status-badge in-progress" data-testid="task-status">In progress</span>
+  </div>
+  <div data-testid="task-steps">
+    <div class="step" data-testid="step-1">
+      <div class="bar green"></div>
+      <div class="content">
+        <div class="step-label">Verify nginx ingress controller</div>
+        <div class="step-desc">Check deployment status and readiness</div>
+      </div>
+      <span class="status-pill done">Done</span>
+    </div>
+    <div class="step" data-testid="step-2">
+      <div class="bar purple"></div>
+      <div class="content">
+        <div class="step-label">Create new ingress resources</div>
+        <div class="step-desc">api-gateway, webapp, admin-panel</div>
+      </div>
+      <span class="status-pill active">Active</span>
+    </div>
+    <div class="step" data-testid="step-3">
+      <div class="bar orange"></div>
+      <div class="content">
+        <div class="step-label">Test canary deployment</div>
+        <div class="step-desc">Route 10% traffic, verify 200s</div>
+      </div>
+      <span class="status-pill pending">Pending</span>
+    </div>
+    <div class="step" data-testid="step-4">
+      <div class="bar orange"></div>
+      <div class="content">
+        <div class="step-label">Update DNS records</div>
+        <div class="step-desc">Point *.example.com to new LB</div>
+      </div>
+      <span class="status-pill pending">Pending</span>
+    </div>
+  </div>
+  <div class="actions">
+    <button class="pb" data-testid="task-add-step">Add step</button>
+    <button class="pb primary" data-testid="task-mark-complete">Mark complete</button>
+  </div>
+</div>
+</body>
+</html>

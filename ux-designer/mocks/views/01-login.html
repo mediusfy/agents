@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>Rufkis — Sign In</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;-webkit-font-smoothing:antialiased;background:#F5F5F7;display:flex;align-items:center;justify-content:center;min-height:100vh;min-width:1440px}
+.card{width:420px;background:#fff;border-radius:12px;border:1px solid #E8E8EC;box-shadow:0 1px 3px rgba(0,0,0,0.04);padding:40px 36px 36px;display:flex;flex-direction:column;gap:24px}
+.brand{text-align:center;display:flex;flex-direction:column;gap:6px}
+.logo{font-size:40px;line-height:1;color:#6C31FF;margin-bottom:2px}
+.brand h1{font-size:24px;font-weight:700;color:#1C1C1E;letter-spacing:-0.01em}
+.subtitle{font-size:13px;color:#999;font-weight:400}
+.tabs{display:flex;border-bottom:1px solid #E8E8EC;gap:0}
+.tab{flex:1;padding:10px 0;text-align:center;font-size:13px;font-weight:500;color:#999;background:transparent;border:0;border-bottom:2px solid transparent;cursor:pointer;font-family:inherit;transition:color 0.15s,border-color 0.15s}
+.tab:focus-visible{outline:2px solid #6C31FF;outline-offset:-2px;border-radius:4px}
+.tab.active{color:#6C31FF;border-bottom-color:#6C31FF;font-weight:600}
+.form{display:flex;flex-direction:column;gap:14px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.04em}
+.field input{background:#F5F5F7;border:1px solid #E8E8EC;border-radius:8px;padding:10px 12px;font-size:14px;color:#1C1C1E;font-family:inherit;outline:none;transition:border-color 0.15s,box-shadow 0.15s}
+.field input:focus{border-color:#6C31FF;box-shadow:0 0 0 3px rgba(108,49,255,0.1)}
+.field input::placeholder{color:#bbb}
+.pw-wrap{position:relative}
+.pw-wrap input{width:100%;padding-right:36px}
+.eye-btn{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:transparent;border:0;color:#999;cursor:pointer;padding:4px;border-radius:4px;font-family:inherit}
+.eye-btn:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.btn-primary{background:#6C31FF;color:#fff;border:0;border-radius:8px;padding:11px 0;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;width:100%;transition:background 0.15s}
+.btn-primary:hover{background:#5A29D9}
+.btn-primary:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.btn-primary:disabled{opacity:0.5;cursor:not-allowed}
+.forgot{background:transparent;border:0;color:#6C31FF;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;text-align:center;padding:4px}
+.forgot:focus-visible{outline:2px solid #6C31FF;outline-offset:2px;border-radius:4px}
+.divider{position:relative;text-align:center;margin:2px 0}
+.divider::before{content:'';position:absolute;top:50%;left:0;right:0;height:1px;background:#E8E8EC}
+.divider span{position:relative;background:#fff;padding:0 12px;font-size:11px;color:#999}
+.oauth{display:flex;gap:8px}
+.oauth-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:9px;border-radius:8px;border:1px solid #E8E8EC;background:#fff;color:#555;font-size:13px;font-family:inherit;cursor:pointer;transition:background 0.15s}
+.oauth-btn:hover{background:#F5F5F7}
+.oauth-btn:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.passkey{display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px;color:#6C31FF;font-weight:500;cursor:pointer;background:transparent;border:0;font-family:inherit;padding:4px}
+.passkey:focus-visible{outline:2px solid #6C31FF;outline-offset:2px;border-radius:4px}
+.error{display:none;background:rgba(255,59,48,0.06);border:1px solid rgba(255,59,48,0.15);color:#FF3B30;padding:10px 12px;border-radius:8px;font-size:12px;text-align:center}
+.error.visible{display:block}
+.load{display:none;align-items:center;justify-content:center;gap:8px;padding:10px 0}
+.load.visible{display:flex}
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="card" role="region" aria-label="Sign in form">
+  <div class="brand">
+    <div class="logo">⌬</div>
+    <h1>Rufkis</h1>
+    <p class="subtitle">Kubernetes SRE Console</p>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs" role="tablist" aria-label="Authentication mode">
+    <button class="tab active" role="tab" aria-selected="true" aria-label="Sign in with email">Sign in</button>
+    <button class="tab" role="tab" aria-selected="false" aria-label="Create a new account">Create account</button>
+  </div>
+
+  <!-- Error state -->
+  <div class="error" role="alert" aria-live="polite" data-testid="login-error">
+    Invalid email or password. Please try again.
+  </div>
+
+  <form class="form" data-testid="login-form">
+    <div class="field">
+      <label for="login-email">Email</label>
+      <input id="login-email" type="email" placeholder="you@company.com" value="drew@example.com" aria-label="Email address" data-testid="login-email">
+    </div>
+    <div class="field">
+      <label for="login-password">Password</label>
+      <div class="pw-wrap">
+        <input id="login-password" type="password" value="••••••••••••" aria-label="Password" data-testid="login-password">
+        <button class="eye-btn" type="button" aria-label="Toggle password visibility" data-testid="login-toggle-pw">👁</button>
+      </div>
+    </div>
+    <button class="btn-primary" type="submit" data-testid="login-submit">
+      <span class="load visible" aria-hidden="true"><span class="spinner"></span>Signing in…</span>
+      <span>Sign in</span>
+    </button>
+  </form>
+
+  <button class="forgot" aria-label="Reset your password" data-testid="login-forgot">Forgot password?</button>
+
+  <div class="divider"><span>or continue with</span></div>
+
+  <div class="oauth">
+    <button class="oauth-btn" aria-label="Sign in with Google" data-testid="login-oauth-google">
+      <svg width="16" height="16" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>Google
+    </button>
+    <button class="oauth-btn" aria-label="Sign in with GitHub" data-testid="login-oauth-github">
+      <svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879v-6.99h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.99C18.343 21.128 22 16.991 22 12c0-5.523-4.477-10-10-10z"/></svg>GitHub
+    </button>
+    <button class="oauth-btn" aria-label="Sign in with Apple" data-testid="login-oauth-apple">
+      <svg width="16" height="16" viewBox="0 0 24 24"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>Apple
+    </button>
+  </div>
+
+  <button class="passkey" aria-label="Sign in with a passkey" data-testid="login-passkey"><span style="font-size:16px">🔑</span> Sign in with a passkey</button>
+</div>
+
+</body>
+</html>

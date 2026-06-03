@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1200">
+  <title>Rufkis Launchpad — Light/iOS</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      background: #F2F4F8;
+      display: flex; align-items: flex-start; justify-content: center; min-height: 100vh; padding: 0;
+    }
+    .shell { width: 1200px; height: 800px; display: flex; flex-direction: column; background: #F2F4F8; overflow: hidden; }
+
+    .titlebar {
+      height: 48px; background: rgba(255,255,255,0.85); backdrop-filter: blur(20px) saturate(150%);
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+      display: flex; align-items: center; padding: 0 12px; gap: 12px; flex-shrink: 0;
+    }
+    .tb-traffic { display: flex; gap: 7px; padding: 0 4px; }
+    .tb-dot { width: 11px; height: 11px; border-radius: 999px; }
+    .tb-dot.r { background: #FF5F57; } .tb-dot.y { background: #FEBC2E; } .tb-dot.g { background: #28C840; }
+    .tb-search { flex: 1; max-width: 360px; position: relative; }
+    .tb-search input {
+      width: 100%; height: 30px;
+      background: rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.06);
+      border-radius: 8px; color: #1C1C1E; font-size: 12.5px; padding: 0 28px 0 30px;
+      font-family: inherit; outline: none;
+    }
+    .tb-search input::placeholder { color: #999; }
+    .tb-search input:focus { border-color: #2264D1; background: rgba(255,255,255,0.95); box-shadow: 0 0 0 3px rgba(34,100,209,0.12); }
+    .tb-search .icon { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: #999; }
+    .tb-search .kbd { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.05); color: #999; font-size: 10px; padding: 1px 5px; border-radius: 4px; }
+    .tb-favs { flex: 1; display: flex; align-items: center; gap: 4px; overflow-x: auto; padding: 0 8px; }
+    .tb-favs::-webkit-scrollbar { display: none; }
+    .fav-chip { display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 6px; background: rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.05); color: #555; font-size: 11.5px; font-weight: 500; white-space: nowrap; cursor: pointer; }
+    .fav-chip:hover { background: rgba(0,0,0,0.06); }
+    .fav-chip .key { font-size: 9px; color: #999; background: rgba(0,0,0,0.04); padding: 0 4px; border-radius: 3px; }
+    .tb-actions { display: flex; align-items: center; gap: 6px; }
+    .tb-btn { width: 30px; height: 30px; border-radius: 8px; border: none; background: transparent; color: #999; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .tb-btn:hover { background: rgba(0,0,0,0.04); color: #555; }
+    .tb-avatar { width: 28px; height: 28px; border-radius: 999px; background: linear-gradient(135deg, #2264D1, #4870FF); color: #fff; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+
+    .body { flex: 1; display: flex; overflow: hidden; }
+    .sidebar {
+      width: 240px; background: rgba(255,255,255,0.82); backdrop-filter: blur(20px) saturate(150%);
+      border-right: 1px solid rgba(0,0,0,0.06);
+      display: flex; flex-direction: column; flex-shrink: 0;
+    }
+    .sidebar-header { padding: 8px 12px 0; display: flex; align-items: center; gap: 8px; }
+    .cluster-badge { flex: 1; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+    .cluster-badge:hover { background: rgba(0,0,0,0.02); }
+    .cluster-icon { width: 8px; height: 8px; border-radius: 999px; background: #34C759; box-shadow: 0 0 6px rgba(52,199,89,0.3); }
+    .cluster-name { font-size: 12px; font-weight: 600; color: #1C1C1E; }
+    .cluster-sub { font-size: 10px; color: #999; }
+    .sidebar-divider { height: 1px; background: rgba(0,0,0,0.05); margin: 6px 12px; }
+    .nav-scroll { flex: 1; overflow-y: auto; padding: 4px 8px; }
+    .nav-scroll::-webkit-scrollbar { width: 3px; }
+    .nav-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 2px; }
+    .section-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; color: #999; font-size: 12.5px; font-weight: 500; cursor: pointer; transition: all 0.12s ease; }
+    .section-row:hover { color: #555; background: rgba(0,0,0,0.02); }
+    .section-row.active { color: #2264D1; background: rgba(34,100,209,0.06); }
+    .section-row svg { flex-shrink: 0; width: 16px; height: 16px; }
+    .section-label { flex: 1; }
+    .section-badge { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 999px; background: rgba(223,82,100,0.1); color: #DF5264; }
+
+    .sidebar-footer { padding: 8px; border-top: 1px solid rgba(0,0,0,0.05); }
+    .context-chip { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: 12px; color: #999; }
+    .context-chip:hover { background: rgba(0,0,0,0.02); color: #555; }
+
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .content { flex: 1; padding: 24px 32px; overflow-y: auto; }
+    .content::-webkit-scrollbar { width: 4px; }
+    .content::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 2px; }
+
+    .launchpad { max-width: 900px; display: flex; flex-direction: column; gap: 28px; }
+    .welcome h1 { font-size: 26px; font-weight: 700; color: #1C1C1E; letter-spacing: -0.02em; }
+    .welcome p { font-size: 13px; color: #999; margin-top: 2px; }
+
+    .section-hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .section-hdr h2 { font-size: 15px; font-weight: 600; color: #1C1C1E; }
+    .section-hdr .count { font-size: 11px; color: #999; background: rgba(0,0,0,0.03); padding: 1px 7px; border-radius: 999px; }
+    .section-hdr .link { margin-left: auto; font-size: 12px; color: #2264D1; cursor: pointer; font-weight: 500; }
+
+    .fav-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+    .fav-card {
+      display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+      border-radius: 12px; background: #fff; border: 1px solid rgba(0,0,0,0.06);
+      cursor: pointer; transition: all 0.15s ease;
+    }
+    .fav-card:hover { background: #fff; border-color: rgba(0,0,0,0.1); box-shadow: 0 1px 6px rgba(0,0,0,0.04); transform: translateY(-1px); }
+    .fav-icon { width: 36px; height: 36px; border-radius: 10px; background: rgba(34,100,209,0.08); color: #2264D1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .fav-name { font-size: 13px; font-weight: 600; color: #1C1C1E; }
+    .fav-section { font-size: 11px; color: #999; margin-top: 2px; }
+
+    .agent-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .agent-card { padding: 16px; border-radius: 12px; background: #fff; border: 1px solid rgba(0,0,0,0.06); }
+    .agent-num { font-size: 28px; font-weight: 700; color: #1C1C1E; line-height: 1.1; }
+    .agent-lbl { font-size: 12px; color: #999; margin-top: 4px; }
+    .agent-dot { width: 8px; height: 8px; border-radius: 999px; margin-top: 8px; }
+    .dot-green { background: #34C759; box-shadow: 0 0 6px rgba(52,199,89,0.25); }
+    .dot-amber { background: #FF9500; box-shadow: 0 0 6px rgba(255,149,0,0.25); }
+    .dot-red   { background: #FF3B30; box-shadow: 0 0 6px rgba(255,59,48,0.25); }
+    .dot-blue  { background: #2264D1; box-shadow: 0 0 6px rgba(34,100,209,0.25); }
+
+    .action-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .action-btn {
+      display: flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 10px;
+      background: #fff; border: 1px solid rgba(0,0,0,0.06); color: #555; font-size: 12.5px; font-weight: 500; cursor: pointer; font-family: inherit;
+    }
+    .action-btn:hover { background: #fff; border-color: rgba(0,0,0,0.12); color: #1C1C1E; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+  </style>
+</head>
+<body>
+<div class="shell">
+  <div class="titlebar">
+    <div class="tb-traffic"><div class="tb-dot r"></div><div class="tb-dot y"></div><div class="tb-dot g"></div></div>
+    <div class="tb-search">
+      <svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="Search…" value="">
+      <span class="kbd">⌘K</span>
+    </div>
+    <div class="tb-favs">
+      <div class="fav-chip"><span class="key">⌘1</span> Clusters</div>
+      <div class="fav-chip"><span class="key">⌘2</span> Pods</div>
+      <div class="fav-chip" style="background:rgba(34,100,209,0.06);border-color:rgba(34,100,209,0.12);color:#2264D1;"><span class="key" style="color:#999;">⌘3</span> Alerts</div>
+    </div>
+    <div class="tb-actions">
+      <button class="tb-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>
+      <button class="tb-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
+      <div class="tb-avatar">D</div>
+    </div>
+  </div>
+  <div class="body">
+    <div class="sidebar">
+      <div class="sidebar-header"><div class="cluster-badge"><div class="cluster-icon"></div><div><div class="cluster-name">minikube</div><div class="cluster-sub">1 node · v1.30</div></div><svg style="margin-left:auto;" width="10" height="10" viewBox="0 0 10 10"><path d="M3 4l2 2.5L7 4" stroke="#999" stroke-width="1.2" fill="none"/></svg></div></div>
+      <div class="sidebar-divider"></div>
+      <div class="nav-scroll">
+        <div class="section-row active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10"/></svg><span class="section-label">Home</span></div>
+        <div class="section-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg><span class="section-label">Workloads</span></div>
+        <div class="section-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg><span class="section-label">Networking</span></div>
+        <div class="section-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20v-6M6 20V10M18 20V4"/></svg><span class="section-label">Monitoring</span><span class="section-badge">3</span></div>
+        <div class="section-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span class="section-label">Configuration</span></div>
+        <div class="section-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="section-label">Operations</span></div>
+        <div class="section-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg><span class="section-label">Load Testing</span></div>
+      </div>
+      <div class="sidebar-footer"><div class="context-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Rufkis Context<svg style="margin-left:auto;" width="10" height="10" viewBox="0 0 10 10"><path d="M3 4l2 2.5L7 4" stroke="currentColor" stroke-width="1.2" fill="none"/></svg></div></div>
+    </div>
+    <div class="main">
+      <div class="content">
+        <div class="launchpad">
+          <div class="welcome"><h1>Good evening, Drew</h1><p>Cluster healthy · minikube · 1 node</p></div>
+          <div><div class="section-hdr"><h2>Favorites</h2><span class="count">3</span></div>
+            <div class="fav-grid">
+              <div class="fav-card"><div class="fav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg></div><div><div class="fav-name">Cluster Overview</div><div class="fav-section">Workloads</div></div></div>
+              <div class="fav-card"><div class="fav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20v-6M6 20V10M18 20V4"/></svg></div><div><div class="fav-name">Active Alerts</div><div class="fav-section">Monitoring</div></div></div>
+              <div class="fav-card"><div class="fav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div><div class="fav-name">Deployments</div><div class="fav-section">Workloads</div></div></div>
+            </div>
+          </div>
+          <div><div class="section-hdr"><h2>Agents</h2><span class="link">View all →</span></div>
+            <div class="agent-grid">
+              <div class="agent-card"><div class="agent-num">4</div><div class="agent-lbl">Available</div><div class="agent-dot dot-green"></div></div>
+              <div class="agent-card"><div class="agent-num">1</div><div class="agent-lbl">Progressing</div><div class="agent-dot dot-amber"></div></div>
+              <div class="agent-card"><div class="agent-num">0</div><div class="agent-lbl">Degraded</div><div class="agent-dot dot-red"></div></div>
+              <div class="agent-card"><div class="agent-num" style="color:#2264D1;">5</div><div class="agent-lbl">Total</div><div class="agent-dot dot-blue"></div></div>
+            </div>
+          </div>
+          <div><div class="section-hdr"><h2>Quick Actions</h2></div>
+            <div class="action-row">
+              <div class="action-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Create Agent</div>
+              <div class="action-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>Run Diagnostics</div>
+              <div class="action-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>New Note</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

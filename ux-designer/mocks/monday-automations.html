@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=1440"><title>Rufkis — Automations</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,sans-serif;background:#F5F5F7;display:flex;align-items:flex-start;justify-content:center;min-height:100vh;padding:0;color:#1A1A1A}
+.app{width:1440px;height:900px;display:flex;background:#fff;overflow:hidden}
+
+/* left nav */
+.leftnav{width:240px;background:#FAFAFC;border-right:1px solid #E0E0E4;display:flex;flex-direction:column;flex-shrink:0}
+.ln-h{padding:18px 16px 8px;display:flex;align-items:center;gap:8px}
+.ln-logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#6C31FF,#8A5CFF);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px}
+.ln-name{font-size:14px;font-weight:600;letter-spacing:-0.01em;color:#1A1A1A}
+.ln-s{padding:6px 12px 4px;font-size:10px;font-weight:600;color:#7A7A80;text-transform:uppercase;letter-spacing:0.06em}
+.ln-i{display:flex;align-items:center;gap:8px;padding:7px 12px;margin:1px 6px;border-radius:7px;font-size:13px;font-weight:450;color:#555;cursor:pointer;transition:all 0.1s;position:relative}
+.ln-i:hover{background:rgba(108,49,255,0.05);color:#1A1A1A}
+.ln-i:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.ln-i.active{background:#6C31FF;color:#fff;font-weight:500}
+.ln-i .active-bar{display:none}
+.ln-i.active .active-bar{display:block;position:absolute;left:-6px;width:3px;height:16px;border-radius:0 3px 3px 0;background:#fff}
+.ln-i .ic{width:16px;height:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;opacity:0.8}
+.ln-i.active .ic{opacity:1}
+.ln-i .bd{margin-left:auto;font-size:10px;padding:1px 6px;border-radius:999px;background:rgba(108,49,255,0.1);color:#6C31FF;font-weight:600}
+.ln-i.active .bd{background:rgba(255,255,255,0.22);color:#fff}
+.ln-ft{margin-top:auto;padding:12px;border-top:1px solid #E0E0E4}
+.ln-fl{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;font-size:12px;color:#777;cursor:pointer}
+.ln-fl:hover{color:#333}
+.ln-fl .av{width:20px;height:20px;border-radius:5px;background:linear-gradient(135deg,#6C31FF,#8A5CFF);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600}
+
+/* top bar */
+.topbar{height:50px;border-bottom:1px solid #E0E0E4;display:flex;align-items:center;padding:0 22px;gap:14px;flex-shrink:0;background:#fff}
+.topbar h1{font-size:17px;font-weight:600;letter-spacing:-0.01em;color:#1A1A1A}
+.topbar-actions{margin-left:auto;display:flex;gap:6px}
+.tb-btn{display:flex;align-items:center;gap:5px;padding:6px 13px;border-radius:7px;border:1px solid #D6D6DB;background:#fff;color:#555;font-size:12px;font-family:inherit;cursor:pointer;font-weight:500;transition:all 0.12s}
+.tb-btn:hover{background:#F0F0F2;border-color:#C0C0C6;color:#1A1A1A}
+.tb-btn:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.tb-btn.purple{background:#6C31FF;color:#fff;border-color:#6C31FF}
+.tb-btn.purple:hover{background:#5428D6}
+.tb-av{width:29px;height:29px;border-radius:999px;background:linear-gradient(135deg,#6C31FF,#8A5CFF);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;cursor:pointer}
+
+/* content */
+.content{flex:1;overflow-y:auto;padding:22px 24px;background:#F5F5F7}
+.content::-webkit-scrollbar{width:5px}
+.content::-webkit-scrollbar-track{background:transparent}
+.content::-webkit-scrollbar-thumb{background:#C8C8CE;border-radius:999px}
+
+/* section headers */
+.sh{display:flex;align-items:center;gap:9px;margin-bottom:13px}
+.sh .si{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px}
+.sh h2{font-size:15px;font-weight:600;letter-spacing:-0.01em;color:#1A1A1A}
+.sh .sc{font-size:10.5px;color:#7A7A80;padding:1px 7px;border-radius:999px;background:#E4E4E8;font-weight:500}
+.sh .sd{font-size:11px;color:#7A7A80}
+.sh .sa{font-size:11px;color:#6C31FF;margin-left:auto;cursor:pointer;font-weight:500;padding:4px 10px;border-radius:6px;transition:background 0.1s}
+.sh .sa:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.sh .sa:hover{background:rgba(108,49,255,0.07)}
+
+/* template cards */
+.tg{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:26px}
+.tc{background:#fff;border-radius:11px;border:2px solid #E0E0E4;padding:16px;cursor:pointer;transition:all 0.18s;position:relative}
+.tc:hover{border-color:#B4B4BC;box-shadow:0 2px 10px rgba(0,0,0,0.04)}
+.tc:focus-visible{outline:2px solid #6C31FF;outline-offset:2px;border-color:#6C31FF}
+.tc .tbadge{position:absolute;top:9px;right:9px;font-size:9px;padding:2px 7px;border-radius:999px;font-weight:600;display:flex;align-items:center;gap:3px}
+.tc .tbadge.pop{background:#FEF3E0;color:#7A5800;border:1px solid #F0DCA0}
+.tc .tbadge.nw{background:#E3F5E5;color:#0D5E1A;border:1px solid #B8D8BE}
+.tc .tf{display:flex;align-items:center;gap:5px;margin-bottom:10px}
+.tc .tf .fn{flex:1;padding:9px 6px;border-radius:7px;background:#F5F5F8;border:1px solid #E0E0E4;text-align:center;min-height:54px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.tc .tf .fn .ni{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;margin-bottom:2px;border:1px solid transparent}
+.tc .tf .fn .nl{font-size:10px;font-weight:600;color:#444;line-height:1.2}
+.tc .tf .fn .ns{font-size:9px;color:#7A7A80;margin-top:1px}
+.tc .tf .arr{color:#B4B4BC;font-size:14px;flex-shrink:0;font-weight:700}
+.tc .ttl{font-size:13px;font-weight:600;letter-spacing:-0.005em;color:#1A1A1A;margin-bottom:2px}
+.tc .tdesc{font-size:11px;color:#666;margin-bottom:10px;line-height:1.4}
+.tc .tfoot{display:flex;align-items:center;gap:7px;padding-top:10px;border-top:1px solid #E8E8EC}
+.tc .tfoot .b{font-size:10.5px;padding:5px 12px;border-radius:6px;border:1px solid transparent;font-family:inherit;font-weight:500;cursor:pointer;transition:all 0.1s}
+.tc .tfoot .b:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.tc .tfoot .bp{background:#6C31FF;color:#fff;border-color:#6C31FF}
+.tc .tfoot .bp:hover{background:#5428D6}
+.tc .tfoot .bs{background:#F0F0F2;color:#555;border-color:#D6D6DB}
+.tc .tfoot .bs:hover{background:#E4E4E8;color:#1A1A1A}
+
+/* active list */
+.cl{margin-bottom:26px}
+.ci{background:#fff;border-radius:10px;border:2px solid #E0E0E4;padding:12px 16px;margin-bottom:4px;display:flex;align-items:center;gap:11px;cursor:pointer;transition:all 0.12s}
+.ci:hover{border-color:#B4B4BC}
+.ci:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.ci .ciic{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;border:1px solid transparent}
+.ci .cibd{flex:1;min-width:0}
+.ci .cibd .cnm{font-size:13px;font-weight:500;color:#1A1A1A}
+.ci .cibd .cfl{font-size:10.5px;color:#777;margin-top:2px;display:flex;align-items:center;gap:3px}
+.ci .cibd .cfl .ft{padding:1px 5px;border-radius:3px;background:#F0F0F2;color:#666}
+.ci .cibd .cfl .fa{color:#C8C8CE}
+.ci .cist{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;font-size:10px;font-weight:600;border:1px solid}
+.st-active{background:#E3F5E5;color:#0D5E1A;border-color:#B8D8BE}
+.st-paused{background:#FFF1E0;color:#7A4D00;border-color:#F0DCA0}
+.st-idle{background:#EEEBFF;color:#4A2EA8;border-color:#CCC5F0}
+.st-error{background:#FDE8E8;color:#8F1A1A;border-color:#F0C0C0}
+.ci .cimt{font-size:10px;color:#7A7A80;display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+
+/* scheduler table */
+.st{background:#fff;border-radius:11px;border:2px solid #E0E0E4;overflow:hidden;margin-bottom:26px}
+.st table{width:100%;border-collapse:collapse}
+.st th{padding:10px 14px;font-size:10px;font-weight:600;color:#7A7A80;text-transform:uppercase;letter-spacing:0.04em;text-align:left;border-bottom:2px solid #D6D6DB;background:#FAFAFC}
+.st td{padding:10px 14px;font-size:12px;color:#444;border-bottom:1px solid #ECECEF;transition:background 0.1s}
+.st tr:hover td{background:#FAFAFE}
+.st tr:last-child td{border-bottom:0}
+.st .snm{font-weight:500;color:#1A1A1A}
+.st .sexp{font-family:'SF Mono','Menlo',monospace;font-size:10.5px;color:#5428D6;background:#F0EDFF;padding:2px 7px;border-radius:4px;border:1px solid #CCC5F0}
+.st .sact{font-size:10.5px;padding:2px 7px;border-radius:4px;background:#F0F0F2;color:#666;white-space:nowrap;border:1px solid #E0E0E4}
+.st .sts{font-size:11px;color:#7A7A80}
+.st .sacts{display:flex;gap:3px}
+.st .sacts button{width:23px;height:23px;border-radius:5px;border:1px solid transparent;background:transparent;color:#B4B4BC;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all 0.1s}
+.st .sacts button:hover{background:#F0F0F2;color:#555;border-color:#D6D6DB}
+.st .sacts button:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+
+/* sync dashboard */
+.scd{background:#fff;border-radius:11px;border:2px solid #E0E0E4;padding:18px;margin-bottom:14px}
+.shdr{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.shdr .ss{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;padding:4px 10px;border-radius:6px;font-weight:600;border:1px solid}
+.shdr .sl{background:#E3F5E5;color:#0D5E1A;border-color:#B8D8BE}
+.shdr .sr{padding:4px 10px;border-radius:6px;font-size:10.5px;background:#F0F0F2;color:#666;border:1px solid #D6D6DB;cursor:pointer;font-weight:500;transition:all 0.1s}
+.shdr .sr:hover{background:#E4E4E8}
+.shdr .sr:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.schips{display:flex;gap:5px;margin-bottom:12px;flex-wrap:wrap}
+.schip{display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:999px;font-size:10px;font-weight:500;cursor:pointer;border:1px solid}
+.schip .dot{width:7px;height:7px;border-radius:1px;flex-shrink:0;border:1px solid rgba(0,0,0,0.1)}
+.schip.on{background:#E8F0FE;border-color:rgba(66,133,244,0.25);color:#1A5BBF}
+.schip.sy{background:#E8E6FF;border-color:rgba(108,49,255,0.2);color:#6C31FF}
+.schip.off{background:#F0F0F2;border-color:#D6D6DB;color:#7A7A80}
+.schip .cl{margin-left:1px;font-size:10px;opacity:0.5}
+.schip .ad{color:#6C31FF;font-size:10px;margin-left:1px}
+.sg2{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
+.sbox{padding:11px;border-radius:7px;min-height:72px}
+.sbox.on2{background:#F5F5F8;border:1px solid #E0E0E4}
+.sbox.sy2{background:#F2EFFF;border:1px solid rgba(108,49,255,0.15)}
+.sbox.off2{background:#F8F8FA;border:2px dashed #D6D6DB}
+.sbox .sbh{display:flex;align-items:center;gap:5px;margin-bottom:6px}
+.sbox .sbh .sbi{width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:5px;font-size:12px;flex-shrink:0}
+.sbox .sbh .sbn{font-size:11px;font-weight:500;color:#1A1A1A}
+.sbox .sbh .sbb{margin-left:auto;font-size:9px;padding:1px 5px;border-radius:3px;color:#fff;font-weight:600}
+.sbox .sbi2{font-size:11px;color:#555;line-height:1.4}
+.sbox .sbs{font-size:9.5px;color:#7A7A80;margin-top:1px}
+.sbox .sbe{font-size:11px;color:#B4B4BC;text-align:center;padding:8px 0}
+.sfoot{display:flex;align-items:center;gap:10px;margin-top:8px;padding:7px 11px;border-radius:6px;background:#F5F5F8;font-size:11px;color:#666}
+
+/* flow builder */
+.fb{background:#fff;border-radius:11px;border:2px solid #E0E0E4;padding:18px;margin-top:14px}
+.fb .fbh{display:flex;align-items:center;gap:7px;margin-bottom:14px}
+.fb .fbh .fbt{font-size:14px;font-weight:600;letter-spacing:-0.005em;color:#1A1A1A}
+.fb .fbh .fbb{font-size:9.5px;padding:2px 7px;border-radius:999px;background:#E8E6FF;color:#6C31FF;font-weight:600;border:1px solid #CCC5F0}
+.fbf{display:flex;align-items:stretch;gap:0;margin-bottom:14px}
+.fbf .fbn{flex:1;border:1px solid #D6D6DB;padding:13px;background:#FAFAFC;min-height:76px}
+.fbf .fbn:first-child{border-radius:9px 0 0 9px}
+.fbf .fbn:last-child{border-radius:0 9px 9px 0}
+.fbf .fbn+.fbn{border-left:0}
+.fbf .fbc{width:26px;display:flex;align-items:center;justify-content:center;background:#ECECF0;position:relative;flex-shrink:0}
+.fbf .fbc::before{content:'';position:absolute;top:50%;left:0;right:0;height:2px;background:#C8C8CE}
+.fbf .fbc .arr{color:#6C31FF;font-size:13px;background:#ECECF0;z-index:1;padding:0 3px;font-weight:700}
+.fbn .fnh{display:flex;align-items:center;gap:5px;margin-bottom:7px}
+.fbn .fnh .fi3{width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;border:1px solid transparent}
+.fbn .fnh .fl2{font-size:10.5px;font-weight:600;color:#7A7A80;text-transform:uppercase;letter-spacing:0.04em}
+.fbn .fsel{width:100%;height:30px;padding:0 9px;border-radius:6px;border:2px solid #D6D6DB;background:#fff;font-size:11.5px;font-family:inherit;color:#444;outline:none}
+.fbn .fin{width:100%;height:30px;padding:0 9px;border-radius:6px;border:2px solid #D6D6DB;background:#fff;font-size:11.5px;font-family:inherit;color:#444;outline:none;margin-top:5px}
+.fbn .fin:focus,.fbn .fsel:focus{border-color:#6C31FF;box-shadow:0 0 0 2px rgba(108,49,255,0.1)}
+.fbn .fpv{font-size:10.5px;color:#666;margin-top:5px;padding:4px 8px;background:#ECECF0;border-radius:4px;font-family:'SF Mono','Menlo',monospace}
+.facts{display:flex;gap:7px;justify-content:flex-end}
+.facts button{padding:7px 18px;border-radius:7px;font-size:12px;font-family:inherit;cursor:pointer;font-weight:500;transition:all 0.1s}
+.facts button:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.fb2{background:#fff;color:#555;border:2px solid #D6D6DB}
+.fb2:hover{background:#F0F0F2}
+.fb1{background:#6C31FF;color:#fff;border:2px solid #6C31FF}
+.fb1:hover{background:#5428D6}
+
+/* GDPR footer */
+.gdpr-foot{margin-top:20px;padding:12px 16px;border-radius:10px;background:#F0F0F2;border:1px solid #E0E0E4;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.gdpr-foot .g-title{font-size:11px;font-weight:600;color:#444}
+.gdpr-foot .g-item{font-size:10.5px;color:#666;padding:3px 8px;border-radius:5px;cursor:pointer;display:flex;align-items:center;gap:4px}
+.gdpr-foot .g-item:hover{background:#E4E4E8;color:#1A1A1A}
+.gdpr-foot .g-item:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.gdpr-foot .g-badge{font-size:9px;padding:1px 5px;border-radius:3px;background:#E3F5E5;color:#0D5E1A}
+</style><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/simple-icons@11/font/simple-icons.min.css">
+<script src="https://code.iconify.design/iconify-icon/2.0.0/iconify-icon.min.js"></script>
+</head>
+<body>
+<div class="app">
+<div class="leftnav">
+  <div class="ln-h">
+    <div class="ln-logo" aria-label="Rufkis logo">R</div>
+    <div class="ln-name">Rufkis</div>
+  </div>
+  <div class="ln-s">Workspace</div>
+  <div class="ln-i"><div class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>Home</div>
+  <div class="ln-i"><div class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>Workloads<span class="bd">48</span></div>
+  <div class="ln-i active"><div class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2a2 2 0 012 2v2h3a3 3 0 013 3v9a3 3 0 01-3 3H7a3 3 0 01-3-3V9a3 3 0 013-3h3V4a2 2 0 012-2z"/></svg></div>Automations<span class="bd">8</span></div>
+  <div class="ln-s">Configure</div>
+  <div class="ln-i"><div class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>Logs</div>
+  <div class="ln-i"><div class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>Notes</div>
+  <div class="ln-ft">
+    <div class="ln-fl"><div class="av">D</div>Drew Jocham</div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1>Automations</h1>
+    <div class="topbar-actions">
+      <button class="tb-btn" aria-label="Template Gallery"> Gallery</button>
+      <button class="tb-btn" aria-label="New Schedule"> Schedule</button>
+      <button class="tb-btn purple" aria-label="Create new action">+ New Action</button>
+      <div class="tb-av" aria-label="Drew Jocham avatar" role="img">D</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Actions -->
+    <div class="sh">
+      <div class="si" style="background:#EEEBFF;color:#6C31FF;" aria-hidden="true">⚡</div>
+      <h2>Actions</h2>
+      <span class="sc">3</span>
+      <span class="sd">react to an event <span aria-hidden="true">→</span> run a script</span>
+      <span class="sa" role="button" tabindex="0">+ New Action</span>
+    </div>
+
+    <div class="tg">
+
+      <div class="tc" tabindex="0">
+        <span class="tbadge pop"> Popular</span>
+        <div class="tf">
+          <div class="fn"><div class="nl">File Changed</div><div class="ns">in monitored path</div></div>
+          <div class="arr" aria-hidden="true">→</div>
+          <div class="fn"><div class="nl">Run Script</div><div class="ns">load or custom</div></div>
+          <div class="arr" aria-hidden="true">→</div>
+          <div class="fn"><div class="nl">Notify</div><div class="ns">Slack / Log</div></div>
+        </div>
+        <div class="ttl">File Watcher</div>
+        <div class="tdesc">Monitors a folder for changes, runs a script or template, and notifies you.</div>
+        <div class="tfoot">
+          <button class="b bp">Use Template</button>
+          <button class="b bs">Customize</button>
+          
+          <span class="cist st-active"> 2 paths</span>
+        </div>
+      </div>
+
+      <div class="tc" tabindex="0">
+        <span class="tbadge nw">🆕 New</span>
+        <div class="tf">
+          <div class="fn"><div class="nl">Alert Received</div><div class="ns">webhook or event</div></div>
+          <div class="arr" aria-hidden="true">→</div>
+          <div class="fn"><div class="nl">Run Script</div><div class="ns">or template</div></div>
+          <div class="arr" aria-hidden="true">→</div>
+          <div class="fn"><div class="nl">Post Result</div><div class="ns">Notes / Slack</div></div>
+        </div>
+        <div class="ttl">Alert Handler</div>
+        <div class="tdesc">Listens for webhooks (Prometheus, PagerDuty) and runs a runbook template.</div>
+        <div class="tfoot">
+          <button class="b bp">Use Template</button>
+          <button class="b bs">Configure</button>
+          
+          <span class="cist st-active">⇶ 1 trigger</span>
+        </div>
+      </div>
+
+      <div class="tc" tabindex="0">
+        <div class="tf">
+          <div class="fn"><div class="nl">Slack Message</div><div class="ns">keyword match</div></div>
+          <div class="arr" aria-hidden="true">→</div>
+          <div class="fn"><div class="nl">Run Script</div><div class="ns">custom</div></div>
+          <div class="arr" aria-hidden="true">→</div>
+          <div class="fn"><div class="nl">Reply</div><div class="ns">in thread</div></div>
+        </div>
+        <div class="ttl">Chat Command</div>
+        <div class="tdesc">Watches for keywords or slash commands in Slack/Discord and replies with output.</div>
+        <div class="tfoot">
+          <button class="b bp">Use Template</button>
+          <button class="b bs">Configure</button>
+          
+          <span class="cist st-active">⚙ Custom</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Actions -->
+    <div class="cl">
+      <div class="ci" tabindex="0">
+        
+        <div class="cibd">
+          <div class="cnm">File Watcher <span style="font-weight:400;color:#777;">— runbooks/</span></div>
+          <div class="cfl"><span class="ft">~/runbooks/</span><span class="fa">→</span><span class="ft">validate-all.sh</span><span class="fa">→</span><span class="ft">Notes</span></div>
+        </div>
+        <span class="cist st-active"> Active</span>
+        <div class="cimt"><span>4m ago</span><span> OK</span></div>
+      </div>
+      <div class="ci" tabindex="0">
+        
+        <div class="cibd">
+          <div class="cnm">Chat Command <span style="font-weight:400;color:#777;">— /deploy</span></div>
+          <div class="cfl"><span class="ft">Slack /deploy</span><span class="fa">→</span><span class="ft">deploy-staging.sh</span><span class="fa">→</span><span class="ft">reply</span></div>
+        </div>
+        <span class="cist st-active"> Active</span>
+        <div class="cimt"><span>2h ago</span><span>3 today</span></div>
+      </div>
+      <div class="ci" tabindex="0">
+        
+        <div class="cibd">
+          <div class="cnm">Alert Handler <span style="font-weight:400;color:#777;">— Prometheus</span></div>
+          <div class="cfl"><span class="ft">CPU alert</span><span class="fa">→</span><span class="ft">triage-template</span><span class="fa">→</span><span class="ft">#incidents</span></div>
+        </div>
+        <span class="cist st-paused">⏸ Paused</span>
+        <div class="cimt"><span>1d ago</span><span>Awaiting config</span></div>
+      </div>
+    </div>
+
+    <!-- Scheduler -->
+    <div class="sh">
+      
+      <h2>Scheduler</h2>
+      <span class="sc">4</span>
+      <span class="sd">cron jobs</span>
+      <span class="sa" role="button" tabindex="0">+ New Schedule</span>
+    </div>
+
+    <div class="st">
+      <table>
+        <thead><tr><th>Job</th><th>Schedule</th><th>Action</th><th>Last Run</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="snm">Cert Renewal</td>
+            <td><span class="sexp">0 2 * * *</span> <span style="font-size:10px;color:#7A7A80;">daily 02:00</span></td>
+            <td><span class="sact">renew-certs.sh</span></td>
+            <td class="sts">Today 02:00</td>
+            <td><span class="cist st-active"> Active</span></td>
+            <td class="sacts"><button aria-label="Run now"></button><button aria-label="Delete"></button></td>
+          </tr>
+          <tr>
+            <td class="snm">Health Check</td>
+            <td><span class="sexp">*/5 * * * *</span> <span style="font-size:10px;color:#7A7A80;">every 5m</span></td>
+            <td><span class="sact">health-check.py</span></td>
+            <td class="sts">3 min ago</td>
+            <td><span class="cist st-active"> Active</span></td>
+            <td class="sacts"><button aria-label="Run now"></button><button aria-label="Delete"></button></td>
+          </tr>
+          <tr>
+            <td class="snm">Waste Report</td>
+            <td><span class="sexp">0 8 * * 1</span> <span style="font-size:10px;color:#7A7A80;">Mon 08:00</span></td>
+            <td><span class="sact">waste-report.py</span></td>
+            <td class="sts">2d ago</td>
+            <td><span class="cist st-idle">○ Idle</span></td>
+            <td class="sacts"><button aria-label="Run now"></button><button aria-label="Delete"></button></td>
+          </tr>
+          <tr>
+            <td class="snm">Notes Backup</td>
+            <td><span class="sexp">0 3 * * *</span> <span style="font-size:10px;color:#7A7A80;">daily 03:00</span></td>
+            <td><span class="sact">backup-notes.sh</span></td>
+            <td class="sts">Today 03:00</td>
+            <td><span class="cist st-active"> Active</span></td>
+            <td class="sacts"><button aria-label="Run now"></button><button aria-label="Delete"></button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Connected Services -->
+    <div class="sh">
+      
+      <h2>Connected Services</h2>
+      <span class="sc">3 / 5</span>
+      <span class="sd">toggleable background sync</span>
+      <span class="sa" role="button" tabindex="0">+ Add Service</span>
+    </div>
+
+    <div class="scd">
+      <div class="shdr">
+        
+        <div>
+          <div style="font-size:15px;font-weight:600;letter-spacing:-0.01em;color:#1A1A1A;">Sync Dashboard</div>
+          <div style="font-size:11px;color:#7A7A80;">3 connected <span aria-hidden="true">·</span> 2 disabled <span aria-hidden="true">·</span> synced 2m ago</div>
+        </div>
+        
+        <span class="ss sl"> Live</span>
+        <span class="sr" role="button" tabindex="0">Re-sync</span>
+      </div>
+
+      <div class="schips">
+        <div class="schip on">Google</div>
+        <div class="schip sy">monday.com</div>
+        <div class="schip sy">Confluence</div>
+        <div class="schip off">Jira<span class="ad">+</span></div>
+        <div class="schip off">Slack<span class="ad">+</span></div>
+      </div>
+
+      <div class="sg2">
+        <div class="sbox on2">
+          <div class="sbh"><span class="sbi" style="background:#4285F4;color:#fff;display:inline-flex;align-items:center;justify-content:center;"><svg viewBox="0 0 24 24" width="14" height="14" fill="white"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6" stroke="white" stroke-width="2"/><line x1="8" y1="2" x2="8" y2="6" stroke="white" stroke-width="2"/><line x1="3" y1="10" x2="21" y2="10" stroke="white" stroke-width="2"/></svg></span><span class="sbn">Calendar</span><span class="sbb" style="background:#4285F4">3</span></div>
+          <div class="sbi2">14:00 <span aria-hidden="true">—</span> Sprint Review</div>
+          <div class="sbs">30m <span aria-hidden="true">·</span> Meet link</div>
+          <div class="sbi2" style="margin-top:3px;">16:30 <span aria-hidden="true">—</span> 1:1 Emma</div>
+          <div class="sbs">45m</div>
+        </div>
+        <div class="sbox on2">
+          <div class="sbh"><span class="sbi" style="background:#6C31FF;color:#fff;font-weight:700;">m</span><span class="sbn">monday.com</span><span class="sbb" style="background:#6C31FF">5</span></div>
+          <div class="sbi2">Platform Roadmap</div>
+          <div class="sbs">3 due this week</div>
+          <div class="sbi2" style="margin-top:3px;">Sprint 24</div>
+          <div class="sbs">12 done <span aria-hidden="true">·</span> 4 active</div>
+        </div>
+        <div class="sbox sy2">
+          <div class="sbh"><span class="sbi" style="background:#6C31FF;color:#fff;display:inline-flex;align-items:center;justify-content:center;">C</span><span class="sbn">Confluence</span><span class="sbb" style="background:#6C31FF">↔</span></div>
+          <div class="sbi2" style="font-size:10px;color:#6C31FF;font-weight:500;">~/docs/runbooks/</div>
+          <div class="sbs">↕ SRE Space</div>
+          <div class="sbi2" style="margin-top:3px;">incident-response.md</div>
+          <div class="sbs">synced 2m ago</div>
+        </div>
+        <div class="sbox on2">
+          <div class="sbh"><span class="sbi" style="background:#34A853;color:#fff;display:inline-flex;align-items:center;justify-content:center;"><svg viewBox="0 0 24 24" width="14" height="14" stroke="white" fill="none" stroke-width="2" stroke-linecap="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><span class="sbn">Tasks</span><span class="sbb" style="background:#34A853">5</span></div>
+          <div class="sbi2">☐ Submit Q2 report</div>
+          <div class="sbi2">☐ Fix CI pipeline</div>
+          <div class="sbi2" style="color:#8F1A1A;">☐ Buy groceries</div>
+          <div class="sbs" style="color:#8F1A1A;">overdue</div>
+        </div>
+        <div class="sbox off2">
+          <div class="sbh"><span class="sbi" style="font-weight:700;color:#0052CC;border:1px dashed #C8C8CE;display:inline-flex;align-items:center;justify-content:center;">J</span><span class="sbn" style="color:#7A7A80">Jira</span><span class="sbb" style="background:#F0F0F2;color:#7A7A80;font-weight:400;">off</span></div>
+          <div class="sbe">Tap + to connect</div>
+        </div>
+      </div>
+
+      <div class="sfoot">
+        <span style="font-weight:600;color:#6C31FF;">↔ Two-Way Sync</span>
+        <span>Confluence: local folder ↔ SRE Space (bidirectional)</span>
+        
+        <span style="color:#7A7A80">Last conflict: none</span>
+      </div>
+    </div>
+
+    <!-- Flow Builder -->
+    <div class="fb">
+      <div class="fbh">
+        <span class="fbt">Custom Automation Builder</span>
+        <span class="fbb">IFTTT-style</span>
+        <span style="font-size:11px;color:#7A7A80;margin-left:4px"><span aria-hidden="true">·</span> trigger <span aria-hidden="true">→</span> action</span>
+      </div>
+      <div class="fbf">
+        <div class="fbn">
+          <div class="fnh"><div class="fi3" style="background:#FFE8E8;border-color:#F0C0C0;">⚡</div><div class="fl2">1. Event / Trigger</div></div>
+          <select class="fsel">
+            <option>Choose a trigger...</option>
+            <option selected>File changed</option>
+            <option>Alert / webhook received</option>
+            <option>Slack message matched</option>
+            <option>CPU > threshold</option>
+            <option>PR merged</option>
+            <option>Custom webhook</option>
+          </select>
+          <input class="fin" type="text" placeholder="Path pattern" value="~/runbooks/**/*.md">
+          <div class="fpv">WHEN a .md file changes in ~/runbooks/...</div>
+        </div>
+        
+        <div class="fbn">
+          <div class="fnh"><div class="fl2">2. Script / Template</div></div>
+          <select class="fsel">
+            <option>Choose a script or template...</option>
+            <option selected>Script: validate-all.sh</option>
+            <option>Template: health-check.py</option>
+            <option>Create new script...</option>
+            <option>Create new template...</option>
+          </select>
+          <div class="fpv">Run script /Users/jocham/scripts/validate-all.sh</div>
+        </div>
+        
+        <div class="fbn">
+          <div class="fnh"><div class="fl2">3. Outcome</div></div>
+          <select class="fsel">
+            <option>Choose an outcome...</option>
+            <option>Log to Notes</option>
+            <option>Send Slack notification</option>
+            <option>Post to monday.com board</option>
+            <option selected>Log output</option>
+            <option>Email report</option>
+          </select>
+          <div class="fpv">THEN log stdout+stderr to Notes</div>
+        </div>
+      </div>
+      <div class="facts">
+        <button class="fb2">Test Trigger</button>
+        <button class="fb1">Save Action</button>
+      </div>
+    </div>
+
+    <!-- GDPR Footer -->
+    <div class="gdpr-foot">
+      <span class="g-title"> Data & Privacy</span>
+      <span class="g-item" role="button" tabindex="0"><span></span> Export My Data</span>
+      <span class="g-item" role="button" tabindex="0"><span></span> Delete My Data</span>
+      <span class="g-item" role="button" tabindex="0"><span>⚙</span> Consent Preferences</span>
+      <span class="g-item" role="button" tabindex="0"><span></span> Audit Log</span>
+      <span class="g-item"><span></span> Retention: 90 days <span class="g-badge">GDPR</span></span>
+    </div>
+
+  </div>
+</div>
+</div>
+</body>
+</html>

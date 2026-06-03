@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>Rufkis — Workloads</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;-webkit-font-smoothing:antialiased;background:#F5F5F7;min-height:100vh;min-width:1440px}
+.app{display:flex;height:100vh;width:1440px;margin:0 auto}
+.leftnav{width:240px;background:#F9F9FB;border-right:1px solid #EBEBED;display:flex;flex-direction:column;flex-shrink:0;padding-top:8px}
+.ln-h{padding:0 14px;margin-bottom:8px}
+.ln-h .logo{font-size:18px;font-weight:700;color:#1C1C1E;letter-spacing:-0.02em;display:flex;align-items:center;gap:6px}
+.ln-h .logo span{color:#6C31FF}
+.ln-s{padding:12px 18px 4px;font-size:10px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.04em}
+.ln-i{display:flex;align-items:center;gap:8px;padding:7px 12px;margin:0 6px;border-radius:6px;font-size:13px;font-weight:500;color:#555;cursor:pointer;position:relative}
+.ln-i:hover{background:rgba(108,49,255,0.04);color:#333}
+.ln-i .active-bar{display:none}
+.ln-i.active .active-bar{display:block;position:absolute;left:-6px;width:3px;height:16px;border-radius:0 3px 3px 0;background:#6C31FF}
+.ln-i.active{background:rgba(108,49,255,0.08);color:#6C31FF;font-weight:600}
+.ln-i:focus-visible{outline:2px solid #6C31FF;outline-offset:-2px}
+.ln-i .ic{width:16px;height:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ln-i .ic svg{width:14px;height:14px}
+.ln-i .bd{margin-left:auto;font-size:10px;padding:1px 6px;border-radius:999px;background:rgba(108,49,255,0.1);color:#6C31FF;font-weight:600}
+.ln-i .bd.danger{background:rgba(223,82,100,0.1);color:#DF5264}
+.ln-ft{margin-top:auto;padding:12px;border-top:1px solid #EBEBED}
+.ln-fl{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;font-size:12px;font-weight:500;color:#555;cursor:pointer}
+.ln-fl:hover{background:rgba(108,49,255,0.04)}
+.av{width:24px;height:24px;border-radius:999px;background:#6C31FF;color:#fff;font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.av-g{width:6px;height:6px;border-radius:999px;background:#34C759;border:1.5px solid #F9F9FB;margin-left:-8px;margin-top:14px;flex-shrink:0}
+.ln-hh{display:flex;align-items:center;gap:6px;padding:8px 12px;margin:0 6px;border-radius:6px;background:rgba(108,49,255,0.06);font-size:11px;color:#6C31FF;margin-top:auto;margin-bottom:8px}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:52px;display:flex;align-items:center;padding:0 24px;gap:12px;border-bottom:1px solid #EBEBED;background:#fff;flex-shrink:0}
+.topbar h1{font-size:18px;font-weight:600;color:#1C1C1E;letter-spacing:-0.01em}
+.topbar .actions{margin-left:auto;display:flex;gap:6px}
+.tb-btn{width:32px;height:32px;border-radius:6px;border:1px solid #E8E8EC;background:#fff;color:#666;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background 0.12s}
+.tb-btn:hover{background:#F5F5F7;color:#333}
+.tb-btn:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.tb-btn.purple{background:#6C31FF;color:#fff;border-color:#6C31FF}
+.tb-btn.purple:hover{background:#5A29D9}
+.tb-btn.tb-label{width:auto;padding:0 10px;font-size:12px;font-weight:500;font-family:inherit;gap:5px}
+.search-wrap{position:relative;width:200px}
+.search-wrap input{width:100%;height:32px;background:#F5F5F7;border:1px solid #E8E8EC;border-radius:6px;padding:0 10px 0 30px;font-size:12px;font-family:inherit;outline:none;color:#1C1C1E;transition:border-color 0.12s}
+.search-wrap input:focus{border-color:#6C31FF;box-shadow:0 0 0 3px rgba(108,49,255,0.1)}
+.search-wrap input::placeholder{color:#bbb}
+.search-wrap svg{position:absolute;left:8px;top:50%;transform:translateY(-50%);color:#999}
+.kbd{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:#E8E8EC;color:#999;font-size:9px;padding:1px 4px;border-radius:3px;font-weight:500}
+.tab-bar{display:flex;gap:0;padding:0 24px;border-bottom:1px solid #EBEBED;flex-shrink:0;background:#fff}
+.tab-bar-item{padding:10px 16px;font-size:12px;font-weight:500;color:#999;cursor:pointer;border-bottom:2px solid transparent;transition:color 0.12s,border-color 0.12s;font-family:inherit;background:none;border-top:0;border-left:0;border-right:0}
+.tab-bar-item:hover{color:#555}
+.tab-bar-item:focus-visible{outline:2px solid #6C31FF;outline-offset:-4px}
+.tab-bar-item.active{color:#6C31FF;border-bottom-color:#6C31FF;font-weight:600}
+.content{flex:1;overflow-y:auto;padding:20px 24px 24px;background:#F5F5F7}
+.content::-webkit-scrollbar{width:4px}
+.content::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.1);border-radius:2px}
+.filter-bar{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.filter-bar input{height:30px;padding:0 10px;border-radius:6px;border:1px solid #E8E8EC;background:#fff;font-size:12px;font-family:inherit;outline:none;color:#1C1C1E;width:180px;transition:border-color 0.12s}
+.filter-bar input:focus{border-color:#6C31FF;box-shadow:0 0 0 3px rgba(108,49,255,0.1)}
+.filter-bar select{height:30px;padding:0 24px 0 8px;border-radius:6px;border:1px solid #E8E8EC;background:#fff;font-size:11px;font-family:inherit;color:#555;outline:none;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 6px center;cursor:pointer}
+.filter-bar select:focus{border-color:#6C31FF}
+.filter-count{font-size:11px;color:#999;margin-left:auto}
+.summary-row{display:flex;gap:12px;margin-bottom:16px}
+.summary-card{flex:1;background:#fff;border:1px solid #E8E8EC;border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.summary-card .label{font-size:11px;color:#999;font-weight:500}
+.summary-card .value{font-size:22px;font-weight:700;color:#1C1C1E;letter-spacing:-0.02em}
+.summary-card .sub{font-size:11px;color:#999}
+.data-table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #E8E8EC;border-radius:8px;overflow:hidden}
+.data-table th{text-align:left;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#999;padding:10px 14px;border-bottom:1px solid #E8E8EC;background:#FAFAFC}
+.data-table td{padding:10px 14px;font-size:12.5px;color:#555;border-bottom:1px solid #F0F0F2}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tr{cursor:pointer;transition:background 0.1s}
+.data-table tr:hover td{background:rgba(108,49,255,0.02)}
+.pod-name{font-weight:500;color:#1C1C1E;font-family:'SF Mono',SFMono-Regular,Menlo,monospace;font-size:12px;display:flex;flex-direction:column;gap:1px}
+.pod-name .ns{font-size:10px;color:#999;font-weight:400;font-family:'Inter',sans-serif}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px}
+.pill.green{background:rgba(52,199,89,0.08);color:#34C759}
+.pill.orange{background:rgba(255,149,0,0.08);color:#FF9500}
+.pill.red{background:rgba(255,59,48,0.08);color:#FF3B30}
+.pill .dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.pill.green .dot{background:#34C759}
+.pill.orange .dot{background:#FF9500}
+.pill.red .dot{background:#FF3B30}
+.status-section{background:#fff;border:1px solid #E8E8EC;border-radius:8px;padding:16px;margin-bottom:16px}
+.status-section h3{font-size:14px;font-weight:600;color:#1C1C1E;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.data-table th input,.data-table td input{accent-color:#6C31FF}
+.empty-state{text-align:center;padding:40px 20px;color:#999;font-size:13px}
+.skeleton{height:16px;background:linear-gradient(90deg,#eee 25%,#f5f5f7 50%,#eee 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="leftnav" aria-label="Main navigation">
+    <div class="ln-h"><div class="logo"><span>◆</span> Rufkis</div></div>
+    <div class="ln-s">Workspace</div>
+    <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>Home</div>
+    <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><circle cx="12" cy="13" r="1"/><circle cx="8" cy="13" r="1"/><circle cx="16" cy="13" r="1"/></svg></div>Agents<span class="bd">5</span></div>
+    <div class="ln-i active"><div class="active-bar"></div><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>Workloads<span class="bd danger">48</span></div>
+    <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a2 2 0 012 2v2h3a3 3 0 013 3v9a3 3 0 01-3 3H7a3 3 0 01-3-3V9a3 3 0 013-3h3V4a2 2 0 012-2z"/></svg></div>Automations</div>
+    <div class="ln-s">Observability</div>
+    <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>Monitoring</div>
+    <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg></div>Cluster</div>
+    <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16"/><path d="M12 4v12"/><path d="M8 8l4 4 4-8"/></svg></div>Networking</div>
+    <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></div>Storage</div>
+    <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>Config</div>
+    <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 5 12 2 15 5"/><polyline points="5 12 2 9 5 6"/><line x1="12" y1="2" x2="12" y2="10"/><path d="M22 16A2 2 0 0 1 20 18H8l-4 4V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>Operations</div>
+    <div class="ln-s" style="margin-top:4px">Configure</div>
+    <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>Logs</div>
+    <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>Notes</div>
+    <div class="ln-hh"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>All agents healthy</div>
+    <div class="ln-ft"><div class="ln-fl"><div class="av">D</div><div class="av-g"></div>Drew Jocham</div></div>
+  </nav>
+  <div class="main">
+    <div class="topbar">
+      <h1>Workloads</h1>
+      <div class="search-wrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Search workloads…" aria-label="Search workloads" data-testid="wrk-search">
+        <span class="kbd">⌘K</span>
+      </div>
+      <div class="actions">
+        <button class="tb-btn" aria-label="Notifications" data-testid="wrk-notif"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
+        <button class="tb-btn purple tb-label" data-testid="wrk-deploy"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Deploy</button>
+      </div>
+    </div>
+    <div class="tab-bar" role="tablist" aria-label="Workload type">
+      <button class="tab-bar-item active" role="tab" aria-selected="true" data-testid="wrk-tab-pods">Pods</button>
+      <button class="tab-bar-item" role="tab" aria-selected="false" data-testid="wrk-tab-deployments">Deployments</button>
+      <button class="tab-bar-item" role="tab" aria-selected="false">StatefulSets</button>
+      <button class="tab-bar-item" role="tab" aria-selected="false">DaemonSets</button>
+      <button class="tab-bar-item" role="tab" aria-selected="false">Jobs</button>
+      <button class="tab-bar-item" role="tab" aria-selected="false">CronJobs</button>
+    </div>
+    <div class="content">
+      <div class="summary-row">
+        <div class="summary-card"><div class="label">Total Pods</div><div class="value">48</div><div class="sub">across 6 namespaces</div></div>
+        <div class="summary-card"><div class="label">Running</div><div class="value" style="color:#34C759">42</div><div class="sub">87.5% healthy</div></div>
+        <div class="summary-card"><div class="label">Pending</div><div class="value" style="color:#FF9500">3</div><div class="sub">waiting for resources</div></div>
+        <div class="summary-card"><div class="label">Failed</div><div class="value" style="color:#FF3B30">2</div><div class="sub">CrashLoopBackOff, OOMKilled</div></div>
+        <div class="summary-card"><div class="label">Succeeded</div><div class="value">1</div><div class="sub">completed jobs</div></div>
+      </div>
+      <div class="filter-bar">
+        <input type="text" placeholder="Filter pods…" value="api" aria-label="Filter pods by name" data-testid="wrk-filter">
+        <select aria-label="Namespace"><option>All namespaces</option><option>production</option><option>staging</option><option>kube-system</option></select>
+        <select aria-label="Status"><option>All statuses</option><option>Running</option><option>Pending</option><option>Failed</option></select>
+        <span class="filter-count">3 of 48 pods</span>
+      </div>
+      <table class="data-table" data-testid="wrk-pod-table">
+        <thead><tr><th style="width:28px"><input type="checkbox" aria-label="Select all pods"></th><th>Name</th><th style="width:100px">Status</th><th style="width:70px">Restarts</th><th style="width:70px">CPU</th><th style="width:80px">Memory</th><th>Image</th><th style="text-align:right;width:80px">Age</th></tr></thead>
+        <tbody>
+          <tr data-testid="wrk-pod-row"><td><input type="checkbox" aria-label="Select api-gateway pod"></td><td><div class="pod-name">api-gateway-7f8b9d-3k4m<span class="ns">production</span></div></td><td><span class="pill green"><span class="dot"></span>Running</span></td><td>0</td><td>120m</td><td>256 Mi</td><td style="font-size:11px;font-family:'SF Mono',monospace;color:#999">nginx:1.25-alpine</td><td style="text-align:right;color:#999">24d</td></tr>
+          <tr data-testid="wrk-pod-row"><td><input type="checkbox" aria-label="Select api-auth pod"></td><td><div class="pod-name">api-auth-5d4e6f-9h0i<span class="ns">production</span></div></td><td><span class="pill green"><span class="dot"></span>Running</span></td><td>2</td><td>85m</td><td>192 Mi</td><td style="font-size:11px;font-family:'SF Mono',monospace;color:#999">auth-service:2.3.1</td><td style="text-align:right;color:#999">14d</td></tr>
+          <tr data-testid="wrk-pod-row"><td><input type="checkbox" aria-label="Select redis-cache pod"></td><td><div class="pod-name">api-redis-cache-1a2b3c-6e7f<span class="ns">production</span></div></td><td><span class="pill orange"><span class="dot"></span>Pending</span></td><td>0</td><td>—</td><td>—</td><td style="font-size:11px;font-family:'SF Mono',monospace;color:#999">redis:7-alpine</td><td style="text-align:right;color:#999">2m</td></tr>
+        </tbody>
+      </table>
+      <div class="status-section" style="margin-top:16px" data-testid="wrk-pod-detail">
+        <h3><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="4" y1="8" x2="20" y2="8"/></svg> api-gateway-7f8b9d-3k4m <span class="pill green"><span class="dot"></span>Running</span></h3>
+        <div style="display:flex;gap:24px;margin-bottom:12px;font-size:11px;color:#999"><span>Node: <span style="color:#555">ip-10-0-1-45</span></span><span>IP: <span style="color:#555">10.1.0.12</span></span><span>QoS: <span style="color:#555">Burstable</span></span></div>
+        <div style="display:flex;gap:4px">
+          <button class="tb-btn tb-label" data-testid="wrk-detail-logs"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Logs</button>
+          <button class="tb-btn tb-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 9 12 4 7"/><path d="M12 19h9"/></svg>Terminal</button>
+          <button class="tb-btn tb-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Events</button>
+          <button class="tb-btn purple tb-label" data-testid="wrk-detail-debug"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>Diagnose</button>
+        </div>
+      </div>
+      <table class="data-table" style="margin-top:12px">
+        <thead><tr><th style="width:160px">Name</th><th style="width:60px">Ready</th><th style="width:200px">Image</th><th>Ports</th><th style="width:80px">Restarts</th><th style="text-align:right;width:80px">Age</th></tr></thead>
+        <tbody><tr><td style="font-weight:500;color:#1C1C1E;font-family:'SF Mono',monospace">nginx</td><td><span class="pill green"><span class="dot"></span>1/1</span></td><td style="font-size:11px;font-family:'SF Mono',monospace;color:#999">nginx:1.25-alpine</td><td style="font-size:11px">80/TCP, 443/TCP</td><td>0</td><td style="text-align:right;color:#999">24d</td></tr></tbody>
+      </table>
+
+    <!-- STRATEGY THEME 1: GitOps-Native Remediation (PR Cards) -->
+    <div style="margin-top:16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6C31FF" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="21" x2="6" y2="13"/></svg>
+        <span style="font-size:12px;font-weight:600;color:#1A1A1A">GitOps Remediation Opportunities</span>
+        <span style="font-size:9px;padding:1px 5px;border-radius:3px;background:#E8E6FF;color:#6C31FF;font-weight:500">STRATEGY</span>
+      </div>
+      <div style="display:flex;gap:10px">
+        <div style="flex:1;background:#fff;border:1px solid #E8E8EC;border-radius:8px;padding:12px 14px;display:flex;align-items:flex-start;gap:10px">
+          <div style="width:28px;height:28px;border-radius:6px;background:rgba(255,59,48,0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#FF3B30">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:500;color:#1A1A1A;margin-bottom:2px">frontend-v2-9a3b2 — CrashLoopBackOff (12 restarts in 5m)</div>
+            <div style="font-size:10px;color:#888;margin-bottom:6px">Diagnosis: OOMKilled — memory limit 64Mi insufficient for current traffic pattern</div>
+            <div style="display:flex;gap:4px">
+              <button class="purple-btn" style="padding:4px 10px;font-size:10px">Generate PR →</button>
+              <button class="gray-btn" style="padding:4px 10px;font-size:10px">Diagnose</button>
+            </div>
+          </div>
+        </div>
+        <div style="flex:1;background:#fff;border:1px solid #E8E8EC;border-radius:8px;padding:12px 14px;display:flex;align-items:flex-start;gap:10px">
+          <div style="width:28px;height:28px;border-radius:6px;background:rgba(255,149,0,0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#FF9500">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:500;color:#1A1A1A;margin-bottom:2px">Right-size api-gateway deployment</div>
+            <div style="font-size:10px;color:#888;margin-bottom:6px">Cost: over-provisioned (2 CPU request — actual usage 380m). Save $240/mo</div>
+            <div style="display:flex;gap:4px">
+              <button class="purple-btn" style="padding:4px 10px;font-size:10px">Generate PR →</button>
+              <button class="gray-btn" style="padding:4px 10px;font-size:10px">Dismiss</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

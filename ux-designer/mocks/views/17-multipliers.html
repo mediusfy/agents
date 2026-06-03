@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=1440"><title>Rufkis — Multipliers</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,sans-serif;background:#F5F5F7;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.app{width:1440px;height:900px;display:flex;background:#fff;overflow:hidden;border-radius:12px;box-shadow:0 4px 40px rgba(0,0,0,0.06)}
+.leftnav{width:240px;background:#F9F9FB;border-right:1px solid #EBEBED;display:flex;flex-direction:column;flex-shrink:0}
+.ln-h{padding:16px 16px 8px;display:flex;align-items:center;gap:8px}
+.ln-logo{width:28px;height:28px;border-radius:8px;background:#6C31FF;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px}
+.ln-name{font-size:14px;font-weight:600;color:#1A1A1A}
+.ln-s{padding:12px 16px 4px;font-size:10px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.04em}
+.ln-i,.ln-fl{display:flex;align-items:center;gap:8px;padding:7px 16px;margin:0 8px;border-radius:6px;font-size:13px;font-weight:500;color:#555;cursor:pointer;position:relative}
+.ln-i:hover{background:rgba(108,49,255,0.04);color:#333}
+.ln-i .active-bar{display:none}
+.ln-i.active .active-bar{display:block;position:absolute;left:-8px;width:3px;height:16px;border-radius:0 3px 3px 0;background:#6C31FF}
+.ln-i.active{background:rgba(108,49,255,0.08);color:#6C31FF;font-weight:600}
+.ln-i:focus-visible{outline:2px solid #6C31FF;outline-offset:-2px}
+.ln-i .ic{width:16px;height:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ln-i .ic svg{width:16px;height:16px}
+.ln-i .bd{margin-left:auto;font-size:10px;padding:1px 6px;border-radius:999px;background:rgba(108,49,255,0.1);color:#6C31FF;font-weight:600}
+.ln-ft{margin-top:auto;padding:12px;border-top:1px solid #EBEBED}
+.ln-fl{padding:7px 10px;margin:0;font-size:12px;color:#777}
+.ln-fl:hover{background:rgba(108,49,255,0.03);color:#333}
+.av{width:20px;height:20px;border-radius:6px;background:linear-gradient(135deg,#6C31FF,#8A5CFF);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:52px;border-bottom:1px solid #EBEBED;display:flex;align-items:center;padding:0 24px;gap:16px;flex-shrink:0}
+.topbar h1{font-size:18px;font-weight:600;color:#1A1A1A;letter-spacing:-.01em}
+.topbar-actions{margin-left:auto;display:flex;gap:6px;align-items:center}
+.tb-btn{display:flex;align-items:center;gap:5px;padding:7px 14px;border-radius:6px;border:1px solid #E2E2E5;background:#fff;color:#555;font-size:12px;font-family:inherit;cursor:pointer;font-weight:500}
+.tb-btn:hover{background:#F5F5F7;color:#333;border-color:#C0C0C6}
+.tb-btn:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.tb-btn.purple{background:#6C31FF;color:#fff;border-color:#6C31FF}
+.tb-btn.purple:hover{background:#5B28E0}
+.tb-av{width:30px;height:30px;border-radius:999px;background:linear-gradient(135deg,#6C31FF,#8A5CFF);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;cursor:pointer}
+.content{flex:1;overflow-y:auto;padding:24px;background:#F5F5F7;scrollbar-width:thin;scrollbar-color:#D0D0D4 transparent}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:500}
+.pill.green{background:#E3F5E5;color:#1B8A2F}
+.pill.orange{background:#FFF1E0;color:#E57800}
+.pill.red{background:#FFE8E8;color:#D93025}
+.pill.purple{background:#E8E6FF;color:#6C31FF}
+.sdot{width:6px;height:6px;flex-shrink:0;display:inline-block}
+.sdot.green{border-radius:2px;background:#00C875}
+.sdot.orange{border-radius:999px;background:#FFAD42}
+.sdot.red{border-radius:999px;background:#D93025}
+.multiplier-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
+.mc{background:#fff;border-radius:10px;border:1px solid #E8E8EC;padding:16px;position:relative;overflow:hidden}
+.mc .mc-score{font-size:32px;font-weight:700;line-height:1}
+.mc .mc-label{font-size:11px;color:#7A7A80;margin-top:2px}
+.mc .mc-desc{font-size:11px;color:#888;margin-top:6px;line-height:1.4}
+.mc .mc-meta{display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid #F2F2F4;font-size:10px;color:#999;align-items:center}
+.mc .mc-bar{height:4px;border-radius:2px;background:#EBEBED;margin-top:8px;overflow:hidden}
+.mc .mc-bar-fill{height:100%;border-radius:2px}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="leftnav">
+  <div class="ln-h"><div class="ln-logo">R</div><div class="ln-name">Rufkis</div></div>
+  <div class="ln-s">Workspace</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>Home</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg></div>Agents</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>Workloads</div>
+  <div class="ln-s">Configure</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>Logs</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>Notes</div>
+  <div class="ln-s" style="margin-top:8px;">Analytics</div>
+  <div class="ln-i active"><div class="active-bar"></div><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>Multipliers</div>
+  <div class="ln-ft"><div class="ln-fl"><div class="av">D</div>Drew Jocham</div></div>
+</div>
+<div class="main">
+  <div class="topbar">
+    <h1>Impact Multipliers</h1>
+    <div class="topbar-actions"><div class="tb-av" aria-label="Drew Jocham avatar" role="img">D</div></div>
+  </div>
+  <div class="content">
+    <div style="background:linear-gradient(135deg,#F0EDFF,#E8E6FF);border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px;">
+      <div style="width:32px;height:32px;border-radius:8px;background:#6C31FF;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;">★</div>
+      <div><div style="font-size:14px;font-weight:600;color:#1A1A1A;">Impact Scoring &middot; Rank by blast radius</div><div style="font-size:11px;color:#666;">Multipliers scale the urgency of alerts, costs, and recommendations based on blast radius, SLA ties, and downstream dependency count.</div></div>
+    </div>
+    <div class="multiplier-grid">
+      <div class="mc" style="border-left:3px solid #D93025;">
+        <div class="mc-score" style="color:#D93025;">8.4</div>
+        <div class="mc-label">Production Critical</div>
+        <div class="mc-bar"><div class="mc-bar-fill" style="width:84%;background:#D93025;"></div></div>
+        <div class="mc-desc">Direct customer-facing services with SLA guarantees. P1 alerts escalate automatically.</div>
+        <div class="mc-meta"><span class="pill red" style="font-size:10px;">Blast: High</span><span>4 services</span><span style="margin-left:auto;">×2.0</span></div>
+      </div>
+      <div class="mc" style="border-left:3px solid #FFAD42;">
+        <div class="mc-score" style="color:#FFAD42;">6.2</div>
+        <div class="mc-label">Internal Services</div>
+        <div class="mc-bar"><div class="mc-bar-fill" style="width:62%;background:#FFAD42;"></div></div>
+        <div class="mc-desc">Internal APIs, CI/CD pipelines, and monitoring infrastructure.</div>
+        <div class="mc-meta"><span class="pill orange" style="font-size:10px;">Blast: Medium</span><span>8 services</span><span style="margin-left:auto;">×1.5</span></div>
+      </div>
+      <div class="mc" style="border-left:3px solid #00C875;">
+        <div class="mc-score" style="color:#00C875;">3.1</div>
+        <div class="mc-label">Development / Staging</div>
+        <div class="mc-bar"><div class="mc-bar-fill" style="width:31%;background:#00C875;"></div></div>
+        <div class="mc-desc">Non-production environments. Lower blast radius, manual escalation only.</div>
+        <div class="mc-meta"><span class="pill green" style="font-size:10px;">Blast: Low</span><span>5 services</span><span style="margin-left:auto;">×1.0</span></div>
+      </div>
+    </div>
+    <div style="font-size:13px;font-weight:600;color:#1A1A1A;margin-bottom:8px;">Multiplier Breakdown</div>
+    <div style="background:#fff;border-radius:10px;border:1px solid #E8E8EC;padding:14px 16px;">
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #F2F2F4;font-size:12px;color:#555;">
+        <span style="font-weight:600;color:#1A1A1A;min-width:90px;">Downstream deps</span>
+        <span style="flex:1;">Number of services that depend on this resource</span>
+        <span style="font-weight:600;color:#6C31FF;">×1.0–3.0</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #F2F2F4;font-size:12px;color:#555;">
+        <span style="font-weight:600;color:#1A1A1A;min-width:90px;">SLA tier</span>
+        <span style="flex:1;">Gold/Silver/Bronze service-level agreement classification</span>
+        <span style="font-weight:600;color:#6C31FF;">×1.0–2.5</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #F2F2F4;font-size:12px;color:#555;">
+        <span style="font-weight:600;color:#1A1A1A;min-width:90px;">Data criticality</span>
+        <span style="flex:1;">PII, financial, or operational data exposure level</span>
+        <span style="font-weight:600;color:#6C31FF;">×1.0–2.0</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12px;color:#555;">
+        <span style="font-weight:600;color:#1A1A1A;min-width:90px;">Compliance</span>
+        <span style="flex:1;">Regulatory requirements (SOC2, HIPAA, PCI-DSS)</span>
+        <span style="font-weight:600;color:#6C31FF;">×1.5</span>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</body>
+</html>

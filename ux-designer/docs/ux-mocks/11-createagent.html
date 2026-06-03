@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=1200"><title>11-createagent</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"SF Pro Display","SF Pro Text","Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;min-height:100vh}
+.p{width:520px;background:#fff;border-radius:16px;border:1px solid rgba(0,0,0,0.08);box-shadow:0 8px 40px rgba(0,0,0,0.15);padding:24px}
+.p h3{font-size:16px;font-weight:600;color:#1C1C1E;margin-bottom:20px}
+.fg{display:flex;flex-direction:column;gap:4px;margin-bottom:14px}
+.fg label{font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.04em}.fg input,.fg select{height:34px;padding:0 10px;border-radius:8px;border:1px solid rgba(0,0,0,0.06);background:rgba(0,0,0,0.02);font-size:13px;font-family:inherit;outline:none;color:#1C1C1E}
+.fg input:focus,.fg select:focus{border-color:#2264D1}.fg textarea{height:80px;padding:8px 10px;border-radius:8px;border:1px solid rgba(0,0,0,0.06);background:rgba(0,0,0,0.02);font-size:13px;font-family:inherit;outline:none;resize:none;color:#1C1C1E}
+.btns{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}.btn{padding:9px 20px;border-radius:10px;border:1px solid rgba(0,0,0,0.06);background:#fff;color:#555;font-size:13px;font-family:inherit;cursor:pointer;font-weight:500}.btn.p4{background:#2264D1;color:#fff;border-color:#2264D1}
+
+</style></head><body><div class="p"><h3>Create Agent</h3>
+<div class="fg" style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><label>Name</label><input type="text" value="Cost Optimizer"></div><div><label>Type</label><select><option>Watcher</option><option>Scheduler</option><option>Analyzer</option></select></div></div>
+<div class="fg"><label>Description</label><textarea>Monitor cloud costs and recommend savings</textarea></div>
+<div class="fg"><label>Target Namespaces</label><input type="text" value="production, staging"></div><div class="btns"><button class="btn">Cancel</button><button class="btn p4">Create Agent</button></div></div></body></html>

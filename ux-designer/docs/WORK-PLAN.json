@@ -1,0 +1,118 @@
+{
+  "goal": "Implement the four Rufkis SRE platform strategy themes",
+  "strategy": "Each theme is broken into 3-6 executable sub-tasks, ordered by dependency, assigned to the appropriate agent capability (backend-engineer, frontend-engineer, sre-engineer, devops-engineer, database-engineer, code-reviewer, test-engineer, docs-writer, security-engineer). Tasks are sequenced so that foundational work (CRDs, data models, GitHub integration) comes before UI and automation layers.",
+  "tasks": [
+    {
+      "id": "TASK-01",
+      "name": "Define Agent CRD schema and MCP agent controller scaffold",
+      "capability": "backend-engineer",
+      "prompt": "You are implementing the foundational CRD and controller for the Rufkis Agent sub-agent layer (Strategy Theme 3). The existing Agent CRD and MCP layer at agents/my-agents is described as 'existing but unused'. Define a Go struct for the Agent CRD (agent type, trigger conditions, action configurations, watch scope). Scaffold a controller that watches for Agent CRD events and dispatches to the MCP sub-agent runtime. Add an interface for agent capabilities (describe, diagnose, act, summarize). Wire OpenTelemetry spans into the dispatch loop. Add typed sentinel errors for agent lifecycle states. Follow CODING_STANDARDS.md §1 strictly. Output: internal/agents/ with crd.go, controller.go, capabilities.go, errors.go. Unit tests per §1.8. AGENTS.md per §3.1.",
+      "dependencies": []
+    },
+    {
+      "id": "TASK-02",
+      "name": "GitHub PR creation API bridge (GitOps-native remediation foundation)",
+      "capability": "backend-engineer",
+      "prompt": "Implement the GitOps bridge service converting AI-generated YAML patches into GitHub PRs (Strategy Theme 1). Currently AI outputs YAML via App.ApplyYaml. Target: AI diagnoses issues, generates a YAML fix, offers 'Create PR' instead of 'Deploy'. Create Go service cmd/pr-bridge/ that receives a PR request (repo, branch, message, file changes), creates a GitHub fork+branch, commits, opens a PR. Returns PR URL. Add idempotency (same fix+target returns existing PR). Wire OTEL span 'pr_bridge.CreatePR'. Typed sentinel errors: ErrPRCreationFailed, ErrBranchExists, ErrNoChanges, ErrGitHubAuth. No hardcoded tokens — GH_TOKEN via ExternalSecrets. Output: cmd/pr-bridge/ with ports/, adapters/github/, service/. Table-driven tests. AGENTS.md.",
+      "dependencies": []
+    },
+    {
+      "id": "TASK-03",
+      "name": "Database schema for FinOps waste heatmap and cost actions",
+      "capability": "database-engineer",
+      "prompt": "Design PostgreSQL schema for Automated FinOps ROI (Strategy Theme 2). Migration 001: waste_observations (id UUIDv7 PK, cluster, namespace, resource_type, current_requests/limits, recommended_requests/limits, monthly_waste_usd_cents BIGINT, detected_at TIMESTAMPTZ, status TEXT CHECK, runbook_ref TEXT, created_at/updated_at TIMESTAMPTZ). Index on (cluster, status), (monthly_waste_usd_cents DESC). Migration 002: cost_saving_actions (id UUIDv7 PK, waste_observation_id FK, action_type TEXT CHECK, target_kind/name, recommended_savings_cents, pr_url, pr_status, applied_at, rollback_manifest JSONB, created_at/updated_at). Index on waste_observation_id. updated_at trigger on both tables. Down migrations. Seed script with 10 realistic rows. Follow DB engineer standards: UUIDv7, IF NOT EXISTS.",
+      "dependencies": []
+    },
+    {
+      "id": "TASK-04",
+      "name": "Deploy PostgreSQL instance and run migrations (dev/staging)",
+      "capability": "sre-engineer",
+      "prompt": "Provision PostgreSQL 16 for FinOps waste tracking (Strategy Theme 2). Supports schema from TASK-03, used by TASK-09. Terraform/OpenTofu module: PostgreSQL 16 (Cloud SQL or RDS matching existing Rufkis infra), private IP, encrypted at rest, automated backups 7-day retention, least-privilege user. Reusable module modules/postgres-finops/ with pinned provider version. Crossplane composition if multi-region. ExternalSecret for DB credentials from AWS/GCP Secret Manager. k8s Deployment+Service for in-cluster OR ConfigMap with endpoint. HPA, PDB, NetworkPolicy, securityContext per SRE standards. Output: terraform/modules/postgres-finops/, deploy/k8s/postgres-finops/, AGENTS.md.",
+      "dependencies": ["TASK-03"]
+    },
+    {
+      "id": "TASK-05",
+      "name": "Argo CD integration for GitOps CD (workload sync status)",
+      "capability": "sre-engineer",
+      "prompt": "Implement Argo CD monitoring integration for GitOps-native remediation (Theme 1) and autonomous agent triage (Theme 3). Verify existing Argo CD installation. Create lightweight webhook receiver (argocd-sync-watcher): receives webhook events (sync started/succeeded/failed, health degraded), exposes Prometheus metrics with labels (app, namespace, sync_status, health_status, timestamp), stores last N events in ring buffer. k8s Deployment with resources, probes, securityContext (non-root, read-only rootfs, drop all caps), topologySpreadConstraints. NetworkPolicy: ingress from Argo CD webhook port 8080, egress to metrics only. PDB minAvailable 1. Output: deploy/k8s/argocd-sync-watcher/ manifests, ConfigMap, AGENTS.md.",
+      "dependencies": []
+    },
+    {
+      "id": "TASK-06",
+      "name": "Anomstack event consumer for autonomous agent triage",
+      "capability": "backend-engineer",
+      "prompt": "Implement Anomstack event consumer that triggers autonomous agent triage (Theme 3). Anomstack fires anomaly alerts → agent proactively pulls logs, checks PR guidelines, cross-references runbooks, places root-cause summary. Go event consumer (internal/adapters/anomstack/): listens on NATS/Kafka topic anomstack.alerts or webhook POSTs, normalizes into AnomstackEvent (alert_id, cluster, namespace, resource_kind, name, severity, summary, raw_payload), publishes command to Agent controller dispatch queue. Deduplication by alert_id within 5-minute window. OTEL span tree 'anomstack_consumer.receive' → 'agent_controller.dispatch'. Typed sentinel errors: ErrAlertAlreadyProcessing, ErrConsumerClosed. Output: internal/adapters/anomstack/ with consumer.go, event.go. Table-driven tests. AGENTS.md.",
+      "dependencies": ["TASK-01", "TASK-05"]
+    },
+    {
+      "id": "TASK-07",
+      "name": "Runbook MCP tool for executable Markdown blocks",
+      "capability": "backend-engineer",
+      "prompt": "Implement MCP tool that parses Markdown runbooks, identifies executable code blocks, executes in Wails pseudoterminal (Theme 4). Go MCP service cmd/runbook-mcp/ exposing: runbook.list (available runbooks), runbook.get_block (block content, language, metadata, expected-output pattern), runbook.execute (returns stdout, stderr, exit_code, validated bool, explanation). Parse fenced code blocks with YAML frontmatter annotations. RunbookBlock struct: path, id, language, content, expected_output_pattern, validation_rules. OTEL span metrics per-tool. Sentinels: ErrRunbookNotFound, ErrBlockNotFound, ErrExecutionFailed, ErrValidationFailed. Output: cmd/runbook-mcp/ with ports/runbook.go, adapters/markdown/parser.go, adapters/executor/. Table-driven tests with mocks. AGENTS.md.",
+      "dependencies": []
+    },
+    {
+      "id": "TASK-08",
+      "name": "CI/CD pipelines for all new Go services",
+      "capability": "devops-engineer",
+      "prompt": "Generate CI/CD (GitHub Actions) and Docker Compose for agent-controller (TASK-01), pr-bridge (TASK-02), anomstack-consumer (TASK-06), runbook-mcp (TASK-07). 4 GitHub Actions workflows: build-*.yaml, each with checkout → Go setup → cache restore → go vet → go test → go build → gosec → Docker build+push (main only). Pinned actions, minimal permissions. Docker Compose docker-compose.dev.yaml: all 4 Go services with hot-reload (air), PostgreSQL 16 with healthcheck, NATS, Redis. depends_on with condition: service_healthy. .env.example documented. Makefile with help, build, test, lint, run, clean. Cache keyed on go.sum hash. Output: .github/workflows/*.yaml (4 files), docker-compose.dev.yaml, .env.example, Makefile.",
+      "dependencies": ["TASK-01", "TASK-02", "TASK-06", "TASK-07"]
+    },
+    {
+      "id": "TASK-09",
+      "name": "FinOps waste analysis backend service",
+      "capability": "backend-engineer",
+      "prompt": "Implement FinOps waste analysis backend for Automated FinOps ROI (Theme 2). Schema from TASK-03, DB from TASK-04. Go service cmd/finops-analyzer/: periodic Prometheus metric scan for actual usage vs requests/limits, computes delta * hourly_cost * 730h, inserts/updates waste_observations. REST API: GET /api/v1/waste (filterable), GET /api/v1/waste/top (top-N), POST /api/v1/waste/:id/recommend (generates PR via TASK-02 pr-bridge, creates cost_saving_action), PATCH /api/v1/waste/:id/dismiss. gRPC/internal HTTP to pr-bridge. OTEL span 'finops.AnalyzeWorkload', metric 'finops.waste_detected'. Sentinels: ErrNoMetricsAvailable, ErrAlreadyActioned, ErrRecommendationFailed. pgx/sqlx parameterized queries. Backoff/retry for Prometheus. Output: cmd/finops-analyzer/ with ports/, adapters/postgres/, adapters/prometheus/, service/. Table-driven tests. AGENTS.md.",
+      "dependencies": ["TASK-02", "TASK-03", "TASK-04"]
+    },
+    {
+      "id": "TASK-10",
+      "name": "GitOps PR Card Vue 3 components (frontend -- Themes 1 & 2)",
+      "capability": "frontend-engineer",
+      "prompt": "Build Vue 3+TSX frontend for GitOps PR actions (Themes 1&2). Atom: PrActionCard -- title, savings metric, status badge, action button. Props typed, emits typed, data-testid on each interactive element. Loading/error/disabled states. Molecule: PrActionList -- ordered list grouped by cluster/namespace, highest-savings sort, empty state. Organism: FinOpsWastePanel -- fetches GET /api/v1/waste/top, SSE/WebSocket real-time updates with exponential backoff reconnect, Pinia store. All components: WCAG 2.1 AA (ARIA roles, Tab/Enter/Escape navigation), data-testid everywhere, loading/empty/error first-class, Tailwind, TypeScript strict mode, no any. Output: src/components/atoms/PrActionCard.vue, molecules/PrActionList.vue, organisms/FinOpsWastePanel.vue. src/stores/finops.ts. src/api/finops.ts. Storybook stories.",
+      "dependencies": ["TASK-09"]
+    },
+    {
+      "id": "TASK-11",
+      "name": "Agent status dashboard Vue 3 component (frontend -- Theme 3)",
+      "capability": "frontend-engineer",
+      "prompt": "Build Vue 3+TSX autonomous agent dashboard (Theme 3). Atom: AgentBadge -- name, status (idle/analyzing/complete/failed), last activity, clickable, data-testid='agent-badge-{agentId}'. Molecule: AgentActivityFeed -- timeline of agent actions with auto-scroll (pauseable). Organism: AgentDashboard -- grid of AgentBadges at top, ActivityFeed for selected agent at bottom. SSE/WebSocket real-time agent status updates. Pinia store. WCAG 2.1 AA: ARIA live region for new feed items. data-testid on all interactive nodes. Loading/empty/error states. Tailwind, no global CSS. TypeScript strict mode. Output: src/components/atoms/AgentBadge.vue, molecules/AgentActivityFeed.vue, organisms/AgentDashboard.vue. src/stores/agents.ts. Storybook stories.",
+      "dependencies": ["TASK-01", "TASK-05", "TASK-06"]
+    },
+    {
+      "id": "TASK-12",
+      "name": "Terminal drawer + runbook execution UI (frontend -- Theme 4)",
+      "capability": "frontend-engineer",
+      "prompt": "Build Vue 3+TSX local-first SRE workspace (Theme 4). Atom: RunbookBlock -- syntax-highlighted code, 'Execute' button calling runbook-mcp (TASK-07), output display with exit code and validation status. data-testid='runbook-block-{blockId}'. States: idle/executing/success/failed/error. Atom: TerminalDrawer -- slide-up drawer with execution tabs (title, elapsed time, scrollable output), ANSI rendering (xterm.js), Re-run/Copy/Explain buttons, Ctrl+` toggle. Molecule: RunbookViewer -- renders full Markdown runbook with TOC sidebar (scroll-spy), overlays RunbookBlocks on executable sections. WCAG 2.1 AA: accessible terminal toggle, keyboard nav. data-testid everywhere. Loading/empty/error states. Tailwind. TypeScript strict. Output: src/components/atoms/RunbookBlock.vue, atoms/TerminalDrawer.vue, molecules/RunbookViewer.vue. src/stores/runbooks.ts. Storybook stories.",
+      "dependencies": ["TASK-07"]
+    },
+    {
+      "id": "TASK-13",
+      "name": "Security audit of GitOps PR bridge + FinOps API",
+      "capability": "security-engineer",
+      "prompt": "Security audit of pr-bridge (TASK-02) and finops-analyzer (TASK-09). Check: (1) Injection -- parameterized SQL in finops, safe SDK calls for GitHub API; (2) Authn/Authz -- PR bridge validates caller permissions, FinOps API auth middleware, IDOR checks; (3) Secrets -- no hardcoded tokens, GH_TOKEN from ExternalSecrets, not logged/returned; (4) Crypto -- RS256/ES256 JWTs, TLS on outbound; (5) SSRF -- repo/branch allowlist on PR bridge; (6) Rate limiting on POST /waste/:id/recommend; (7) Log injection -- structured slog only. Output: SecurityReport JSON with findings (severity, CWE, location, evidence, impact, remediation), summary by severity, blocking list. Per CODING_STANDARDS.md §1.5 (error leakage), §1.6 (log injection), §1.10 (secrets).",
+      "dependencies": ["TASK-02", "TASK-09"]
+    },
+    {
+      "id": "TASK-14",
+      "name": "E2E Playwright tests for PR cards, agent dashboard, and runbook viewer",
+      "capability": "test-engineer",
+      "prompt": "Write Playwright E2E tests for frontend features (TASK-10, TASK-11, TASK-12). (1) finops-waste-panel.spec.ts: load waste cards, click Create PR, success->View PR, empty/error states, keyboard nav. Tag @FIN-OPS-01. (2) agent-dashboard.spec.ts: badge grid renders, click badge->feed populates, WebSocket auto-scroll, empty state. Tag @AGENTS-01. (3) runbook-viewer.spec.ts: Markdown renders, click Execute->terminal opens with output, Ctrl+` toggle, re-run replaces output. Tag @RUNBOOKS-01. Pattern: Page Object Model, data-testid selectors only, Playwright auto-waiting (no waitForTimeout), independent parallelizable. Output: tests/e2e/playwright/pages/ (POM), specs/ (spec files), fixtures/ (mock data). README.",
+      "dependencies": ["TASK-10", "TASK-11", "TASK-12"]
+    },
+    {
+      "id": "TASK-15",
+      "name": "Documentation: runbooks, READMEs, and AGENTS.md for all new services",
+      "capability": "docs-writer",
+      "prompt": "Write docs for all new services: agent-controller (TASK-01), pr-bridge (TASK-02), anomstack-consumer (TASK-06), runbook-mcp (TASK-07), finops-analyzer (TASK-09). For each: README.md per §3.2 (description, Mermaid architecture diagram, quick start, config table, error handling), AGENTS.md per §3.1 (build/lint/test, imports, naming, error handling, logging, concurrency, DI, testing), docs/quick-reference.md per §3.3 (build/deploy cmds, debugging, port mappings). Write operations/runbooks/local-workspace.md user runbook (terminal drawer usage, runbook authoring syntax, symptom-diagnosis-mitigation-investigation-prevention). Update root README.md with strategy overview, service dependency Mermaid graph, quick links. Follow docs-writer standards: never invent endpoints, short sentences.",
+      "dependencies": ["TASK-01", "TASK-02", "TASK-06", "TASK-07", "TASK-09", "TASK-10", "TASK-11", "TASK-12"]
+    },
+    {
+      "id": "TASK-16",
+      "name": "Code review: governance pass across all four themes",
+      "capability": "code-reviewer",
+      "prompt": "Final governance review across all artifacts. Scope: 5 Go services (TASK-01/02/06/07/09), DB migrations (TASK-03), Terraform/k8s (TASK-04/05), CI/CD (TASK-08), 3 frontend areas (TASK-10/11/12), E2E tests (TASK-14), docs (TASK-15), security report (TASK-13). Review pipeline: (1) Load CODING_STANDARDS.md. (2) Check Go code §1: import ordering, naming, error sentinels, slog, OTEL spans, errgroup, table-driven tests, no interface{}, no log.Print. (3) Check testing §2: table-driven, testify, discard logger, t.Parallel(). (4) Check docs §3: README, AGENTS.md, quick-reference. (5) Strategy consistency: verify every feature maps to one of the four themes. (6) Dependency resolution: verify no task completed without deps. (7) Cross-communication: flag cross-domain violations with target agent. Output: ReviewResult with approved bool, risk_level, standards_compliance pass/fail, drift_findings, blocking_issues, nice_to_have. Verify make test + make run evidence exists.",
+      "dependencies": ["TASK-01", "TASK-02", "TASK-03", "TASK-04", "TASK-05", "TASK-06", "TASK-07", "TASK-08", "TASK-09", "TASK-10", "TASK-11", "TASK-12", "TASK-13", "TASK-14", "TASK-15"]
+    }
+  ]
+}

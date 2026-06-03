@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=1440"><title>Rufkis — Cloud Readiness</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,sans-serif;background:#F5F5F7;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.app{width:1440px;height:900px;display:flex;background:#fff;overflow:hidden;border-radius:12px;box-shadow:0 4px 40px rgba(0,0,0,0.06)}
+.leftnav{width:240px;background:#F9F9FB;border-right:1px solid #EBEBED;display:flex;flex-direction:column;flex-shrink:0}
+.ln-h{padding:16px 16px 8px;display:flex;align-items:center;gap:8px}
+.ln-logo{width:28px;height:28px;border-radius:8px;background:#6C31FF;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px}
+.ln-name{font-size:14px;font-weight:600;color:#1A1A1A}
+.ln-s{padding:12px 16px 4px;font-size:10px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.04em}
+.ln-i,.ln-fl{display:flex;align-items:center;gap:8px;padding:7px 16px;margin:0 8px;border-radius:6px;font-size:13px;font-weight:500;color:#555;cursor:pointer;position:relative}
+.ln-i:hover{background:rgba(108,49,255,0.04);color:#333}
+.ln-i .active-bar{display:none}
+.ln-i.active .active-bar{display:block;position:absolute;left:-8px;width:3px;height:16px;border-radius:0 3px 3px 0;background:#6C31FF}
+.ln-i.active{background:rgba(108,49,255,0.08);color:#6C31FF;font-weight:600}
+.ln-i:focus-visible{outline:2px solid #6C31FF;outline-offset:-2px}
+.ln-i .ic{width:16px;height:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ln-i .ic svg{width:16px;height:16px}
+.ln-i .bd{margin-left:auto;font-size:10px;padding:1px 6px;border-radius:999px;background:rgba(108,49,255,0.1);color:#6C31FF;font-weight:600}
+.ln-ft{margin-top:auto;padding:12px;border-top:1px solid #EBEBED}
+.ln-fl{padding:7px 10px;margin:0;font-size:12px;color:#777}
+.ln-fl:hover{background:rgba(108,49,255,0.03);color:#333}
+.av{width:20px;height:20px;border-radius:6px;background:linear-gradient(135deg,#6C31FF,#8A5CFF);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:52px;border-bottom:1px solid #EBEBED;display:flex;align-items:center;padding:0 24px;gap:16px;flex-shrink:0}
+.topbar h1{font-size:18px;font-weight:600;color:#1A1A1A;letter-spacing:-.01em}
+.topbar-actions{margin-left:auto;display:flex;gap:6px;align-items:center}
+.tb-btn{display:flex;align-items:center;gap:5px;padding:7px 14px;border-radius:6px;border:1px solid #E2E2E5;background:#fff;color:#555;font-size:12px;font-family:inherit;cursor:pointer;font-weight:500}
+.tb-btn:hover{background:#F5F5F7;color:#333;border-color:#C0C0C6}
+.tb-btn:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.tb-btn.purple{background:#6C31FF;color:#fff;border-color:#6C31FF}
+.tb-btn.purple:hover{background:#5B28E0}
+.tb-av{width:30px;height:30px;border-radius:999px;background:linear-gradient(135deg,#6C31FF,#8A5CFF);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;cursor:pointer}
+.content{flex:1;overflow-y:auto;padding:24px;background:#F5F5F7;scrollbar-width:thin;scrollbar-color:#D0D0D4 transparent}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:500}
+.pill.green{background:#E3F5E5;color:#1B8A2F}
+.pill.orange{background:#FFF1E0;color:#E57800}
+.pill.red{background:#FFE8E8;color:#D93025}
+.pill.purple{background:#E8E6FF;color:#6C31FF}
+.sdot{width:6px;height:6px;flex-shrink:0;display:inline-block}
+.sdot.green{border-radius:2px;background:#00C875}
+.sdot.orange{border-radius:999px;background:#FFAD42}
+.sdot.red{border-radius:999px;background:#D93025}
+.score-card{background:linear-gradient(135deg,#F0EDFF,#E8E6FF);border-radius:12px;padding:24px;display:flex;align-items:center;gap:20px;margin-bottom:20px}
+.score-card .sc-num{font-size:48px;font-weight:700;color:#6C31FF;line-height:1}
+.score-card .sc-label{font-size:13px;color:#555;margin-top:4px}
+.score-card .sc-bar{flex:1;height:8px;border-radius:4px;background:#D8D5F0;overflow:hidden;max-width:300px}
+.score-card .sc-bar-fill{height:100%;border-radius:4px;background:#6C31FF;width:78%}
+.checklist{background:#fff;border-radius:10px;border:1px solid #E8E8EC;overflow:hidden}
+.cl-item{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #F2F2F4;font-size:12px;color:#555}
+.cl-item:last-child{border-bottom:none}
+.cl-item .cl-check{width:18px;height:18px;border-radius:4px;border:2px solid #D0D0D4;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.cl-item .cl-check.done{border-color:#00C875;background:#E3F5E5}
+.cl-item .cl-check.done::after{content:'✓';font-size:11px;color:#00C875;font-weight:700}
+.cl-item .cl-check.fail{border-color:#D93025;background:#FFE8E8}
+.cl-item .cl-check.fail::after{content:'✗';font-size:11px;color:#D93025;font-weight:700}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="leftnav">
+  <div class="ln-h"><div class="ln-logo">R</div><div class="ln-name">Rufkis</div></div>
+  <div class="ln-s">Workspace</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>Home</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg></div>Agents</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>Workloads</div>
+  <div class="ln-s">Configure</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>Logs</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>Notes</div>
+  <div class="ln-s" style="margin-top:8px;">Compliance</div>
+  <div class="ln-i active"><div class="active-bar"></div><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>Cloud Readiness</div>
+  <div class="ln-ft"><div class="ln-fl"><div class="av">D</div>Drew Jocham</div></div>
+</div>
+<div class="main">
+  <div class="topbar">
+    <h1>Cloud Readiness</h1>
+    <div class="topbar-actions">
+      <button class="tb-btn" aria-label="Re-run assessment"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.5 15.5A8 8 0 1 0 5 7L1 10"/></svg> Re-run</button>
+      <button class="tb-btn purple" aria-label="Download report"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export</button>
+      <div class="tb-av" aria-label="Drew Jocham avatar" role="img">D</div>
+    </div>
+  </div>
+  <div class="content">
+    <div class="score-card">
+      <div><div class="sc-num">78</div><div class="sc-label">/ 100</div></div>
+      <div>
+        <div class="sc-bar"><div class="sc-bar-fill"></div></div>
+        <div style="font-size:12px;color:#555;margin-top:4px;"><strong>Cloud Readiness Score</strong> &middot; 12 of 18 checks passed</div>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:10px;">
+        <span class="pill green">12 Passed</span>
+        <span class="pill red">4 Failed</span>
+        <span class="pill orange">2 Warnings</span>
+      </div>
+    </div>
+    <div class="checklist">
+      <div class="cl-item"><div class="cl-check done"></div><span>Backup strategy configured for all stateful workloads</span><span class="pill green" style="margin-left:auto;font-size:10px;">Passed</span></div>
+      <div class="cl-item"><div class="cl-check done"></div><span>Multi-AZ deployment for control plane nodes</span><span class="pill green" style="margin-left:auto;font-size:10px;">Passed</span></div>
+      <div class="cl-item"><div class="cl-check done"></div><span>Horizontal Pod Autoscaler configured for all deployments</span><span class="pill green" style="margin-left:auto;font-size:10px;">Passed</span></div>
+      <div class="cl-item"><div class="cl-check done"></div><span>Pod resource requests and limits set</span><span class="pill green" style="margin-left:auto;font-size:10px;">Passed</span></div>
+      <div class="cl-item"><div class="cl-check done"></div><span>Network policies configured for namespace isolation</span><span class="pill green" style="margin-left:auto;font-size:10px;">Passed</span></div>
+      <div class="cl-item"><div class="cl-check done"></div><span>TLS certificates managed and auto-renewing</span><span class="pill green" style="margin-left:auto;font-size:10px;">Passed</span></div>
+      <div class="cl-item"><div class="cl-check fail"></div><span>Disaster recovery plan tested within last 30 days</span><span class="pill red" style="margin-left:auto;font-size:10px;">Failed</span></div>
+      <div class="cl-item"><div class="cl-check fail"></div><span>Secrets encrypted at rest with KMS</span><span class="pill red" style="margin-left:auto;font-size:10px;">Failed</span></div>
+      <div class="cl-item"><div class="cl-check fail"></div><span>Pod security standards (PSS) enforced</span><span class="pill red" style="margin-left:auto;font-size:10px;">Failed</span></div>
+      <div class="cl-item"><div class="cl-check fail"></div><span>Cost allocation tags applied to all resources</span><span class="pill red" style="margin-left:auto;font-size:10px;">Failed</span></div>
+    </div>
+  </div>
+</div>
+</div>
+</body>
+</html>
