@@ -25,7 +25,7 @@ async def delegate_to_agent(capability: str, prompt: str, context_summary: str) 
 
     To ensure proficient token usage and accurate responses:
     - capability: Which agent capability to use (see discover_agent_capabilities)
-    - prompt: The specific task/question for the sub-agent
+    - prompt: The specific task/question for the target agent
     - context_summary: Provide ONLY the absolutely necessary context. Do not dump full history.
     """
     ctx_data = current_run_context.get()
@@ -74,6 +74,6 @@ register_tool(
 register_tool(
     "delegate_to_agent",
     delegate_to_agent,
-    "Delegate a task to a sub-agent with concise context to save tokens.",
+    "Delegate a task to another agent with concise context to save tokens.",
     ["a2a"],
 )

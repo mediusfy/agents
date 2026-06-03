@@ -78,7 +78,7 @@ class Settings(BaseSettings):
         PROVIDER CONSISTENCY ENFORCEMENT:
         When MODEL_PROVIDER is set, ALL model names are remapped through that
         single provider. This guarantees uniform reasoning capability and output
-        structure across all sub-agents — critical when agents hand off JSON
+        structure across all agents — critical when agents hand off JSON
         payloads via MCP.
 
         When MODEL_PROVIDER is None, each model name is used as-is with provider
