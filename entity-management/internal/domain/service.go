@@ -51,13 +51,13 @@ func NewService(
 	opts ...ServiceOption,
 ) *Service {
 	s := &Service{
-		schemas:         schemas,
-		entities:        entities,
-		outbox:          outbox,
-		idempotency:     idempotency,
-		uow:             uow,
-		now:             time.Now,
-		idempotencyTTL:  7 * 24 * time.Hour,
+		schemas:        schemas,
+		entities:       entities,
+		outbox:         outbox,
+		idempotency:    idempotency,
+		uow:            uow,
+		now:            time.Now,
+		idempotencyTTL: 7 * 24 * time.Hour,
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -243,6 +243,8 @@ func (s *Service) SoftDeleteEntity(ctx context.Context, id string) error {
 	return nil
 }
 
+// HardDeleteEntity permanently removes a previously soft-deleted entity from
+// the database. Returns ErrNotDeleted if the entity is not soft-deleted first.
 func (s *Service) HardDeleteEntity(ctx context.Context, id string) error {
 	entity, err := s.entities.FindByID(ctx, id)
 	if err != nil {
@@ -276,6 +278,63 @@ func (s *Service) HardDeleteEntity(ctx context.Context, id string) error {
 	if err := s.uow.Execute(ctx, func(uowCtx context.Context) error {
 		if err := s.entities.HardDelete(uowCtx, id); err != nil {
 			return fmt.Errorf("hard delete persist: %w", err)
+		}
+		if err := s.outbox.Save(uowCtx, outboxEvent); err != nil {
+			return fmt.Errorf("save outbox event: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	if s.events != nil {
+		_ = s.events.PublishEntityHardDeleted(ctx, event)
+	}
+
+	return nil
+}
+
+// PermanentDeleteEntity permanently removes an entity from the database
+// regardless of its soft-delete state. Unlike HardDeleteEntity, this does
+// not require the entity to be soft-deleted first.
+//
+// This is the backing method for DELETE /api/v1/entities/{id} which returns
+// 204 No Content on success or 404 Not Found when the entity does not exist.
+func (s *Service) PermanentDeleteEntity(ctx context.Context, id string) error {
+	entity, err := s.entities.FindByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("find entity: %w", err)
+	}
+
+	now := s.now()
+
+	deletedAt := now
+	if entity.DeletedAt != nil {
+		deletedAt = *entity.DeletedAt
+	}
+
+	event := &EntityHardDeleted{
+		EventID:    uuid.New().String(),
+		EntityID:   entity.ID,
+		EntityName: entity.Name,
+		Region:     entity.Region,
+		DeletedAt:  deletedAt,
+		OccurredAt: now,
+	}
+
+	outboxEvent := &OutboxEvent{
+		ID:            uuid.New().String(),
+		AggregateID:   id,
+		AggregateType: "entity",
+		EventType:     event.EventName(),
+		Payload:       mountEntityHardDeletedPayload(event),
+		Status:        OutboxStatusPending,
+		CreatedAt:     now,
+	}
+
+	if err := s.uow.Execute(ctx, func(uowCtx context.Context) error {
+		if err := s.entities.HardDelete(uowCtx, id); err != nil {
+			return fmt.Errorf("permanent delete persist: %w", err)
 		}
 		if err := s.outbox.Save(uowCtx, outboxEvent); err != nil {
 			return fmt.Errorf("save outbox event: %w", err)

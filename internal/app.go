@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"database/sql"
 	"log/slog"
 	"net/http"
 	"os"
@@ -9,13 +10,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/cto-ai/entity-management/internal/adapters/eventbus"
-	"github.com/cto-ai/entity-management/internal/adapters/handlers"
-	"github.com/cto-ai/entity-management/internal/adapters/postgres"
-	"github.com/cto-ai/entity-management/internal/domain"
+	"github.com/drewjocham/agents/internal/adapters"
+	"github.com/drewjocham/agents/internal/domain"
 )
 
 // Run is the composition root. It wires everything and blocks until shutdown.
@@ -24,45 +23,55 @@ func Run(ctx context.Context, logger *slog.Logger) error {
 	defer cancel()
 
 	// --- Configuration from environment ---
-	dbURL := envOrDefault("DATABASE_URL", "postgres://localhost:5432/entitymanagement?sslmode=disable")
+	dbURL := envOrDefault("DATABASE_URL", "postgres://localhost:5432/entitysvc?sslmode=disable")
 	natsURL := envOrDefault("NATS_URL", "nats://localhost:4222")
 	httpAddr := envOrDefault("HTTP_ADDR", ":8080")
 
-	// --- Database ---
-	pool, err := pgxpool.New(ctx, dbURL)
+	// --- Database (pgx via stdlib bridge) ---
+	db, err := sql.Open("pgx", dbURL)
 	if err != nil {
 		return err
 	}
-	defer pool.Close()
+	defer db.Close()
+
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+
+	if err := db.PingContext(ctx); err != nil {
+		return err
+	}
 
 	// --- Repositories ---
-	entityRepo := postgres.NewEntityRepository(pool)
-	outboxRepo := postgres.NewOutboxRepository(pool)
+	entityRepo := adapters.NewPostgresEntityRepository(db)
 
-	// --- Domain Service ---
-	entitySvc := domain.NewEntityService(entityRepo, outboxRepo)
+	// Run migrations.
+	if err := entityRepo.Migrate(ctx); err != nil {
+		return err
+	}
 
 	// --- Event Bus ---
-	natsBus, err := eventbus.NewNATSEventBus(natsURL)
+	natsBus, err := adapters.NewNATSEventBus(natsURL, nil)
 	if err != nil {
 		return err
 	}
-	defer natsBus.Close(ctx)
+	defer natsBus.Close() //nolint: errcheck
 
-	// --- Outbox Publisher ---
-	publisher := eventbus.NewOutboxPublisher(outboxRepo, natsBus, logger)
+	// --- Domain Service ---
+	entitySvc := domain.NewEntityService(entityRepo, natsBus)
 
 	// --- HTTP Handlers ---
-	httpHandler := handlers.NewHTTPHandler(entitySvc, logger)
+	httpHandler := adapters.NewHTTPService(entitySvc)
 	mux := http.NewServeMux()
+
+	// Health check endpoints (direct, no domain logic).
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
 	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, _ *http.Request) {
-		// Ping DB to assert readiness.
-		if err := pool.Ping(ctx); err != nil {
+		if err := db.PingContext(ctx); err != nil {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			_, _ = w.Write([]byte(`{"status":"not ready"}`))
 			return
@@ -71,6 +80,7 @@ func Run(ctx context.Context, logger *slog.Logger) error {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"status":"ready"}`))
 	})
+
 	httpHandler.RegisterRoutes(mux)
 
 	httpServer := &http.Server{
@@ -95,11 +105,6 @@ func Run(ctx context.Context, logger *slog.Logger) error {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		return httpServer.Shutdown(shutdownCtx)
-	})
-
-	g.Go(func() error {
-		logger.InfoContext(gctx, "starting outbox publisher")
-		return publisher.Run(gctx)
 	})
 
 	return g.Wait()

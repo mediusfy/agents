@@ -16,19 +16,19 @@ import (
 )
 
 type ReadEntityResponse struct {
-	ID               string            `json:"id"`
-	SchemaID         string            `json:"schema_id"`
-	Name             string            `json:"name"`
-	Type             string            `json:"type"`
-	Region           string            `json:"region"`
-	DataResidencyZone string           `json:"data_residency_zone"`
-	Status           string            `json:"status"`
-	Version          int               `json:"version"`
-	Attributes       map[string]any    `json:"attributes,omitempty"`
-	Metadata         map[string]any    `json:"metadata,omitempty"`
-	CreatedAt        time.Time         `json:"created_at"`
-	UpdatedAt        time.Time         `json:"updated_at"`
-	DeletedAt        *time.Time        `json:"deleted_at,omitempty"`
+	ID                string         `json:"id"`
+	SchemaID          string         `json:"schema_id"`
+	Name              string         `json:"name"`
+	Type              string         `json:"type"`
+	Region            string         `json:"region"`
+	DataResidencyZone string         `json:"data_residency_zone"`
+	Status            string         `json:"status"`
+	Version           int            `json:"version"`
+	Attributes        map[string]any `json:"attributes,omitempty"`
+	Metadata          map[string]any `json:"metadata,omitempty"`
+	CreatedAt         time.Time      `json:"created_at"`
+	UpdatedAt         time.Time      `json:"updated_at"`
+	DeletedAt         *time.Time     `json:"deleted_at,omitempty"`
 }
 
 type ReadEntityUseCase struct {
@@ -90,18 +90,18 @@ func (uc *ReadEntityUseCase) Execute(ctx context.Context, id string) (*ReadEntit
 
 func entityToResponse(e *domain.Entity) *ReadEntityResponse {
 	return &ReadEntityResponse{
-		ID:               e.ID,
-		SchemaID:         e.SchemaID,
-		Name:             e.Name,
-		Type:             e.Type,
-		Region:           e.Region,
+		ID:                e.ID,
+		SchemaID:          e.SchemaID,
+		Name:              e.Name,
+		Type:              e.Type,
+		Region:            e.Region,
 		DataResidencyZone: string(e.DataResidencyZone),
-		Status:           string(e.Status),
-		Version:          e.Version,
-		Attributes:       e.Attributes,
-		Metadata:         e.Metadata,
-		CreatedAt:        e.CreatedAt,
-		UpdatedAt:        e.UpdatedAt,
-		DeletedAt:        e.DeletedAt,
+		Status:            string(e.Status),
+		Version:           e.Version,
+		Attributes:        e.Attributes,
+		Metadata:          e.Metadata,
+		CreatedAt:         e.CreatedAt,
+		UpdatedAt:         e.UpdatedAt,
+		DeletedAt:         e.DeletedAt,
 	}
 }

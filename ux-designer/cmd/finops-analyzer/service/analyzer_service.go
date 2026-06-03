@@ -35,10 +35,10 @@ func init() {
 
 // AnalyzerService provides FinOps waste analysis business logic.
 type AnalyzerService struct {
-	metrics  ports.MetricProvider
-	store    ports.WasteStore
-	prSvc    ports.PRService
-	logger   *slog.Logger
+	metrics         ports.MetricProvider
+	store           ports.WasteStore
+	prSvc           ports.PRService
+	logger          *slog.Logger
 	costPerCPUHour  float64 // hourly cost per CPU core
 	costPerGBMemory float64 // hourly cost per GB memory
 }
@@ -51,10 +51,10 @@ func NewAnalyzerService(
 	logger *slog.Logger,
 ) *AnalyzerService {
 	return &AnalyzerService{
-		metrics:  metrics,
-		store:    store,
-		prSvc:    prSvc,
-		logger:   logger,
+		metrics:         metrics,
+		store:           store,
+		prSvc:           prSvc,
+		logger:          logger,
 		costPerCPUHour:  0.10, // $0.10/hr per CPU core
 		costPerGBMemory: 0.05, // $0.05/hr per GB
 	}
@@ -70,35 +70,35 @@ func (s *AnalyzerService) AnalyzeWorkload(ctx context.Context, cluster, namespac
 		))
 	defer span.End()
 
-	metric, err := s.metrics.QueryWorkloadMetrics(ctx, namespace, workload, "")
+	workloadMetrics, err := s.metrics.QueryWorkloadMetrics(ctx, namespace, workload, "")
 	if err != nil {
 		span.RecordError(err)
 		return fmt.Errorf("analyze workload %s: %w", workload, err)
 	}
 
-	if metric.CPUActualCores == 0 && metric.MemActualBytes == 0 {
+	if workloadMetrics.CPUActualCores == 0 && workloadMetrics.MemActualBytes == 0 {
 		return finops.ErrNoMetricsAvailable
 	}
 
 	// Compute waste: (requested - actual) * cost
-	wasteCents := s.computeWaste(metric)
+	wasteCents := s.computeWaste(workloadMetrics)
 
 	obs := &finops.WasteObservation{
-		Cluster:                cluster,
-		Namespace:              namespace,
-		ResourceType:           "deployment",
-		WorkloadName:           workload,
-		CurrentRequestsCPU:     formatCPU(metric.CPURequestCores),
-		CurrentRequestsMemory:  formatMemory(metric.MemRequestBytes),
-		CurrentLimitsCPU:       formatCPU(metric.CPULimitCores),
-		CurrentLimitsMemory:    formatMemory(metric.MemLimitBytes),
-		RecommendedRequestsCPU:    formatCPU(metric.CPUActualCores * 1.1),
-		RecommendedRequestsMemory: formatMemory(metric.MemActualBytes * 1.1),
-		RecommendedLimitsCPU:       formatCPU(metric.CPUActualCores * 1.5),
-		RecommendedLimitsMemory:    formatMemory(metric.MemActualBytes * 1.5),
-		MonthlyWasteUSDCents:   wasteCents,
-		DetectedAt:             time.Now(),
-		Status:                 "open",
+		Cluster:                   cluster,
+		Namespace:                 namespace,
+		ResourceType:              "deployment",
+		WorkloadName:              workload,
+		CurrentRequestsCPU:        formatCPU(workloadMetrics.CPURequestCores),
+		CurrentRequestsMemory:     formatMemory(workloadMetrics.MemRequestBytes),
+		CurrentLimitsCPU:          formatCPU(workloadMetrics.CPULimitCores),
+		CurrentLimitsMemory:       formatMemory(workloadMetrics.MemLimitBytes),
+		RecommendedRequestsCPU:    formatCPU(workloadMetrics.CPUActualCores * 1.1),
+		RecommendedRequestsMemory: formatMemory(workloadMetrics.MemActualBytes * 1.1),
+		RecommendedLimitsCPU:      formatCPU(workloadMetrics.CPUActualCores * 1.5),
+		RecommendedLimitsMemory:   formatMemory(workloadMetrics.MemActualBytes * 1.5),
+		MonthlyWasteUSDCents:      wasteCents,
+		DetectedAt:                time.Now(),
+		Status:                    "open",
 	}
 
 	if err := s.store.UpsertObservation(ctx, obs); err != nil {

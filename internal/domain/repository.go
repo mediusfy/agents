@@ -1,21 +1,24 @@
 package domain
 
-import (
-	"context"
-	"time"
-)
+import "context"
 
-// EntityRepository defines the storage contract for Entity aggregates.
+// EntityRepository is a port consumed by the domain layer.
+//
+//go:generate moq -out ../../mocks/repository.go -pkg mocks . EntityRepository
 type EntityRepository interface {
-	GetByID(ctx context.Context, id string) (*Entity, error)
-	Update(ctx context.Context, entity *Entity) error
-	Close(ctx context.Context) error
-}
+	// FindByID retrieves a single entity by primary key.
+	// Returns nil, nil if no row exists.
+	FindByID(ctx context.Context, id string) (*Entity, error)
 
-// OutboxRepository defines the contract for the transactional outbox.
-type OutboxRepository interface {
-	Insert(ctx context.Context, msg *OutboxMessage) error
-	FetchPending(ctx context.Context, batchSize int) ([]OutboxMessage, error)
-	MarkPublished(ctx context.Context, ids []string) error
-	DeletePublished(ctx context.Context, olderThan time.Duration) error
+	// Save persists a new entity row.
+	Save(ctx context.Context, entity *Entity) error
+
+	// Update persists changes to an existing entity using optimistic locking
+	// on the Version field. Returns ErrConcurrentUpdate if the version
+	// does not match the stored row.
+	Update(ctx context.Context, entity *Entity) error
+
+	// List returns a paginated slice of entities ordered by creation time
+	// descending. Page is 1-indexed; Limit must be between 1 and 100.
+	List(ctx context.Context, input ListInput) (*ListResult, error)
 }

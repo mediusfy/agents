@@ -127,6 +127,7 @@ class OpenClawPipeline:
         # Run merge stage: apply artifacts into the real project tree
         if stage == "all" and getattr(self.state, "approved", False):
             from openclaw.stages.merge_stage import MergeStage
+
             merge = MergeStage()
             merge.agent_provider = self.agent_provider
             logger.info("Pipeline approved — running merge stage to apply artifacts into target project.")

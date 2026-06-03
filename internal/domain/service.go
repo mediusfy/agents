@@ -3,85 +3,187 @@ package domain
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
-	"entity-management/internal/ports"
-
-	cloudevents "github.com/cloudevents/sdk-go/v2/event"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
+
+	"github.com/drewjocham/agents/internal/ports"
 )
 
-var tracer = otel.Tracer("domain.Service")
+const tracerName = "entity-service.domain"
 
-// Service orchestrates entity hard-deletion business logic.
-type Service struct {
-	repo     ports.Repository
-	eventBus ports.EventBus
+// EntityService orchestrates entity use cases.
+type EntityService struct {
+	repo   EntityRepository
+	events ports.EventBus
 }
 
-// NewService injects the repository and event bus ports.
-func NewService(repo ports.Repository, eventBus ports.EventBus) *Service {
-	return &Service{repo: repo, eventBus: eventBus}
+// NewEntityService creates a new domain service with its required ports.
+func NewEntityService(repo EntityRepository, events ports.EventBus) *EntityService {
+	return &EntityService{repo: repo, events: events}
 }
 
-// HardDelete performs the complete hard-delete workflow:
-//  1. Load the entity — return ErrNotFound if absent.
-//  2. Verify the entity is soft-deleted — return ErrNotDeleted if active.
-//  3. Permanently delete the row (committed atomically with an outbox entry).
-//  4. Publish the CloudEvent to the message bus.
-//
-// Returns the deleted entity on success.
-func (s *Service) HardDelete(ctx context.Context, id string) (*Entity, error) {
-	ctx, span := tracer.Start(ctx, "domain.Service.HardDelete",
-		trace.WithAttributes(attribute.String("entity.id", id)))
+// CreateEntity validates input, persists the entity, and publishes a domain event.
+func (s *EntityService) CreateEntity(ctx context.Context, input CreateEntityInput) (*Entity, error) {
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "domain.EntityService.CreateEntity")
 	defer span.End()
 
-	// --- Step 1: Load ---
-	entity, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		return nil, fmt.Errorf("load entity: %w", err)
+	span.SetAttributes(
+		attribute.String("entity.name", input.Name),
+		attribute.String("entity.type", input.Type),
+	)
+
+	if input.Name == "" {
+		return nil, fmt.Errorf("%w", ErrNameRequired)
 	}
 
-	// --- Step 2: Guard ---
-	if !entity.IsSoftDeleted() {
-		span.SetAttributes(attribute.String("outcome", "rejected_not_deleted"))
-		return nil, ErrNotDeleted
+	now := time.Now().UTC()
+
+	entity := &Entity{
+		ID:        uuid.NewString(),
+		Name:      input.Name,
+		Type:      input.Type,
+		Version:   1,
+		Metadata:  sanitiseMetadata(input.Metadata),
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 
-	// --- Step 3: Hard delete (includes outbox insert) ---
-	if err := s.repo.HardDelete(ctx, entity); err != nil {
-		return nil, fmt.Errorf("hard delete: %w", err)
+	if err := s.repo.Save(ctx, entity); err != nil {
+		return nil, fmt.Errorf("persist entity: %w", err)
 	}
 
-	// --- Step 4: Publish CloudEvent ---
-	ce, err := s.buildHardDeletedEvent(entity)
-	if err != nil {
-		return nil, fmt.Errorf("build event: %w", err)
-	}
-	if err := s.eventBus.Publish(ctx, *ce); err != nil {
-		// Non-fatal — the outbox ensures eventual delivery.
-		span.RecordError(err)
+	slog.InfoContext(ctx, "entity created",
+		slog.String("entity_id", entity.ID),
+		slog.String("name", entity.Name),
+	)
+
+	event := EntityCreatedEvent{Entity: *entity}
+	if err := s.events.Publish(ctx, event); err != nil {
+		slog.WarnContext(ctx, "failed to publish entity.created event",
+			slog.String("entity_id", entity.ID),
+			slog.Any("error", err),
+		)
 	}
 
-	span.SetAttributes(attribute.String("outcome", "hard_deleted"))
 	return entity, nil
 }
 
-func (s *Service) buildHardDeletedEvent(entity *Entity) (*cloudevents.Event, error) {
-	ce := cloudevents.New()
-	ce.SetID(uuid.New().String())
-	ce.SetSource("entity-management")
-	ce.SetSubject(string(SubjectEntityHardDeleted))
-	ce.SetType("entitymanagement.entity.hard_deleted")
-	ce.SetTime(time.Now().UTC())
-	ce.SetDataContentType("application/json")
-	if err := ce.SetData("application/json", EntityHardDeletedEvent{
-		EntityID: entity.ID,
-	}); err != nil {
-		return nil, err
+// UpdateEntity validates input, applies changes using optimistic concurrency,
+// and publishes a domain event.
+func (s *EntityService) UpdateEntity(ctx context.Context, input UpdateEntityInput) (*Entity, error) {
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "domain.EntityService.UpdateEntity")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("entity.id", input.ID),
+		attribute.String("entity.name", input.Name),
+	)
+
+	if input.ID == "" {
+		return nil, fmt.Errorf("%w: id is required", ErrInvalidInput)
 	}
-	return &ce, nil
+	if input.Name == "" {
+		return nil, fmt.Errorf("%w: name is required", ErrInvalidInput)
+	}
+
+	entity, err := s.repo.FindByID(ctx, input.ID)
+	if err != nil {
+		return nil, fmt.Errorf("find entity for update: %w", err)
+	}
+	if entity == nil {
+		return nil, fmt.Errorf("%w: %s", ErrEntityNotFound, input.ID)
+	}
+
+	entity.Name = input.Name
+	entity.Version++
+	entity.UpdatedAt = time.Now().UTC()
+
+	if err := s.repo.Update(ctx, entity); err != nil {
+		return nil, fmt.Errorf("persist entity update: %w", err)
+	}
+
+	slog.InfoContext(ctx, "entity updated",
+		slog.String("entity_id", entity.ID),
+		slog.Int("version", entity.Version),
+	)
+
+	event := EntityUpdatedEvent{
+		EntityID: entity.ID,
+		Name:     entity.Name,
+		Version:  entity.Version,
+	}
+	if err := s.events.Publish(ctx, event); err != nil {
+		slog.WarnContext(ctx, "failed to publish entity.updated event",
+			slog.String("entity_id", entity.ID),
+			slog.Any("error", err),
+		)
+	}
+
+	return entity, nil
+}
+
+// FindByID retrieves an entity by its unique identifier.
+func (s *EntityService) FindByID(ctx context.Context, id string) (*Entity, error) {
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "domain.EntityService.FindByID")
+	defer span.End()
+
+	span.SetAttributes(attribute.String("entity.id", id))
+
+	entity, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("find entity: %w", err)
+	}
+
+	if entity == nil {
+		return nil, fmt.Errorf("%w: %s", ErrEntityNotFound, id)
+	}
+
+	return entity, nil
+}
+
+// GetEntity is an alias for FindByID used by the gRPC handler.
+func (s *EntityService) GetEntity(ctx context.Context, id string) (*Entity, error) {
+	return s.FindByID(ctx, id)
+}
+
+// ListEntities returns a paginated list of entities.
+func (s *EntityService) ListEntities(ctx context.Context, input ListInput) (*ListResult, error) {
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "domain.EntityService.ListEntities")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.Int("page", input.Page),
+		attribute.Int("limit", input.Limit),
+	)
+
+	if input.Page < 1 {
+		input.Page = 1
+	}
+	if input.Limit < 1 || input.Limit > 100 {
+		input.Limit = 20
+	}
+
+	result, err := s.repo.List(ctx, input)
+	if err != nil {
+		return nil, fmt.Errorf("list entities: %w", err)
+	}
+
+	span.SetAttributes(attribute.Int("result.count", len(result.Items)))
+	slog.DebugContext(ctx, "entities listed",
+		slog.Int("total", result.Total),
+		slog.Int("returned", len(result.Items)),
+	)
+
+	return result, nil
+}
+
+func sanitiseMetadata(m map[string]string) map[string]string {
+	if m == nil {
+		return make(map[string]string)
+	}
+	return m
 }

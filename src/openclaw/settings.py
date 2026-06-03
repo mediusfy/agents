@@ -76,15 +76,36 @@ class Settings(BaseSettings):
     # These define which agents use fast/cheap models vs reasoning models.
     # They are consulted by resolve_model() unless MODEL_PROVIDER_ENFORCE_ALL
     # is set (which overrides all to the same provider for strict consistency).
-    _FAST_TIER: set[str] = frozenset({
-        "frontend", "docs", "ux", "ba",
-        "holiday_planner", "region_analyzer", "current_events", "weather",
-    })
-    _REASONER_TIER: set[str] = frozenset({
-        "backend", "test", "review", "security", "quality_gate", "sre",
-        "database", "devops", "cto",
-        "asymmetric_reviewer", "accountant", "price_analyst", "market_shark", "crypto_oracle",
-    })
+    _FAST_TIER: frozenset[str] = frozenset(
+        {
+            "frontend",
+            "docs",
+            "ux",
+            "ba",
+            "holiday_planner",
+            "region_analyzer",
+            "current_events",
+            "weather",
+        }
+    )
+    _REASONER_TIER: frozenset[str] = frozenset(
+        {
+            "backend",
+            "test",
+            "review",
+            "security",
+            "quality_gate",
+            "sre",
+            "database",
+            "devops",
+            "cto",
+            "asymmetric_reviewer",
+            "accountant",
+            "price_analyst",
+            "market_shark",
+            "crypto_oracle",
+        }
+    )
 
     def resolve_model(self, model_name: str) -> str:
         """Resolve an agent-level model name to a fully-qualified pydantic_ai model spec.

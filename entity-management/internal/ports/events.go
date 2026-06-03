@@ -1,11 +1,18 @@
+// Package ports defines the EventBus interface and CloudEvents envelope types
+// for the entity-management service.
+//
+// These are "secondary ports" (driven side) in Hexagonal Architecture terms.
 package ports
 
 import (
 	"context"
-	"fmt"
 	"time"
+
+	"go.opentelemetry.io/otel/trace"
 )
 
+// CloudEventAttributes holds the standard CloudEvents specification attributes
+// as defined by the CloudEvents 1.0 specification.
 type CloudEventAttributes struct {
 	SpecVersion     string            `json:"specversion"`
 	Type            string            `json:"type"`
@@ -17,153 +24,76 @@ type CloudEventAttributes struct {
 	Extensions      map[string]string `json:"extensions,omitempty"`
 }
 
+// Envelope wraps a CloudEvents-compliant payload with its metadata.
+// The Data field contains the original event payload as raw JSON bytes.
 type Envelope struct {
 	CloudEventAttributes
 	Data []byte `json:"data"`
 }
 
-func NewEntityCreatedEnvelope(eventID, entityID, entityName, entityType, region string, occurredAt time.Time) *Envelope {
+// NewEnvelope creates a CloudEvents envelope with the given attributes.
+// It extracts the current OpenTelemetry trace ID from the context and
+// injects it into the extensions map under the key "traceid".
+func NewEnvelope(ctx context.Context, eventType, source, id, subject string, occurredAt time.Time, data []byte) *Envelope {
+	ext := map[string]string{
+		"version": "1",
+	}
+
+	// Inject the current OpenTelemetry trace ID into the CloudEvents envelope.
+	if sc := trace.SpanContextFromContext(ctx); sc.IsValid() {
+		ext["traceid"] = sc.TraceID().String()
+	}
+
 	return &Envelope{
 		CloudEventAttributes: CloudEventAttributes{
 			SpecVersion:     "1.0",
-			Type:            "entitymanagement.entity.created",
-			Source:          "/entity-manager",
-			ID:              eventID,
+			Type:            eventType,
+			Source:          source,
+			ID:              id,
 			Time:            occurredAt,
 			DataContentType: "application/json",
-			Subject:         entityID,
-			Extensions: map[string]string{
-				"entityname": entityName,
-				"entitytype": entityType,
-				"region":     region,
-			},
+			Subject:         subject,
+			Extensions:      ext,
 		},
-		Data: []byte(fmt.Sprintf(
-			`{"entity_id":"%s","entity_name":"%s","entity_type":"%s","region":"%s"}`,
-			entityID, entityName, entityType, region,
-		)),
+		Data: data,
 	}
 }
 
-func NewEntitySoftDeletedEnvelope(eventID, entityID, entityName, region string, deletedAt, occurredAt time.Time) *Envelope {
+// EnvelopeWithTrace is a convenience constructor that creates an Envelope and
+// explicitly embeds the trace context from the supplied span context.
+func EnvelopeWithTrace(sc trace.SpanContext, eventType, source, id, subject string, occurredAt time.Time, data []byte) *Envelope {
+	ext := map[string]string{
+		"version": "1",
+	}
+	if sc.IsValid() {
+		ext["traceid"] = sc.TraceID().String()
+	}
+
 	return &Envelope{
 		CloudEventAttributes: CloudEventAttributes{
 			SpecVersion:     "1.0",
-			Type:            "entitymanagement.entity.soft_deleted",
-			Source:          "/entity-manager",
-			ID:              eventID,
+			Type:            eventType,
+			Source:          source,
+			ID:              id,
 			Time:            occurredAt,
 			DataContentType: "application/json",
-			Subject:         entityID,
-			Extensions: map[string]string{
-				"entityname": entityName,
-				"region":     region,
-				"deleted_at": deletedAt.Format(time.RFC3339Nano),
-			},
+			Subject:         subject,
+			Extensions:      ext,
 		},
-		Data: []byte(fmt.Sprintf(
-			`{"entity_id":"%s","entity_name":"%s","region":"%s","deleted_at":"%s"}`,
-			entityID, entityName, region, deletedAt.Format(time.RFC3339Nano),
-		)),
+		Data: data,
 	}
 }
 
-func NewEntityHardDeletedEnvelope(eventID, entityID, entityName, region string, deletedAt, occurredAt time.Time) *Envelope {
-	return &Envelope{
-		CloudEventAttributes: CloudEventAttributes{
-			SpecVersion:     "1.0",
-			Type:            "entitymanagement.entity.hard_deleted",
-			Source:          "/entity-manager",
-			ID:              eventID,
-			Time:            occurredAt,
-			DataContentType: "application/json",
-			Subject:         entityID,
-			Extensions: map[string]string{
-				"entityname": entityName,
-				"region":     region,
-				"deleted_at": deletedAt.Format(time.RFC3339Nano),
-			},
-		},
-		Data: []byte(fmt.Sprintf(
-			`{"entity_id":"%s","entity_name":"%s","region":"%s","deleted_at":"%s"}`,
-			entityID, entityName, region, deletedAt.Format(time.RFC3339Nano),
-		)),
-	}
-}
-
-func NewEntityRestoredEnvelope(eventID, entityID, entityName, region string, occurredAt time.Time) *Envelope {
-	return &Envelope{
-		CloudEventAttributes: CloudEventAttributes{
-			SpecVersion:     "1.0",
-			Type:            "entitymanagement.entity.restored",
-			Source:          "/entity-manager",
-			ID:              eventID,
-			Time:            occurredAt,
-			DataContentType: "application/json",
-			Subject:         entityID,
-			Extensions: map[string]string{
-				"entityname": entityName,
-				"region":     region,
-			},
-		},
-		Data: []byte(fmt.Sprintf(
-			`{"entity_id":"%s","entity_name":"%s","region":"%s"}`,
-			entityID, entityName, region,
-		)),
-	}
-}
-
-func NewEntitySchemaDefinedEnvelope(eventID, schemaID, schemaName string, version int, occurredAt time.Time) *Envelope {
-	return &Envelope{
-		CloudEventAttributes: CloudEventAttributes{
-			SpecVersion:     "1.0",
-			Type:            "entitymanagement.schema.defined",
-			Source:          "/entity-manager",
-			ID:              eventID,
-			Time:            occurredAt,
-			DataContentType: "application/json",
-			Subject:         schemaID,
-			Extensions: map[string]string{
-				"schemaname": schemaName,
-				"version":    fmt.Sprintf("%d", version),
-			},
-		},
-		Data: []byte(fmt.Sprintf(
-			`{"schema_id":"%s","schema_name":"%s","version":%d}`,
-			schemaID, schemaName, version,
-		)),
-	}
-}
-
-func NewEntitySchemaUpdatedEnvelope(eventID, schemaID, schemaName string, prevVer, newVer int, occurredAt time.Time) *Envelope {
-	return &Envelope{
-		CloudEventAttributes: CloudEventAttributes{
-			SpecVersion:     "1.0",
-			Type:            "entitymanagement.schema.updated",
-			Source:          "/entity-manager",
-			ID:              eventID,
-			Time:            occurredAt,
-			DataContentType: "application/json",
-			Subject:         schemaID,
-			Extensions: map[string]string{
-				"schemaname":      schemaName,
-				"previousversion": fmt.Sprintf("%d", prevVer),
-				"newversion":      fmt.Sprintf("%d", newVer),
-			},
-		},
-		Data: []byte(fmt.Sprintf(
-			`{"schema_id":"%s","schema_name":"%s","previous_version":%d,"new_version":%d}`,
-			schemaID, schemaName, prevVer, newVer,
-		)),
-	}
-}
-
+// EventBus defines the interface for publishing and subscribing to events.
+// Includes a Ping method for health checking (HEALTH-01).
 type EventBus interface {
 	Publish(ctx context.Context, subject string, envelope *Envelope) error
 	Subscribe(ctx context.Context, subject string, handler EventHandler) error
+	Ping(ctx context.Context) error
 	Close() error
 }
 
+// Disposition represents the result of handling an event.
 type Disposition int
 
 const (
@@ -172,4 +102,7 @@ const (
 	BadRequest
 )
 
+// EventHandler processes an event and returns a Disposition indicating
+// whether the event was handled successfully (Ack), should be retried (Retry),
+// or is invalid (BadRequest).
 type EventHandler func(ctx context.Context, data []byte) Disposition

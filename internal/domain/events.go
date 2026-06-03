@@ -1,13 +1,10 @@
 package domain
 
-// EventSubject is the CloudEvents subject for entity lifecycle events.
+// EventSubject is a CloudEvents subject for domain events.
 type EventSubject string
 
 const (
-	SubjectEntityHardDeleted EventSubject = "entitymanagement.entity.hard_deleted"
+	SubjectEntityCreated   EventSubject = "entity.entity.created"
+	SubjectEntityUpdated   EventSubject = "entity.entity.updated"
+	SubjectEntityRetrieved EventSubject = "entity.entity.retrieved"
 )
-
-// EntityHardDeletedEvent is the domain event payload for hard-deletion.
-type EntityHardDeletedEvent struct {
-	EntityID string `json:"entity_id"`
-}

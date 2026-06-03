@@ -48,13 +48,8 @@ class ProgressTracker:
 
     def _print(self):
         elapsed = int(time.time() - self.start_time)
-        statuses = "  ".join(
-            f"{s} {k}" for k, s in sorted(self.agent_map.items())
-        )
-        logger.info(
-            f"[{elapsed}s] {self.completed}/{self.total_agents} agents done "
-            f"({self.failed} failed)  {statuses}"
-        )
+        statuses = "  ".join(f"{s} {k}" for k, s in sorted(self.agent_map.items()))
+        logger.info(f"[{elapsed}s] {self.completed}/{self.total_agents} agents done ({self.failed} failed)  {statuses}")
 
 
 class ImplementationStage(StageRunner):
@@ -101,7 +96,9 @@ class ImplementationStage(StageRunner):
 
         from openclaw.agents.backend import ProjectState
 
-        project_state = ProjectState(base_path=f"/app/{config.project}", environment="dev", team_owner="platform-engineering")
+        project_state = ProjectState(
+            base_path=f"/app/{config.project}", environment="dev", team_owner="platform-engineering"
+        )
 
         # Determine total agent count for progress tracker
         n_stories = len(user_stories)
@@ -160,7 +157,7 @@ class ImplementationStage(StageRunner):
             if is_retry:
                 prompt = (
                     f"{repo_ctx}\n\n"
-                    "CTO ADVICE:\n{cto_adv}\n\n"
+                    f"CTO ADVICE:\n{cto_adv}\n\n"
                     f"FULL GHERKIN:\n{us.gherkin}\n\n"
                     "PREVIOUS FAILURE DETECTED:\n"
                     f"Source: {state.failure_report.source}\n"
@@ -172,7 +169,7 @@ class ImplementationStage(StageRunner):
             else:
                 prompt = (
                     f"{repo_ctx}\n\n"
-                    "CTO ADVICE:\n{cto_adv}\n\n"
+                    f"CTO ADVICE:\n{cto_adv}\n\n"
                     f"FULL GHERKIN:\n{us.gherkin}\n\n"
                     "TASK: Generate a complete Go backend for this user story using Hexagonal Architecture. "
                     "Include ALL of the following in one pass:\n"
@@ -190,7 +187,9 @@ class ImplementationStage(StageRunner):
         # ── Build task list ────────────────────────────────────────────────
         per_story_tasks = []
         for idx, us in enumerate(user_stories):
-            per_story_tasks.append(("backend", run_backend(semaphore, us, repo_context, cto_advice, project_state, idx)))
+            per_story_tasks.append(
+                ("backend", run_backend(semaphore, us, repo_context, cto_advice, project_state, idx))
+            )
 
             if not is_retry:
                 fe_prompt = (
@@ -226,7 +225,7 @@ class ImplementationStage(StageRunner):
         results = await asyncio.gather(*[t[1] for t in all_tasks], return_exceptions=True)
 
         # ── Collect artifacts ──────────────────────────────────────────────
-        for (agent_type, _), r in zip(all_tasks, results):
+        for (agent_type, _), r in zip(all_tasks, results, strict=False):
             if isinstance(r, list):
                 for sub_r in r:
                     if isinstance(sub_r, Artifact):
@@ -248,7 +247,7 @@ class ImplementationStage(StageRunner):
         failed_stories: list[str] = []
         from openclaw.tools.test_tools import execute_test_suite
 
-        for us, res in zip(user_stories, test_results):
+        for us, res in zip(user_stories, test_results, strict=False):
             if isinstance(res, BaseException):
                 logger.error(f"Test agent for {us.id} failed: {res}")
                 continue

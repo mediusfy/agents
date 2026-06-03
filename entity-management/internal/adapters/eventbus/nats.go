@@ -87,6 +87,22 @@ func (b *NATSBus) Subscribe(ctx context.Context, subject string, handler ports.E
 	return nil
 }
 
+// Ping checks the health of the NATS connection by flushing the connection
+// with a short timeout. Returns nil if the connection is healthy.
+func (b *NATSBus) Ping(ctx context.Context) error {
+	if !b.conn.IsConnected() {
+		return fmt.Errorf("nats: not connected")
+	}
+
+	// Use FlushTimeout to verify the connection is responsive.
+	// This sends a PING and waits for a PONG.
+	if err := b.conn.FlushTimeout(2 * time.Second); err != nil {
+		return fmt.Errorf("nats: flush timeout: %w", err)
+	}
+
+	return nil
+}
+
 func (b *NATSBus) Close() error {
 	close(b.closeCh)
 	for _, sub := range b.subs {

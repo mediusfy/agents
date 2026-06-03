@@ -1,49 +1,25 @@
+# Entity Management Service — Database & Architecture Docs
 
+## Stories
 
+| Story | Description | Status |
+|-------|-------------|--------|
+| [ENTITY-01](ENTITY-01_000_create_entity.md) | Create Entity | ✅ Done |
+| [ENTITY-02](ENTITY-02_001_retrieve_entity_by_id.md) | Retrieve Entity by ID | ✅ Done |
+| **ENTITY-03** | **List Entities with Pagination** | **✅ Done** |
+| [ENTITY-04](ENTITY-04_000_optimistic_concurrency.md) | Optimistic Concurrency (Update Entity) | ✅ Done |
+| [ENTITY-05](ENTITY-05_000_soft_delete_restore.md) | Soft Delete & Restore | ✅ Done |
 
+## ENTITY-03: List Entities with Pagination
 
-## 📋 Stories
+See [ENTITY-03_list_entities_pagination.md](ENTITY-03_list_entities_pagination.md) for full details.
 
-| ID | Story | Theme | Priority | Status |
-|----|-------|-------|----------|--------|
-| ENT-01 | Define Entity Schema | Entity Management | P0 | ✅ Implemented |
-| GITOPS-01 | Automated Incident Response via GitOps PRs | GitOps | P0 | Planned |
-| ... | ... | ... | ... | ... |
+### Key Files
 
-### Recently Completed
-
-| Story | Artifacts |
-|-------|-----------|
-| **ENT-01** Define Entity Schema | [Schema Definition Doc](docs/docs/ENT-01_schema_definition.md), [Migration](docs/migrations/002_create_entity_schemas.sql), [Seed Data](docs/seeds/002_entity_schema_data.sql), [Redis Config](docs/config/redis-entity-schema.conf) |
-
-
-## ENTITY-05 — Soft-Delete, Hard-Delete, and Restore Entity Instances
-
-**Migration files:**
-- `docs/generated-app/default/database/migrations/ENTITY-05_000_soft_delete_restore.up.sql` — Up migration
-- `docs/generated-app/default/database/migrations/ENTITY-05_000_soft_delete_restore.down.sql` — Down migration
-- `docs/generated-app/default/database/seeds/ENTITY-05_000_soft_delete_restore_seed.sql` — Seed data
-- `docs/generated-app/default/database/redis/ENTITY-05_soft_delete_cache.conf` — Redis config
-- `docs/docs/ENTITY-05_SCHEMA_SUMMARY.md` — Full schema documentation
-
-**Summary:** Introduces three atomic operations on entities:
-1. **Soft-delete** (default `DELETE`): Sets `deleted_at = NOW()`, sets `status = 'deleted'`, emits `entitymanagement.EntitySoftDeleted`
-2. **Hard-delete** (`DELETE ?permanent=true`): Permanently removes already-soft-deleted entities, emits `entitymanagement.EntityHardDeleted`
-3. **Restore** (`POST /entities/{id}/restore`): Clears `deleted_at`, reverts status to `'active'`, emits `entitymanagement.EntityRestored`
-
-All changes are additive (no new tables, no ALTER TABLE on existing columns).
-
-
-## ENTITYMGMT-01: Schema Definition with Typed Attributes
-
-**Status**: ✅ Complete  
-**Story**: Admin defines entity schema with typed attributes  
-**Event**: `entitymanagement.schema.defined` → written to transactional outbox  
-**Files**:
-- `entity-management/database/migrations/ENTITYMGMT-01_000_schema_definition.up.sql`
-- `entity-management/database/migrations/ENTITYMGMT-01_000_schema_definition.down.sql`
-- `entity-management/database/seeds/ENTITYMGMT-01_000_schema_definition_seed.sql`
-- `entity-management/database/queries/ENTITYMGMT-01_define_schema.sql`
-- `entity-management/config/redis/cache.conf`
-
-See [Full Docs](database/migrations/ENTITYMGMT-01_000_schema_definition.md) for details.
+| File | Description |
+|------|-------------|
+| `database/migrations/ENTITY-03_000_list_entities_pagination.up.sql` | UP migration: pagination indexes, stored procedures, diagnostic |
+| `database/migrations/ENTITY-03_000_list_entities_pagination.down.sql` | DOWN migration: rollback |
+| `database/seeds/ENTITY-03_000_list_entities_pagination_seed.sql` | Seed 50 entities for pagination testing |
+| `internal/adapters/postgres/repo.go` | `List()` method implementation using OFFSET/LIMIT |
+| `config/redis/entity_list_cache.conf` | Redis caching config for entity list endpoint |

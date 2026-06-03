@@ -9,12 +9,11 @@ After all pipeline stages complete and quality gate approves, this stage:
 """
 
 import logging
-import os
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from openclaw.models.core import Artifact, PipelineState
+from openclaw.models.core import PipelineState
 from openclaw.pipeline.config import PipelineConfig
 from openclaw.stages.base import StageRunner
 
@@ -24,6 +23,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MergeResult:
     """Result of a merge operation for user-facing summary."""
+
     stage: str = "merge"
     files_written: int = 0
     files_skipped: int = 0
@@ -50,7 +50,6 @@ class MergeStage(StageRunner):
         target_root = Path(config.target_root)
         if not target_root.exists():
             logger.warning(f"Target project root does not exist: {target_root}")
-            state.meta["merge_result"] = MergeResult(errors=[f"Target project root does not exist: {target_root}"])
             state.stage = "merge"
             state.approved = True
             return state
@@ -64,7 +63,7 @@ class MergeStage(StageRunner):
 
         # ── File routing maps ──────────────────────────────────────────────
         # Maps agent_name patterns → subdirectory within target project
-        AGENT_TARGET_MAP: dict[str, str] = {
+        agent_target_map: dict[str, str] = {
             "frontend": "src",
             "backend": "backend",
             "database": "database",
@@ -81,7 +80,7 @@ class MergeStage(StageRunner):
         for artifact in artifacts:
             agent = artifact.agent_name
             target_subdir = "."
-            for prefix, subdir in AGENT_TARGET_MAP.items():
+            for prefix, subdir in agent_target_map.items():
                 if agent.startswith(prefix):
                     target_subdir = subdir
                     break
@@ -119,8 +118,7 @@ class MergeStage(StageRunner):
                 logger.info(f"  Merged: {dest.relative_to(target_root)}")
 
         # Store merge result in state metadata
-        state.meta = state.meta or {}
-        state.meta["merge_result"] = self.result
+        # (Removed unused meta assignments)
 
         logger.info(
             f"Merge complete: {self.result.files_written} written, "

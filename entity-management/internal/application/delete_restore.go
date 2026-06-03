@@ -61,6 +61,30 @@ func (uc *DeleteRestoreUseCase) HardDelete(ctx context.Context, id string) error
 	return nil
 }
 
+// PermanentDelete permanently removes an entity from the database regardless
+// of its soft-delete state. This is the backing method for the Gherkin spec
+//
+//	DELETE /api/v1/entities/{id}
+//
+// which returns 204 No Content on success or 404 Not Found when the entity
+// does not exist.
+func (uc *DeleteRestoreUseCase) PermanentDelete(ctx context.Context, id string) error {
+	ctx, span := uc.tracer.Start(ctx, "application.DeleteRestoreUseCase.PermanentDelete",
+		trace.WithAttributes(attribute.String("entity_id", id)))
+	defer span.End()
+
+	if err := uc.svc.PermanentDeleteEntity(ctx, id); err != nil {
+		if errors.Is(err, domain.ErrEntityNotFound) {
+			span.SetAttributes(attribute.Bool("found", false))
+		}
+		span.RecordError(err)
+		return fmt.Errorf("permanent delete: %w", err)
+	}
+
+	span.SetAttributes(attribute.Bool("deleted", true))
+	return nil
+}
+
 func (uc *DeleteRestoreUseCase) Restore(ctx context.Context, id string) error {
 	ctx, span := uc.tracer.Start(ctx, "application.DeleteRestoreUseCase.Restore",
 		trace.WithAttributes(attribute.String("entity_id", id)))

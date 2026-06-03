@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -89,13 +88,45 @@ func run(logger *slog.Logger) error {
 	}
 	logger.InfoContext(ctx, "database migrations applied")
 
-	// --- NATS Event Bus (degraded noop fallback) ---
+	// --- Event Bus (Solace PubSub+ or NATS with degraded noop fallback) ---
 	var bus ports.EventBus
-	bus, err = eventbus.NewNATSEventBus(cfg.NATSURL, logger)
-	if err != nil {
-		logger.WarnContext(ctx, "nats unavailable, using no-op event bus",
-			"error", err)
+	var topicResolver eventbus.TopicResolver
+
+	switch cfg.EventBusType {
+	case "solace":
+		solaceCfg := eventbus.SolaceConfig{
+			Host:     cfg.SolaceHost,
+			VPNName:  cfg.SolaceVPN,
+			UserName: cfg.SolaceUser,
+			Password: cfg.SolacePassword,
+		}
+		sb, err := eventbus.NewSolaceBus(solaceCfg, logger)
+		if err != nil {
+			logger.WarnContext(ctx, "solace unavailable, using no-op event bus",
+				"error", err)
+			bus = eventbus.NewNoopBus(logger)
+			topicResolver = eventbus.NATSTopicResolver()
+		} else {
+			bus = sb
+			topicResolver = eventbus.SolaceTopicResolver()
+			logger.InfoContext(ctx, "using Solace PubSub+ event bus")
+		}
+	case "nats":
+		var err error
+		bus, err = eventbus.NewNATSEventBus(cfg.NATSURL, logger)
+		if err != nil {
+			logger.WarnContext(ctx, "nats unavailable, using no-op event bus",
+				"error", err)
+			bus = eventbus.NewNoopBus(logger)
+			topicResolver = eventbus.NATSTopicResolver()
+		} else {
+			topicResolver = eventbus.NATSTopicResolver()
+			logger.InfoContext(ctx, "using NATS event bus")
+		}
+	default:
+		logger.WarnContext(ctx, "no event bus configured, using no-op", "event_bus_type", cfg.EventBusType)
 		bus = eventbus.NewNoopBus(logger)
+		topicResolver = eventbus.NATSTopicResolver()
 	}
 
 	// --- Event Publisher (CloudEvents enveloping) ---
@@ -139,38 +170,38 @@ func run(logger *slog.Logger) error {
 	deleteRestoreUC := application.NewDeleteRestoreUseCase(domainSvc, logger)
 	listEntitiesUC := application.NewListEntitiesUseCase(entityRepo, logger)
 
-	// --- HTTP Handlers (chi router) ---
-	app := ports.NewRouter(
-		schemaSvc,
-		createEntityUC,
-		readEntityUC,
-		updateEntityUC,
-		deleteRestoreUC,
-		listEntitiesUC,
-		logger,
-	)
+	// --- Health Handler (HEALTH-01: Liveness + Readiness with structured checks) ---
+	healthHandler := ports.NewHealthHandler(logger)
 
-	// Register health endpoints on the chi router.
-	app.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
-	})
-	app.Get("/readyz", func(w http.ResponseWriter, r *http.Request) {
-		if err := pool.Ping(r.Context()); err != nil {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			json.NewEncoder(w).Encode(map[string]string{
-				"status": "unavailable",
-				"reason": err.Error(),
-			})
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ready"}`))
+	// Register per-dependency health checkers for the /health/ready endpoint.
+	healthHandler.RegisterChecker(ports.NewDatabaseHealthChecker(pool, logger))
+	healthHandler.RegisterChecker(ports.NewEventBusHealthChecker(bus, logger))
+
+	// --- Chi Router ---
+	app := chi.NewRouter()
+
+	// Register middleware
+	app.Use(chimw.RequestID)
+	app.Use(chimw.RealIP)
+	app.Use(chimw.Logger)
+
+	// Register health endpoints (HEALTH-01) at the root level for K8s probes.
+	healthHandler.RegisterRoutes(app)
+
+	// Register API routes under /api/v1.
+	app.Route("/api/v1", func(r chi.Router) {
+		schemaHandler := ports.NewSchemaHTTPHandler(schemaSvc, logger)
+		entityHandler := ports.NewEntityHTTPHandler(
+			createEntityUC, readEntityUC, updateEntityUC,
+			deleteRestoreUC, listEntitiesUC, logger,
+		)
+		schemaHandler.RegisterRoutes(r)
+		entityHandler.RegisterRoutes(r)
 	})
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.HTTPPort),
-		Handler:      chimw.RequestID(chimw.RealIP(chimw.Logger(app))),
+		Handler:      app,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,
@@ -181,6 +212,7 @@ func run(logger *slog.Logger) error {
 		eventbus.WithPollInterval(500*time.Millisecond),
 		eventbus.WithMaxRetries(3),
 		eventbus.WithBatchSize(50),
+		eventbus.WithTopicResolver(topicResolver),
 	)
 
 	// --- errgroup graceful shutdown ---
@@ -195,7 +227,8 @@ func run(logger *slog.Logger) error {
 	})
 
 	g.Go(func() error {
-		logger.InfoContext(egCtx, "outbox relay starting")
+		logger.InfoContext(egCtx, "outbox relay starting",
+			"event_bus_type", cfg.EventBusType)
 		if err := relay.Run(egCtx); err != nil && !errors.Is(err, context.Canceled) {
 			return fmt.Errorf("outbox relay: %w", err)
 		}
@@ -228,18 +261,28 @@ func run(logger *slog.Logger) error {
 }
 
 type config struct {
-	HTTPPort     string
-	DatabaseURL  string
-	NATSURL      string
-	OTLPEndpoint string
+	HTTPPort       string
+	DatabaseURL    string
+	NATSURL        string
+	EventBusType   string
+	SolaceHost     string
+	SolaceVPN      string
+	SolaceUser     string
+	SolacePassword string
+	OTLPEndpoint   string
 }
 
 func loadConfig() config {
 	return config{
-		HTTPPort:     getEnvOrDefault("HTTP_PORT", "8080"),
-		DatabaseURL:  getEnvOrDefault("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/entity_management?sslmode=disable"),
-		NATSURL:      getEnvOrDefault("NATS_URL", "nats://localhost:4222"),
-		OTLPEndpoint: getEnvOrDefault("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
+		HTTPPort:       getEnvOrDefault("HTTP_PORT", "8080"),
+		DatabaseURL:    getEnvOrDefault("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/entity_management?sslmode=disable"),
+		NATSURL:        getEnvOrDefault("NATS_URL", "nats://localhost:4222"),
+		EventBusType:   getEnvOrDefault("EVENT_BUS_TYPE", "nats"),
+		SolaceHost:     getEnvOrDefault("SOLACE_HOST", "tcp://localhost:55555"),
+		SolaceVPN:      getEnvOrDefault("SOLACE_VPN", "default"),
+		SolaceUser:     getEnvOrDefault("SOLACE_USERNAME", "default"),
+		SolacePassword: getEnvOrDefault("SOLACE_PASSWORD", "default"),
+		OTLPEndpoint:   getEnvOrDefault("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
 	}
 }
 

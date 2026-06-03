@@ -89,7 +89,7 @@ func (h *SchemaHTTPHandler) RegisterRoutes(r chi.Router) {
 
 // SchemaDefineRequest is the HTTP JSON request body for defining a schema.
 type SchemaDefineRequest struct {
-	Name       string                      `json:"name"`
+	Name       string                       `json:"name"`
 	Attributes []domain.AttributeDefinition `json:"attributes"`
 }
 
@@ -408,12 +408,12 @@ func (h *EntityHTTPHandler) handleCreateEntity(w http.ResponseWriter, r *http.Re
 // --- List Entities (GET /api/v1/entities) ---
 
 type updateEntityRequest struct {
-	ExpectedVersion int              `json:"expected_version"`
-	Name            *string          `json:"name,omitempty"`
-	Status          *string          `json:"status,omitempty"`
-	Region          *string          `json:"region,omitempty"`
-	Attributes      map[string]any   `json:"attributes,omitempty"`
-	Metadata        map[string]any   `json:"metadata,omitempty"`
+	ExpectedVersion int            `json:"expected_version"`
+	Name            *string        `json:"name,omitempty"`
+	Status          *string        `json:"status,omitempty"`
+	Region          *string        `json:"region,omitempty"`
+	Attributes      map[string]any `json:"attributes,omitempty"`
+	Metadata        map[string]any `json:"metadata,omitempty"`
 }
 
 func (h *EntityHTTPHandler) handleListEntities(w http.ResponseWriter, r *http.Request) {
@@ -635,6 +635,20 @@ func (h *EntityHTTPHandler) handleUpdateEntity(w http.ResponseWriter, r *http.Re
 	writeJSON(ctx, w, http.StatusOK, entity)
 }
 
+// handleDeleteEntity handles DELETE /api/v1/entities/{id}.
+//
+// Gherkin: "As an API consumer, I want to DELETE /api/v1/entities/{id}"
+//
+//	Scenario: Successful deletion
+//	  Given an entity with ID "abc-123" exists
+//	  When a DELETE request is made to /api/v1/entities/abc-123
+//	  Then the response status is 204
+//	  And the entity with ID "abc-123" no longer exists in the database
+//
+//	Scenario: Entity not found
+//	  Given no entity with ID "nonexistent" exists
+//	  When a DELETE request is made to /api/v1/entities/nonexistent
+//	  Then the response status is 404
 func (h *EntityHTTPHandler) handleDeleteEntity(w http.ResponseWriter, r *http.Request) {
 	ctx, span := h.tracer.Start(r.Context(), "ports.EntityHTTPHandler.handleDeleteEntity")
 	defer span.End()
@@ -645,59 +659,32 @@ func (h *EntityHTTPHandler) handleDeleteEntity(w http.ResponseWriter, r *http.Re
 			Code:    "MISSING_ID",
 			Message: "entity id is required",
 		})
+		h.recordError(ctx, "delete_entity")
 		return
 	}
 	span.SetAttributes(attribute.String("entity_id", id))
 
-	permanent, _ := strconv.ParseBool(r.URL.Query().Get("permanent"))
+	if err := h.deleteUC.PermanentDelete(ctx, id); err != nil {
+		span.RecordError(err)
+		h.recordError(ctx, "delete_entity")
 
-	if permanent {
-		if err := h.deleteUC.HardDelete(ctx, id); err != nil {
-			span.RecordError(err)
-			h.recordError(ctx, "hard_delete_entity")
-			code := http.StatusInternalServerError
-			switch {
-			case errors.Is(err, domain.ErrEntityNotFound):
-				code = http.StatusNotFound
-			case errors.Is(err, domain.ErrNotDeleted):
-				code = http.StatusBadRequest
-			}
-			writeJSON(ctx, w, code, ErrorResponse{
-				Code:    httpCodeToErrorCode(code),
-				Message: unwrapErrorMessage(err),
+		if errors.Is(err, domain.ErrEntityNotFound) {
+			writeJSON(ctx, w, http.StatusNotFound, ErrorResponse{
+				Code:    "NOT_FOUND",
+				Message: "entity not found",
 			})
 			return
 		}
-		h.recordSuccess(ctx, "hard_delete_entity")
-		writeJSON(ctx, w, http.StatusOK, map[string]string{
-			"status":    "hard_deleted",
-			"entity_id": id,
-		})
-		return
-	}
 
-	if err := h.deleteUC.SoftDelete(ctx, id); err != nil {
-		span.RecordError(err)
-		h.recordError(ctx, "soft_delete_entity")
-		code := http.StatusInternalServerError
-		switch {
-		case errors.Is(err, domain.ErrEntityNotFound):
-			code = http.StatusNotFound
-		case errors.Is(err, domain.ErrAlreadyDeleted):
-			code = http.StatusConflict
-		}
-		writeJSON(ctx, w, code, ErrorResponse{
-			Code:    httpCodeToErrorCode(code),
+		writeJSON(ctx, w, http.StatusInternalServerError, ErrorResponse{
+			Code:    "INTERNAL_ERROR",
 			Message: unwrapErrorMessage(err),
 		})
 		return
 	}
 
-	h.recordSuccess(ctx, "soft_delete_entity")
-	writeJSON(ctx, w, http.StatusOK, map[string]string{
-		"status":    "soft_deleted",
-		"entity_id": id,
-	})
+	h.recordSuccess(ctx, "delete_entity")
+	w.WriteHeader(http.StatusNoContent) // 204 No Content
 }
 
 func (h *EntityHTTPHandler) handleRestoreEntity(w http.ResponseWriter, r *http.Request) {

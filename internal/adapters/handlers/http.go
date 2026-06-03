@@ -1,102 +1,166 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 
-	"entity-management/internal/domain"
-
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
+	"github.com/drewjocham/agents/internal/domain"
 )
 
-var tracer = otel.Tracer("adapters.handlers.HTTPHandler")
-
-// EntityHandler serves REST endpoints for entity management.
-type EntityHandler struct {
-	svc    *domain.Service
-	logger *slog.Logger
+// HTTPServer holds dependencies for HTTP handlers.
+type HTTPServer struct {
+	svc *domain.EntityService
+	mux *http.ServeMux
 }
 
-// NewEntityHandler wires the domain service into the HTTP layer.
-func NewEntityHandler(svc *domain.Service, logger *slog.Logger) *EntityHandler {
-	return &EntityHandler{svc: svc, logger: logger}
+// NewHTTPServer creates an HTTP server wired to the entity service.
+func NewHTTPServer(svc *domain.EntityService) *HTTPServer {
+	h := &HTTPServer{
+		svc: svc,
+		mux: http.NewServeMux(),
+	}
+	h.registerRoutes()
+	return h
 }
 
-// HandleDeleteHard processes DELETE /api/v1/entities/{id}?permanent=true.
-func (h *EntityHandler) HandleDeleteHard(w http.ResponseWriter, r *http.Request) {
-	ctx, span := tracer.Start(r.Context(), "adapters.handlers.HTTPHandler.HandleDeleteHard")
-	defer span.End()
+func (h *HTTPServer) registerRoutes() {
+	h.mux.HandleFunc("GET /api/v1/entities", h.handleListEntities)
+	h.mux.HandleFunc("GET /api/v1/entities/{id}", h.handleGetEntity)
+	h.mux.HandleFunc("GET /healthz", h.handleHealthz)
+	h.mux.HandleFunc("GET /readyz", h.handleReadyz)
+}
 
-	// Extract entity ID from the URL path: /api/v1/entities/{id}
-	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/v1/entities/"), "/")
-	if len(parts) == 0 || parts[0] == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "missing entity ID in path",
-		})
+// ServeHTTP implements http.Handler.
+func (h *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.mux.ServeHTTP(w, r)
+}
+
+// ------- Handlers -------
+
+func (h *HTTPServer) handleListEntities(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	page, limit := parsePagination(r)
+	input := domain.ListInput{Page: page, Limit: limit}
+
+	result, err := h.svc.ListEntities(ctx, input)
+	if err != nil {
+		slog.ErrorContext(ctx, "list entities failed", "error", err)
+		writeJSON(ctx, w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
 		return
 	}
-	entityID := parts[0]
-	span.SetAttributes(attribute.String("entity.id", entityID))
 
-	// Verify the ?permanent=true query parameter.
-	if r.URL.Query().Get("permanent") != "true" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "query parameter permanent=true is required",
-		})
-		return
+	items := make([]entityResponse, 0, len(result.Items))
+	for _, e := range result.Items {
+		items = append(items, entityToResponse(e))
 	}
 
-	entity, err := h.svc.HardDelete(ctx, entityID)
+	resp := listEntitiesResponse{
+		Items: items,
+		Total: result.Total,
+		Page:  result.Page,
+		Limit: result.Limit,
+	}
+	if next := result.NextPage(); next != "" {
+		resp.Next = next
+	}
+
+	writeJSON(ctx, w, http.StatusOK, resp)
+}
+
+func (h *HTTPServer) handleGetEntity(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	id := strings.TrimSpace(r.PathValue("id"))
+
+	entity, err := h.svc.GetEntity(ctx, id)
 	if err != nil {
 		switch {
-		case errors.Is(err, domain.ErrNotFound):
-			writeJSON(w, http.StatusNotFound, map[string]string{
-				"error":   "entity not found",
-				"message": "no entity exists with the given identifier",
-			})
-		case errors.Is(err, domain.ErrNotDeleted):
-			writeJSON(w, http.StatusBadRequest, map[string]string{
-				"error":   "entity not deleted",
-				"message": "entity must be soft-deleted before hard deletion",
-			})
+		case errors.Is(err, domain.ErrEntityNotFound):
+			writeJSON(ctx, w, http.StatusNotFound, map[string]string{"error": "entity not found"})
+		case errors.Is(err, domain.ErrInvalidEntityID):
+			writeJSON(ctx, w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		default:
-			h.logger.ErrorContext(ctx, "hard-delete failed", "error", err)
-			writeJSON(w, http.StatusInternalServerError, map[string]string{
-				"error": "internal server error",
-			})
+			slog.ErrorContext(ctx, "get entity failed", "id", id, "error", err)
+			writeJSON(ctx, w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
 		}
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{
-		"status":    "hard_deleted",
-		"entity_id": entity.ID,
-	})
+	writeJSON(ctx, w, http.StatusOK, entityToResponse(*entity))
 }
 
-// HandleHealth responds to liveness and readiness probes.
-func HandleHealth(w http.ResponseWriter, _ *http.Request) {
+func (h *HTTPServer) handleHealthz(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	w.Write([]byte(`{"status":"ok"}`))
 }
 
-func writeJSON(w http.ResponseWriter, status int, v any) {
+func (h *HTTPServer) handleReadyz(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(v); err != nil {
-		// Best-effort.
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"status":"ready"}`))
+}
+
+// ------- Request / Response types -------
+
+type listEntitiesResponse struct {
+	Items []entityResponse `json:"items"`
+	Total int              `json:"total"`
+	Page  int              `json:"page,omitempty"`
+	Limit int              `json:"limit,omitempty"`
+	Next  string           `json:"next,omitempty"`
+}
+
+type entityResponse struct {
+	ID        string            `json:"id"`
+	Name      string            `json:"name"`
+	Type      string            `json:"type"`
+	Metadata  map[string]string `json:"metadata,omitempty"`
+	CreatedAt string            `json:"created_at"`
+	UpdatedAt string            `json:"updated_at"`
+}
+
+func entityToResponse(e domain.Entity) entityResponse {
+	return entityResponse{
+		ID:        e.ID,
+		Name:      e.Name,
+		Type:      e.Type,
+		Metadata:  e.Metadata,
+		CreatedAt: e.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt: e.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 }
 
-// RegisterRoutes attaches all HTTP routes to the provided mux.
-func RegisterRoutes(mux *http.ServeMux, handler *EntityHandler) {
-	mux.HandleFunc("GET /healthz", HandleHealth)
-	mux.HandleFunc("GET /readyz", HandleHealth)
-	mux.HandleFunc("DELETE /api/v1/entities/{id}", handler.HandleDeleteHard)
+// ------- Helpers -------
+
+// parsePagination extracts page and limit from query parameters with defaults.
+func parsePagination(r *http.Request) (page, limit int) {
+	page = 1
+	limit = 20
+
+	if p := r.URL.Query().Get("page"); p != "" {
+		if v, err := strconv.Atoi(p); err == nil && v > 0 {
+			page = v
+		}
+	}
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if v, err := strconv.Atoi(l); err == nil && v > 0 && v <= 100 {
+			limit = v
+		}
+	}
+	return
+}
+
+func writeJSON(_ context.Context, w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		slog.Error("write json response", "error", err)
+	}
 }

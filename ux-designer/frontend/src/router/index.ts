@@ -7,6 +7,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/HomeView.vue'),
   },
   {
+    path: '/entities',
+    name: 'entities',
+    component: () => import('../views/EntitiesView.vue'),
+  },
+  {
     path: '/agents',
     name: 'agents',
     component: () => import('../views/AgentsView.vue'),
@@ -35,6 +40,11 @@ const routes: RouteRecordRaw[] = [
     path: '/notes',
     name: 'notes',
     component: () => import('../views/NotesView.vue'),
+  },
+  {
+    path: '/events',
+    name: 'events',
+    component: () => import('../views/EventConsumptionView.vue'),
   },
   {
     path: '/workloads/:resourceType',

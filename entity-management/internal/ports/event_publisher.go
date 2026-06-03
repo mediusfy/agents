@@ -179,8 +179,6 @@ func (a *EventPublisherAdapter) PublishEntityRestored(ctx context.Context, event
 	return a.publish(ctx, "entity.restored", env)
 }
 
-// --- ENTITYMGMT-09: Pagination Events ---
-
 func (a *EventPublisherAdapter) PublishEntitiesQueried(ctx context.Context, event *domain.EntitiesQueried) error {
 	ctx, span := a.tracer.Start(ctx, "EventPublisherAdapter.PublishEntitiesQueried",
 		trace.WithAttributes(
@@ -257,15 +255,6 @@ func (a *EventPublisherAdapter) PublishInvalidCursorProvided(ctx context.Context
 	return a.publish(ctx, "invalid_cursor", env)
 }
 
-// --- ENTITYMGMT-12: App Lifecycle Events ---
-
-// PublishAppStarted publishes an entitymanagement.app.started event.
-//
-// Gherkin SCENARIO 1:
-//   "an entitymanagement.app.started event is enqueued in the outbox"
-//
-// Payload: {service_name, version, region, started_at, migration_version}
-// Consumers: OrchestratorContext (K8s readiness), ObservabilityContext (startup metrics)
 func (a *EventPublisherAdapter) PublishAppStarted(ctx context.Context, event *domain.AppStarted) error {
 	ctx, span := a.tracer.Start(ctx, "EventPublisherAdapter.PublishAppStarted",
 		trace.WithAttributes(
@@ -280,14 +269,6 @@ func (a *EventPublisherAdapter) PublishAppStarted(ctx context.Context, event *do
 	return a.publish(ctx, "app.started", env)
 }
 
-// PublishAppStartupFailed publishes an entitymanagement.app.startup_failed event.
-//
-// Gherkin SCENARIO 2:
-//   "an entitymanagement.app.startup_failed event is enqueued in the outbox"
-//
-// Payload: {service_name, error, stage, occurred_at}
-// Consumers: AlertingSystem (trigger deployment rollback),
-//            OrchestratorContext (K8s CrashLoop detection)
 func (a *EventPublisherAdapter) PublishAppStartupFailed(ctx context.Context, event *domain.AppStartupFailed) error {
 	ctx, span := a.tracer.Start(ctx, "EventPublisherAdapter.PublishAppStartupFailed",
 		trace.WithAttributes(
@@ -309,154 +290,7 @@ func (a *EventPublisherAdapter) publish(ctx context.Context, subject string, env
 	return a.bus.Publish(ctx, subject, env)
 }
 
-// --- Envelope Factory Functions ---
-
-// NewEntitySchemaDefinedEnvelope creates a CloudEvents envelope for a schema.defined event.
-func NewEntitySchemaDefinedEnvelope(eventID, schemaID, schemaName string, version int, occurredAt time.Time) *Envelope {
-	return &Envelope{
-		CloudEventAttributes: CloudEventAttributes{
-			SpecVersion:     "1.0",
-			Type:            "entitymanagement.schema.defined",
-			Source:          "/entity-manager",
-			ID:              eventID,
-			Time:            occurredAt,
-			DataContentType: "application/json",
-			Subject:         schemaID,
-			Extensions: map[string]string{
-				"schemaname": schemaName,
-				"version":    fmt.Sprintf("%d", version),
-			},
-		},
-		Data: []byte(fmt.Sprintf(
-			`{"schema_id":"%s","schema_name":"%s","version":%d}`,
-			schemaID, schemaName, version,
-		)),
-	}
-}
-
-// NewEntitySchemaUpdatedEnvelope creates a CloudEvents envelope for a schema.updated event.
-func NewEntitySchemaUpdatedEnvelope(eventID, schemaID, schemaName string, prevVer, newVer int, occurredAt time.Time) *Envelope {
-	return &Envelope{
-		CloudEventAttributes: CloudEventAttributes{
-			SpecVersion:     "1.0",
-			Type:            "entitymanagement.schema.updated",
-			Source:          "/entity-manager",
-			ID:              eventID,
-			Time:            occurredAt,
-			DataContentType: "application/json",
-			Subject:         schemaID,
-			Extensions: map[string]string{
-				"schemaname":      schemaName,
-				"previousversion": fmt.Sprintf("%d", prevVer),
-				"newversion":      fmt.Sprintf("%d", newVer),
-			},
-		},
-		Data: []byte(fmt.Sprintf(
-			`{"schema_id":"%s","schema_name":"%s","previous_version":%d,"new_version":%d}`,
-			schemaID, schemaName, prevVer, newVer,
-		)),
-	}
-}
-
-// NewEntityCreatedEnvelope creates a CloudEvents envelope for an entity.created event.
-func NewEntityCreatedEnvelope(eventID, entityID, entityName, entityType, region string, occurredAt time.Time) *Envelope {
-	return &Envelope{
-		CloudEventAttributes: CloudEventAttributes{
-			SpecVersion:     "1.0",
-			Type:            "entitymanagement.entity.created",
-			Source:          "/entity-manager",
-			ID:              eventID,
-			Time:            occurredAt,
-			DataContentType: "application/json",
-			Subject:         entityID,
-			Extensions: map[string]string{
-				"entityname": entityName,
-				"entitytype": entityType,
-				"region":     region,
-			},
-		},
-		Data: []byte(fmt.Sprintf(
-			`{"entity_id":"%s","entity_name":"%s","entity_type":"%s","region":"%s"}`,
-			entityID, entityName, entityType, region,
-		)),
-	}
-}
-
-// NewEntitySoftDeletedEnvelope creates a CloudEvents envelope for entity.soft_deleted.
-func NewEntitySoftDeletedEnvelope(eventID, entityID, entityName, region string, deletedAt, occurredAt time.Time) *Envelope {
-	return &Envelope{
-		CloudEventAttributes: CloudEventAttributes{
-			SpecVersion:     "1.0",
-			Type:            "entitymanagement.entity.soft_deleted",
-			Source:          "/entity-manager",
-			ID:              eventID,
-			Time:            occurredAt,
-			DataContentType: "application/json",
-			Subject:         entityID,
-			Extensions: map[string]string{
-				"entityname": entityName,
-				"region":     region,
-				"deleted_at": deletedAt.Format(time.RFC3339Nano),
-			},
-		},
-		Data: []byte(fmt.Sprintf(
-			`{"entity_id":"%s","entity_name":"%s","region":"%s","deleted_at":"%s"}`,
-			entityID, entityName, region, deletedAt.Format(time.RFC3339Nano),
-		)),
-	}
-}
-
-// NewEntityHardDeletedEnvelope creates a CloudEvents envelope for entity.hard_deleted.
-func NewEntityHardDeletedEnvelope(eventID, entityID, entityName, region string, deletedAt, occurredAt time.Time) *Envelope {
-	return &Envelope{
-		CloudEventAttributes: CloudEventAttributes{
-			SpecVersion:     "1.0",
-			Type:            "entitymanagement.entity.hard_deleted",
-			Source:          "/entity-manager",
-			ID:              eventID,
-			Time:            occurredAt,
-			DataContentType: "application/json",
-			Subject:         entityID,
-			Extensions: map[string]string{
-				"entityname": entityName,
-				"region":     region,
-				"deleted_at": deletedAt.Format(time.RFC3339Nano),
-			},
-		},
-		Data: []byte(fmt.Sprintf(
-			`{"entity_id":"%s","entity_name":"%s","region":"%s","deleted_at":"%s"}`,
-			entityID, entityName, region, deletedAt.Format(time.RFC3339Nano),
-		)),
-	}
-}
-
-// NewEntityRestoredEnvelope creates a CloudEvents envelope for entity.restored.
-func NewEntityRestoredEnvelope(eventID, entityID, entityName, region string, occurredAt time.Time) *Envelope {
-	return &Envelope{
-		CloudEventAttributes: CloudEventAttributes{
-			SpecVersion:     "1.0",
-			Type:            "entitymanagement.entity.restored",
-			Source:          "/entity-manager",
-			ID:              eventID,
-			Time:            occurredAt,
-			DataContentType: "application/json",
-			Subject:         entityID,
-			Extensions: map[string]string{
-				"entityname": entityName,
-				"region":     region,
-			},
-		},
-		Data: []byte(fmt.Sprintf(
-			`{"entity_id":"%s","entity_name":"%s","region":"%s"}`,
-			entityID, entityName, region,
-		)),
-	}
-}
-
 // NewAppStartedEnvelope creates a CloudEvents envelope for an app.started event.
-//
-// Gherkin SCENARIO 1:
-//   Payload: {service_name, version, region, started_at, migration_version}
 func NewAppStartedEnvelope(event *domain.AppStarted) *Envelope {
 	return &Envelope{
 		CloudEventAttributes: CloudEventAttributes{
@@ -488,9 +322,6 @@ func NewAppStartedEnvelope(event *domain.AppStarted) *Envelope {
 }
 
 // NewAppStartupFailedEnvelope creates a CloudEvents envelope for an app.startup_failed event.
-//
-// Gherkin SCENARIO 2:
-//   Payload: {service_name, error, stage, occurred_at}
 func NewAppStartupFailedEnvelope(event *domain.AppStartupFailed) *Envelope {
 	return &Envelope{
 		CloudEventAttributes: CloudEventAttributes{

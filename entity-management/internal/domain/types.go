@@ -193,12 +193,12 @@ func (e *Entity) ApplyRestore(at time.Time) {
 
 // UpdateOperation describes a partial update to an entity.
 type UpdateOperation struct {
-	ExpectedVersion int              `json:"expected_version"`
-	Name            *string          `json:"name,omitempty"`
-	Status          *EntityStatus    `json:"status,omitempty"`
-	Region          *string          `json:"region,omitempty"`
-	Attributes      map[string]any   `json:"attributes,omitempty"`
-	Metadata        map[string]any   `json:"metadata,omitempty"`
+	ExpectedVersion int            `json:"expected_version"`
+	Name            *string        `json:"name,omitempty"`
+	Status          *EntityStatus  `json:"status,omitempty"`
+	Region          *string        `json:"region,omitempty"`
+	Attributes      map[string]any `json:"attributes,omitempty"`
+	Metadata        map[string]any `json:"metadata,omitempty"`
 }
 
 // ValidateMutable checks that no immutable fields are being modified.
@@ -480,38 +480,24 @@ func (e *InvalidCursorProvided) EventName() string { return "invalid_cursor" }
 
 // AppStarted is published when the application completes initialization
 // and is ready to serve traffic.
-//
-// Gherkin SCENARIO 1:
-//   "an entitymanagement.app.started event is enqueued in the outbox"
-//
-// Owned by: EntityManagement context
-// Consumers: OrchestratorContext (K8s readiness), ObservabilityContext (startup metrics)
 type AppStarted struct {
-	EventID          string    `json:"event_id"`
-	ServiceName      string    `json:"service_name"`
-	ServiceVersion   string    `json:"version"`
-	Region           string    `json:"region"`
-	MigrationID      string    `json:"migration_id"`
-	MigrationVersion int       `json:"migration_version"`
-	Hostname         string    `json:"hostname"`
-	PID              int       `json:"pid"`
-	DeploymentID     string    `json:"deployment_id,omitempty"`
-	StartupDurationMs int      `json:"startup_duration_ms,omitempty"`
-	UptimeSeconds    float64   `json:"uptime_seconds"`
-	StartedAt        time.Time `json:"started_at"`
+	EventID           string    `json:"event_id"`
+	ServiceName       string    `json:"service_name"`
+	ServiceVersion    string    `json:"version"`
+	Region            string    `json:"region"`
+	MigrationID       string    `json:"migration_id"`
+	MigrationVersion  int       `json:"migration_version"`
+	Hostname          string    `json:"hostname"`
+	PID               int       `json:"pid"`
+	DeploymentID      string    `json:"deployment_id,omitempty"`
+	StartupDurationMs int       `json:"startup_duration_ms,omitempty"`
+	UptimeSeconds     float64   `json:"uptime_seconds"`
+	StartedAt         time.Time `json:"started_at"`
 }
 
 func (e *AppStarted) EventName() string { return "app.started" }
 
-// AppStartupFailed is published when the application fails to initialize
-// (database connection failure, migration error, missing config).
-//
-// Gherkin SCENARIO 2:
-//   "an entitymanagement.app.startup_failed event is enqueued in the outbox"
-//
-// Owned by: EntityManagement context
-// Consumers: AlertingSystem (trigger deployment rollback),
-//            OrchestratorContext (K8s CrashLoop detection)
+// AppStartupFailed is published when the application fails to initialize.
 type AppStartupFailed struct {
 	EventID        string    `json:"event_id"`
 	ServiceName    string    `json:"service_name"`
@@ -594,7 +580,6 @@ func (i *DefineSchemaInput) Validate() error {
 		switch attr.Type {
 		case AttributeTypeString, AttributeTypeEnum, AttributeTypeMap,
 			AttributeTypeInt, AttributeTypeBool, AttributeTypeJSON:
-			// valid
 		default:
 			return ErrUnsupportedFieldType
 		}
@@ -638,10 +623,8 @@ type EventPublisher interface {
 	PublishEntitySoftDeleted(ctx context.Context, event *EntitySoftDeleted) error
 	PublishEntityHardDeleted(ctx context.Context, event *EntityHardDeleted) error
 	PublishEntityRestored(ctx context.Context, event *EntityRestored) error
-	// ENTITYMGMT-09: Pagination events
 	PublishEntitiesQueried(ctx context.Context, event *EntitiesQueried) error
 	PublishInvalidCursorProvided(ctx context.Context, event *InvalidCursorProvided) error
-	// ENTITYMGMT-12: App lifecycle events
 	PublishAppStarted(ctx context.Context, event *AppStarted) error
 	PublishAppStartupFailed(ctx context.Context, event *AppStartupFailed) error
 }

@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 
-
 # ── Project → Target Directory Mappings ───────────────────────────────────
 # Maps project names to the real source directories so agents can read
 # existing code structure before generating new code.

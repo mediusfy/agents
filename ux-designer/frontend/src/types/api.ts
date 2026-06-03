@@ -125,3 +125,88 @@ export interface AnomstackEvent {
   summary: string;
   timestamp: string;
 }
+
+// ──────────────────────────────────────────
+// ENTITY Types (ENTITY-03: List Entities)
+// ──────────────────────────────────────────
+
+export interface Entity {
+  id: string;
+  name: string;
+  kind: string;
+  namespace: string;
+  cluster: string;
+  status: string;
+  labels: Record<string, string>;
+  annotations: Record<string, string>;
+  created_at: string;
+  updated_at: string;
+  resource_version: string;
+}
+
+export interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  next: string | null;
+  prev: string | null;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  pagination: PaginationMeta;
+}
+
+export type EntityListResponse = PaginatedResponse<Entity>;
+
+// ──────────────────────────────────────────
+// EVENT CONSUMPTION Types (EVENT-02)
+// ──────────────────────────────────────────
+
+export type SolaceMessageDisposition = 'ack' | 'bad_request' | 'retry' | 'dead_letter';
+
+export type SubscriptionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+
+export interface SolaceMessage {
+  id: string;
+  topic: string;
+  payload: string;
+  parsedPayload: Record<string, unknown> | null;
+  parseError: string | null;
+  disposition: SolaceMessageDisposition | null;
+  dispositionReason: string | null;
+  retryCount: number;
+  maxRetries: number;
+  receivedAt: string;
+  latencyMs: number | null;
+  traceId: string | null;
+  spanId: string | null;
+}
+
+export interface TopicSubscription {
+  id: string;
+  topicPattern: string;
+  status: SubscriptionStatus;
+  error: string | null;
+  messages: SolaceMessage[];
+  connectedAt: string | null;
+  disconnectedAt: string | null;
+  messageCount: number;
+}
+
+export interface EventBusConfig {
+  solaceHost: string;
+  solaceVpn: string;
+  solaceUsername: string;
+  solacePasswordMasked: string;
+  autoReconnect: boolean;
+  maxReconnectAttempts: number;
+}
+
+export interface EventBusHealth {
+  status: 'up' | 'down' | 'degraded';
+  connected: boolean;
+  subscriptions: number;
+  uptimeSeconds: number;
+  lastError: string | null;
+}
