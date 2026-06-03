@@ -1,0 +1,41 @@
+# =============================================================================
+# ArgoCD Application: OpenClaw Server
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: openclaw-server
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: openclaw
+
+  source:
+    repoURL: https://github.com/openclaw/infrastructure
+    targetRevision: HEAD
+    path: helm/openclaw-server
+    helm:
+      valueFiles:
+        - values.yaml
+      parameters:
+        - name: image.tag
+          value: "{{ .Values.image.tag }}"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openclaw-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

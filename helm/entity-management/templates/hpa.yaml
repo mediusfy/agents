@@ -1,0 +1,22 @@
+{{- if .Values.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "entity-management.fullname" . }}
+  labels:
+    {{- include "entity-management.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "entity-management.fullname" . }}
+  minReplicas: {{ .Values.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.autoscaling.maxReplicas }}
+  behavior:
+    {{- toYaml .Values.autoscaling.behavior | nindent 4 }}
+  metrics:
+    {{- toYaml .Values.autoscaling.metrics | nindent 4 }}
+    {{- if .Values.autoscaling.customMetrics }}
+    {{- toYaml .Values.autoscaling.customMetrics | nindent 4 }}
+    {{- end }}
+{{- end }}

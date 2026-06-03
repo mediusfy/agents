@@ -67,9 +67,17 @@ class CodeValidator:
             if "<script" in content and "</script>" not in content:
                 print(f"[Validator] {path}: missing closing </script>")
                 all_ok = False
-            if "export default" not in content and ".vue" not in path:
-                print(f"[Validator] {path}: missing component export")
-                all_ok = False
+            # Vue SFCs: check for component export in script block or <script setup>
+            if path.endswith(".vue"):
+                has_export = "export default" in content or "defineComponent" in content or "defineEmits" in content
+            else:
+                has_export = "export default" in content or "export const" in content
+            if not has_export:
+                if path.endswith(".vue"):
+                    print(f"[Validator] {path}: SFC may be missing component definition")
+                else:
+                    print(f"[Validator] {path}: missing component export")
+                    all_ok = False
 
         if all_ok:
             print("[Validator] Vue/TSX structural validation passed")

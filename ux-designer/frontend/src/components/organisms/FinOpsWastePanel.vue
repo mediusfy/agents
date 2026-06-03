@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, computed } from 'vue'
-import { useFinopsStore } from '../../../stores/finops'
-import PrActionList from '../../molecules/PrActionList.vue'
-import PrActionCard from '../../atoms/PrActionCard.vue'
+import { useFinopsStore } from '../../stores/finops'
+import PrActionList from '../molecules/PrActionList.vue'
+import PrActionCard from '../atoms/PrActionCard.vue'
 
 interface FinOpsWastePanelProps {
   limit?: number

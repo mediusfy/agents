@@ -1,0 +1,108 @@
+# =============================================================================
+# ArgoCD Application: Entity Management Service
+# =============================================================================
+# GitOps sync for the entity-management microservice.
+# Deploys to both us-east-1 (primary) and eu-west-1 (DR).
+# =============================================================================
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: entity-management
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: openclaw
+
+  source:
+    repoURL: https://github.com/openclaw/infrastructure
+    targetRevision: HEAD
+    path: helm/entity-management
+    helm:
+      valueFiles:
+        - values.yaml
+        - values-{{ .Values.environment }}.yaml
+      parameters:
+        - name: image.tag
+          value: "{{ .Values.image.tag }}"
+        - name: global.region
+          value: "{{ .Values.region }}"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: entity-management
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true
+      - ApplyOutOfSyncOnly=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+      jsonPointers:
+        - /spec/metrics
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: entity-management-multi-region
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - region: us-east-1
+            cluster: https://kubernetes.default.svc
+            primary: "true"
+          - region: eu-west-1
+            cluster: https://kubernetes.default.svc
+            primary: "false"
+  template:
+    metadata:
+      name: "entity-management-{{ region }}"
+      labels:
+        app: entity-management
+        region: "{{ region }}"
+    spec:
+      project: openclaw
+      source:
+        repoURL: https://github.com/openclaw/infrastructure
+        targetRevision: HEAD
+        path: helm/entity-management
+        helm:
+          valueFiles:
+            - values.yaml
+            - "values-{{ region }}.yaml"
+          parameters:
+            - name: global.region
+              value: "{{ region }}"
+            - name: global.environment
+              value: production
+      destination:
+        server: "{{ cluster }}"
+        namespace: entity-management
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

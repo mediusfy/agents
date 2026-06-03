@@ -7,7 +7,7 @@ from openclaw.tools.registry import register_tool
 PATTERNS = [
     # Cloud & Infrastructure
     ("aws_access_key", r"AKIA[0-9A-Z]{16}", "high"),
-    ("aws_secret_key", r"(?i)aws(.{0,20})?(?-i)['\"]?[0-9a-zA-Z\/+]{40}['\"]?", "critical"),
+    ("aws_secret_key", r"[aA][wW][sS](.{0,20})?['\"]?[0-9a-zA-Z\/+]{40}['\"]?", "critical"),
     ("aws_session_token", r"ASIA[0-9A-Z]{16}", "high"),
     ("gcp_api_key", r"AIza[0-9A-Za-z\-_]{35}", "high"),
     ("gcp_service_account_json", r"(?i)[\"']type[\"']\s*:\s*[\"']service_account[\"']", "high"),

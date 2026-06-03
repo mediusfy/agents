@@ -16,7 +16,23 @@ from openclaw.stages.quality_gate_stage import QualityGateStage
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-STEP_CHOICES = ["ba", "backend", "frontend", "test", "sre", "review", "database", "devops", "docs", "security", "all"]
+# All valid pipeline steps — both stage names AND individual agent names
+STEP_CHOICES = [
+    "ba",
+    "advisory",
+    "implementation",
+    "backend",
+    "frontend",
+    "database",
+    "test",
+    "devops",
+    "docs",
+    "quality_gate",
+    "sre",
+    "review",
+    "security",
+    "all",
+]
 
 
 async def main(
@@ -32,7 +48,7 @@ async def main(
     register_all_agents()
 
     logger.info(f"--- OpenClaw Multi-Agent Ecosystem Pipeline (Project: {project}) ---")
-    logger.info(f"Registered agents: {registry.list_agents()}")
+    logger.info(f"Step: {step} | Registered agents: {registry.list_agents()}")
 
     config = PipelineConfig(
         project=project, step=step, resume=resume, auto_yes=auto_yes, dry_run=dry_run, requirement=requirement
@@ -49,7 +65,12 @@ async def main(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="OpenClaw Multi-Agent Pipeline")
-    parser.add_argument("--step", choices=STEP_CHOICES, default="all", help="Run a specific pipeline step")
+    parser.add_argument(
+        "--step",
+        choices=STEP_CHOICES,
+        default="all",
+        help="Pipeline step or agent name to run (routed to containing stage)",
+    )
     parser.add_argument(
         "--project", type=str, default="default", help="Project name to isolate outputs and checkpoints"
     )

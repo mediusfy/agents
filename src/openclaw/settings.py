@@ -72,47 +72,64 @@ class Settings(BaseSettings):
 
     go_version: str = "1.26"
 
+    # ── Model Capability Tiers ──────────────────────────────────────────────
+    # These define which agents use fast/cheap models vs reasoning models.
+    # They are consulted by resolve_model() unless MODEL_PROVIDER_ENFORCE_ALL
+    # is set (which overrides all to the same provider for strict consistency).
+    _FAST_TIER: set[str] = frozenset({
+        "frontend", "docs", "ux", "ba",
+        "holiday_planner", "region_analyzer", "current_events", "weather",
+    })
+    _REASONER_TIER: set[str] = frozenset({
+        "backend", "test", "review", "security", "quality_gate", "sre",
+        "database", "devops", "cto",
+        "asymmetric_reviewer", "accountant", "price_analyst", "market_shark", "crypto_oracle",
+    })
+
     def resolve_model(self, model_name: str) -> str:
-        """Ensure the model name is a valid pydantic_ai model spec.
+        """Resolve an agent-level model name to a fully-qualified pydantic_ai model spec.
 
-        PROVIDER CONSISTENCY ENFORCEMENT:
-        When MODEL_PROVIDER is set, ALL model names are remapped through that
-        single provider. This guarantees uniform reasoning capability and output
-        structure across all agents — critical when agents hand off JSON
-        payloads via MCP.
+        Capability-tier mapping ensures fast agents (frontend, docs, ux) use
+        cheaper/faster models, while reasoning agents (backend, review, security)
+        use DeepSeek-reasoner. This is the default behavior.
 
-        When MODEL_PROVIDER is None, each model name is used as-is with provider
-        prefixes added only for models pydantic_ai doesn't know natively.
+        When MODEL_PROVIDER is set, each model name is prefixed with that
+        provider. The tiered defaults per agent are preserved.
 
-        Behavior:
-        - provider="deepseek": all models → deepseek:deepseek-reasoner
-        - provider="gemini": all models → gemini:gemini-2.0-flash
-        - provider="openai": all models → openai:gpt-4o
-        - None: pass through with prefix for deepseek-* models only
+        When MODEL_PROVIDER_ENFORCE_ALL is set to true, ALL agents use the
+        same model (provider's top model). This overrides tier decisions for
+        strict consistency (e.g. when MCP JSON handoff requires identical
+        output structure).
+
+        Examples with MODEL_PROVIDER=deepseek:
+        - backend_model="deepseek-reasoner"  → "deepseek:deepseek-reasoner"
+        - frontend_model="deepseek-chat"     → "deepseek:deepseek-chat"
+        - ux_model="deepseek-chat"           → "deepseek:deepseek-chat"
+        - docs_model="deepseek-chat"         → "deepseek:deepseek-chat"
+
+        With MODEL_PROVIDER=openai:
+        - backend_model="deepseek-reasoner"  → "openai:gpt-4o"
+        - frontend_model="deepseek-chat"     → "openai:gpt-4o"
         """
         provider = self.model_provider
         if provider:
             if provider == "deepseek":
                 return f"deepseek:{model_name}" if ":" not in model_name else model_name
             if provider == "gemini":
-                # All agents use gemini-2.0-flash for consistency
                 return "gemini:gemini-2.0-flash"
             if provider == "vertexai":
-                # Use Google Cloud ADC (OAuth) instead of AI Studio API keys
                 return "vertexai:gemini-2.0-flash"
             if provider == "openai":
                 return "openai:gpt-4o"
-            # Generic provider — pass through with prefix if needed
             if ":" in model_name:
                 return model_name
             return f"{provider}:{model_name}"
 
-        # No provider override — add prefixes for known non-native models
+        # No provider override — add prefix for non-native models
         if ":" in model_name:
             return model_name
         if model_name.startswith("deepseek-"):
             return f"deepseek:{model_name}"
-        # gpt-*, claude-*, gemini-* are known natively by pydantic_ai
         return model_name
 
 

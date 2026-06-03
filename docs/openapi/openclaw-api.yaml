@@ -1,0 +1,1496 @@
+openapi: "3.1.0"
+info:
+  title: OpenClaw Multi-Agent SDLC API
+  description: |
+    OpenClaw provides a **Model Context Protocol (MCP) API** for orchestrating
+    autonomous AI agents across the full software development lifecycle.
+
+    ## Overview
+
+    The API exposes:
+    - **Individual agent tools** (`run_ba`, `run_backend`, `run_review`, etc.)
+    - **Orchestration tools** (`delegate_to_openclaw_agent`, `run_openclaw_pipeline`,
+      `plan_and_execute`, `modify_existing_code`)
+    - **Knowledge management tools** (`search_adrs`, `save_adr`, `query_context`,
+      `seed_project_context`)
+    - **Async task tools** (`submit_async_task`, `check_task_status`, `wait_for_task`)
+    - **Memory bridge tools** (`sync_memory`, `memory_bridge_status`)
+
+    ## Agent Ecosystem
+
+    13 core SDLC agents + 9 domain expert agents (travel/finance), all
+    registered via a capability-based agent registry.
+
+    ## Authentication
+
+    The MCP server supports DNS rebinding protection via the
+    `MCP_DNS_REBINDING_PROTECTION` environment variable. Authentication
+    for remote GKS offloading uses a token configured in
+    `~/.openclaw/openclaw.json`.
+
+    ## Observability
+
+    All AI traffic flows through **Logfire** for metrics, traces, and token accounting.
+    See https://logfire.pydantic.dev for the dashboard.
+  version: "0.1.0"
+  contact:
+    name: OpenClaw Team
+    url: https://github.com/your-org/openclaw
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: mcp://localhost:0
+    description: Local MCP server (transport-agnostic)
+  - url: https://api.openclaw.example.com
+    description: Remote GKS gateway (production)
+
+paths:
+  # ===========================================================================
+  # AGENT EXECUTION TOOLS
+  # ===========================================================================
+  /tools/run_ba:
+    post:
+      tags:
+        - Agent Execution
+      summary: Invoke the Business Analyst agent
+      description: |
+        Converts raw requirements into user stories with Gherkin acceptance
+        criteria using Domain-Driven Design (DDD) principles.
+      operationId: run_ba
+      parameters:
+        - name: run_on_gks
+          in: query
+          description: Offload to remote GKS gateway
+          required: false
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request
+                properties:
+                  request:
+                    type: string
+                    description: The user prompt/requirements text
+                    example: "Build a payment processing system with support for credit cards and PayPal"
+      responses:
+        "200":
+          description: User stories with Gherkin acceptance criteria
+          content:
+            application/json:
+              schema:
+                type: string
+                description: Serialized list of UserStory models
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /tools/run_backend:
+    post:
+      tags:
+        - Agent Execution
+      summary: Invoke the Backend Engineer agent
+      description: |
+        Generates high-concurrency Go services using Hexagonal Architecture,
+        gRPC, NATS/Kafka, and OpenTelemetry.
+      operationId: run_backend
+      parameters:
+        - name: run_on_gks
+          in: query
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request
+                properties:
+                  request:
+                    type: string
+                    description: Backend implementation request
+      responses:
+        "200":
+          description: Generated Go source files as an Artifact
+          content:
+            application/json:
+              schema:
+                type: string
+
+  /tools/run_frontend:
+    post:
+      tags:
+        - Agent Execution
+      summary: Invoke the Frontend Engineer agent
+      operationId: run_frontend
+      parameters:
+        - name: run_on_gks
+          in: query
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request
+                properties:
+                  request:
+                    type: string
+      responses:
+        "200":
+          description: Generated Vue 3 / TSX source files
+
+  /tools/run_review:
+    post:
+      tags:
+        - Agent Execution
+      summary: Invoke the Code Review agent
+      description: |
+        Verifies production readiness, checks for security issues,
+        architecture fit, and CODING_STANDARDS compliance.
+      operationId: run_review
+      parameters:
+        - name: run_on_gks
+          in: query
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request
+                properties:
+                  request:
+                    type: string
+      responses:
+        "200":
+          description: ReviewResult with approval, feedback, security score, and risk level
+
+  /tools/run_security:
+    post:
+      tags:
+        - Agent Execution
+      summary: Invoke the Security Engineer agent
+      operationId: run_security
+      parameters:
+        - name: run_on_gks
+          in: query
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request
+                properties:
+                  request:
+                    type: string
+      responses:
+        "200":
+          description: SecurityReport with pass/fail, score, and feedback
+
+  /tools/run_database:
+    post:
+      tags:
+        - Agent Execution
+      summary: Invoke the Database Engineer agent
+      operationId: run_database
+      parameters:
+        - name: run_on_gks
+          in: query
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request
+                properties:
+                  request:
+                    type: string
+      responses:
+        "200":
+          description: PostgreSQL migration scripts and seed data
+
+  /tools/run_devops:
+    post:
+      tags:
+        - Agent Execution
+      summary: Invoke the DevOps Engineer agent
+      operationId: run_devops
+      parameters:
+        - name: run_on_gks
+          in: query
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request
+                properties:
+                  request:
+                    type: string
+      responses:
+        "200":
+          description: CI/CD pipeline and Docker Compose configurations
+
+  /tools/run_sre:
+    post:
+      tags:
+        - Agent Execution
+      summary: Invoke the SRE Engineer agent
+      operationId: run_sre
+      parameters:
+        - name: run_on_gks
+          in: query
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request
+                properties:
+                  request:
+                    type: string
+      responses:
+        "200":
+          description: Kubernetes/Helm infrastructure manifests
+
+  /tools/run_quality_gate:
+    post:
+      tags:
+        - Agent Execution
+      summary: Invoke the Quality Gate agent
+      description: |
+        Checks for over-engineering, premature abstraction,
+        and unnecessary complexity. Returns complexity score (0-100).
+      operationId: run_quality_gate
+      parameters:
+        - name: run_on_gks
+          in: query
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request
+                properties:
+                  request:
+                    type: string
+      responses:
+        "200":
+          description: QualityGateResult with passed, complexity_score, and feedback
+
+  /tools/run_cto:
+    post:
+      tags:
+        - Agent Execution
+      summary: Invoke the CTO/Architect agent
+      description: |
+        Pre-implementation architecture reviews, enforcing ADR discipline
+        and hard constraints.
+      operationId: run_cto
+      parameters:
+        - name: run_on_gks
+          in: query
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request
+                properties:
+                  request:
+                    type: string
+      responses:
+        "200":
+          description: AgentAdvice with bottlenecks, recommendations, and approval
+
+  /tools/run_ux:
+    post:
+      tags:
+        - Agent Execution
+      summary: Invoke the UX Designer agent
+      operationId: run_ux
+      parameters:
+        - name: run_on_gks
+          in: query
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request
+                properties:
+                  request:
+                    type: string
+      responses:
+        "200":
+          description: UX design artifacts
+
+  /tools/run_test_eng:
+    post:
+      tags:
+        - Agent Execution
+      summary: Invoke the Test Engineer agent
+      operationId: run_test_eng
+      parameters:
+        - name: run_on_gks
+          in: query
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request
+                properties:
+                  request:
+                    type: string
+      responses:
+        "200":
+          description: Generated test files
+
+  /tools/run_docs:
+    post:
+      tags:
+        - Agent Execution
+      summary: Invoke the Documentation agent
+      description: |
+        Generates OpenAPI specs, runbooks, and README documentation.
+      operationId: run_docs
+      parameters:
+        - name: run_on_gks
+          in: query
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request
+                properties:
+                  request:
+                    type: string
+      responses:
+        "200":
+          description: Documentation artifacts
+
+  /tools/run_service_engineer:
+    post:
+      tags:
+        - Agent Execution
+      summary: Invoke the Service Engineer agent
+      description: |
+        Modifies existing Go codebases with surgical, minimal changes.
+        Reads files first, understands context, then applies changes.
+      operationId: run_service_engineer
+      parameters:
+        - name: run_on_gks
+          in: query
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request
+                properties:
+                  request:
+                    type: string
+      responses:
+        "200":
+          description: Modified files as Artifact
+
+  /tools/run_planner:
+    post:
+      tags:
+        - Agent Execution
+      summary: Invoke the Planner agent
+      description: |
+        Breaks high-level goals into step-by-step execution plans
+        with task dependencies and capability assignments.
+      operationId: run_planner
+      parameters:
+        - name: run_on_gks
+          in: query
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request
+                properties:
+                  request:
+                    type: string
+      responses:
+        "200":
+          description: Execution plan with ordered tasks
+
+  # ===========================================================================
+  # DOMAIN EXPERT AGENTS (Travel & Finance)
+  # ===========================================================================
+  /tools/run_weather:
+    post:
+      tags:
+        - Domain Expert Agents
+      summary: Invoke the Weather agent
+      operationId: run_weather
+      parameters:
+        - name: run_on_gks
+          in: query
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request
+                properties:
+                  request:
+                    type: string
+      responses:
+        "200":
+          description: Weather forecast and climate summary
+
+  /tools/run_accountant:
+    post:
+      tags:
+        - Domain Expert Agents
+      summary: Invoke the Accountant agent
+      operationId: run_accountant
+      parameters:
+        - name: run_on_gks
+          in: query
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request
+                properties:
+                  request:
+                    type: string
+      responses:
+        "200":
+          description: Budget management and expense calculations
+
+  /tools/run_market_shark:
+    post:
+      tags:
+        - Domain Expert Agents
+      summary: Invoke the Market Shark agent
+      operationId: run_market_shark
+      parameters:
+        - name: run_on_gks
+          in: query
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request
+                properties:
+                  request:
+                    type: string
+      responses:
+        "200":
+          description: Stock market analysis and investment insights
+
+  /tools/run_crypto_oracle:
+    post:
+      tags:
+        - Domain Expert Agents
+      summary: Invoke the Crypto Oracle agent
+      operationId: run_crypto_oracle
+      parameters:
+        - name: run_on_gks
+          in: query
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request
+                properties:
+                  request:
+                    type: string
+      responses:
+        "200":
+          description: Cryptocurrency market analysis
+
+  /tools/run_holiday_planner:
+    post:
+      tags:
+        - Domain Expert Agents
+      summary: Invoke the Holiday Planner agent
+      operationId: run_holiday_planner
+      parameters:
+        - name: run_on_gks
+          in: query
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request
+                properties:
+                  request:
+                    type: string
+      responses:
+        "200":
+          description: Travel itinerary and coordination
+
+  /tools/run_price_analyst:
+    post:
+      tags:
+        - Domain Expert Agents
+      summary: Invoke the Price Analyst agent
+      operationId: run_price_analyst
+      parameters:
+        - name: run_on_gks
+          in: query
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request
+                properties:
+                  request:
+                    type: string
+      responses:
+        "200":
+          description: Pricing analysis and comparison
+
+  # ===========================================================================
+  # ORCHESTRATION TOOLS
+  # ===========================================================================
+  /tools/delegate_to_openclaw_agent:
+    post:
+      tags:
+        - Orchestration
+      summary: Delegate a task to an agent by capability
+      description: |
+        Routes a task to the appropriate agent based on capability string.
+        Provides context enrichment from the vector knowledge base.
+        Supports delegation depth tracking to prevent infinite loops.
+      operationId: delegate_to_openclaw_agent
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - capability
+                  - context
+                  - task
+                properties:
+                  capability:
+                    type: string
+                    description: Agent capability (e.g., backend, frontend, security, review)
+                    example: backend
+                  context:
+                    type: string
+                    description: IDE/caller context to prepend
+                  task:
+                    type: string
+                    description: The specific task for the target agent
+                  run_on_gks:
+                    type: boolean
+                    default: false
+                    description: Offload to remote GKS OpenClaw instance
+      responses:
+        "200":
+          description: Agent's response string
+        "404":
+          description: Agent capability not found
+
+  /tools/list_openclaw_capabilities:
+    get:
+      tags:
+        - Orchestration
+      summary: List all registered agent capabilities
+      description: |
+        Returns all capability strings with their primary owning agent,
+        useful for discovering what agents can do.
+      operationId: list_openclaw_capabilities
+      responses:
+        "200":
+          description: Formatted string listing all capabilities and owning agents
+
+  /tools/run_openclaw_pipeline:
+    post:
+      tags:
+        - Orchestration
+      summary: Run the full SDLC pipeline
+      description: |
+        Submits a full multi-agent pipeline for the given project requirement.
+        Runs as a background task. Returns a run ID for polling.
+        Pipeline: BA → Advisory → Implementation → Quality Gate
+      operationId: run_openclaw_pipeline
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - project_name
+                  - requirement
+                properties:
+                  project_name:
+                    type: string
+                    description: Project name for output isolation
+                    example: payment-service
+                  requirement:
+                    type: string
+                    description: Project requirement description
+                    example: Build a payment processing microservice
+      responses:
+        "200":
+          description: Run ID for polling
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  run_id:
+                    type: string
+                    description: Pipeline run ID (pipe_{uuid})
+                  message:
+                    type: string
+                    description: Status message
+
+  /tools/check_pipeline_status:
+    post:
+      tags:
+        - Orchestration
+      summary: Check pipeline run status
+      operationId: check_pipeline_status
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - run_id
+                properties:
+                  run_id:
+                    type: string
+                    description: Run ID from run_openclaw_pipeline
+      responses:
+        "200":
+          description: Pipeline status with result or error
+
+  /tools/plan_and_execute:
+    post:
+      tags:
+        - Orchestration
+      summary: Plan and execute a high-level goal
+      description: |
+        Uses the Planner agent to decompose a goal into ordered tasks,
+        then executes them all in dependency order, delegating each
+        task to the appropriate agent by capability.
+      operationId: plan_and_execute
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - goal
+                properties:
+                  goal:
+                    type: string
+                    description: High-level goal to achieve
+                    example: "Set up production monitoring for the API gateway"
+      responses:
+        "200":
+          description: Summary of plan execution with task results
+
+  /tools/modify_existing_code:
+    post:
+      tags:
+        - Orchestration
+      summary: Modify existing Go code
+      description: |
+        Runs a multi-agent pipeline (service_engineer → test → quality_gate → review)
+        with autonomous remediation loop (up to 3 retries) for modifying
+        existing Go backend codebases.
+      operationId: modify_existing_code
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - change_description
+                properties:
+                  change_description:
+                    type: string
+                    description: What to change and why
+                    example: "Add OpenTelemetry tracing to the ProcessMessage handler"
+                  codebase_path:
+                    type: string
+                    description: Path to codebase root (auto-detect if empty)
+      responses:
+        "200":
+          description: Formatted summary with changed files, test results, and gate status
+
+  /tools/scaffold_and_build_service:
+    post:
+      tags:
+        - Orchestration
+      summary: Scaffold a new service from scratch
+      description: |
+        Runs the full pipeline (BA → Advisory → Implementation → Test → SRE → Review)
+        to build a new backend service.
+      operationId: scaffold_and_build_service
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - service_name
+                  - bounded_context
+                properties:
+                  service_name:
+                    type: string
+                    description: Name of the service
+                  bounded_context:
+                    type: string
+                    description: DDD bounded context name
+                  requirement:
+                    type: string
+                    description: Optional custom requirement
+      responses:
+        "200":
+          description: Service scaffolding completion message
+
+  # ===========================================================================
+  # KNOWLEDGE MANAGEMENT TOOLS
+  # ===========================================================================
+  /tools/search_adrs:
+    post:
+      tags:
+        - Knowledge Management
+      summary: Search Architecture Decision Records
+      description: |
+        Searches the vector-indexed knowledge base for past ADRs
+        to ensure new advice doesn't contradict past rulings.
+      operationId: search_adrs
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - query
+                properties:
+                  query:
+                    type: string
+                    description: Search query
+      responses:
+        "200":
+          description: Relevant ADR snippets
+
+  /tools/save_adr:
+    post:
+      tags:
+        - Knowledge Management
+      summary: Save a new ADR
+      description: |
+        Saves a new Architecture Decision Record to the vector knowledge base
+        for future context retrieval by agents.
+      operationId: save_adr
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - decision_id
+                  - content
+                properties:
+                  decision_id:
+                    type: string
+                    description: Unique ADR identifier
+                  content:
+                    type: string
+                    description: Full ADR content
+      responses:
+        "200":
+          description: Confirmation of saved ADR
+
+  /tools/seed_project_context:
+    post:
+      tags:
+        - Knowledge Management
+      summary: Seed project context into vector DB
+      description: |
+        Scans a project directory for rules, workflows, READMEs, and ADRs,
+        then indexes them into the vector DB for agent context retrieval.
+      operationId: seed_project_context
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - project_path
+                properties:
+                  project_path:
+                    type: string
+                    description: Absolute path to the project root
+      responses:
+        "200":
+          description: Summary of indexed files
+
+  /tools/query_context:
+    post:
+      tags:
+        - Knowledge Management
+      summary: Query the vector knowledge base
+      description: |
+        Searches all knowledge domains or a specific domain for relevant
+        context snippets about any topic.
+      operationId: query_context
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - query
+                properties:
+                  query:
+                    type: string
+                    description: Search query
+                  domain:
+                    type: string
+                    description: Optional domain filter (adrs, architecture, conventions, project)
+                    default: ""
+                  top_k:
+                    type: integer
+                    description: Max results per domain
+                    default: 5
+                    maximum: 20
+      responses:
+        "200":
+          description: Formatted context snippets grouped by domain
+
+  /tools/task_context:
+    post:
+      tags:
+        - Knowledge Management
+      summary: Get context for a completed task
+      description: |
+        Searches the project domain for vector-indexed context related
+        to a specific completed async task.
+      operationId: task_context
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - task_id
+                properties:
+                  task_id:
+                    type: string
+                    description: The task ID to look up
+      responses:
+        "200":
+          description: Context snippets for the task
+
+  # ===========================================================================
+  # ASYNC TASK TOOLS
+  # ===========================================================================
+  /tools/submit_async_task:
+    post:
+      tags:
+        - Async Tasks
+      summary: Submit an async task
+      description: |
+        Submits a heavy task for asynchronous execution via the PostgreSQL-backed
+        event broker. Returns a task ID for polling.
+      operationId: submit_async_task
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - task_type
+                  - payload
+                properties:
+                  task_type:
+                    type: string
+                    enum:
+                      - build
+                      - test_suite
+                      - deploy
+                      - pipeline
+                    description: Type of task
+                  payload:
+                    type: string
+                    description: JSON payload with task parameters
+                  callback_tool:
+                    type: string
+                    description: Optional tool name to call on completion
+      responses:
+        "200":
+          description: Task ID for polling
+
+  /tools/check_task_status:
+    post:
+      tags:
+        - Async Tasks
+      summary: Check async task status
+      operationId: check_task_status
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - task_id
+                properties:
+                  task_id:
+                    type: string
+                    description: Task ID from submit_async_task
+      responses:
+        "200":
+          description: Task status and result
+
+  /tools/wait_for_task:
+    post:
+      tags:
+        - Async Tasks
+      summary: Wait for task completion
+      description: |
+        Synchronously waits for an async task to complete, with configurable
+        timeout (default 300 seconds).
+      operationId: wait_for_task
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - task_id
+                properties:
+                  task_id:
+                    type: string
+                    description: Task ID to wait for
+                  timeout_seconds:
+                    type: integer
+                    description: Maximum wait time in seconds
+                    default: 300
+                    maximum: 3600
+      responses:
+        "200":
+          description: Final task status and result
+
+  # ===========================================================================
+  # MEMORY BRIDGE TOOLS
+  # ===========================================================================
+  /tools/sync_memory:
+    post:
+      tags:
+        - Memory Bridge
+      summary: Sync memory across runtimes
+      description: |
+        Synchronizes context entries across all agent runtimes:
+        pgvector ↔ Claude Code agent-memory ↔ Antigravity implicit memory.
+      operationId: sync_memory
+      requestBody:
+        required: false
+        content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  all_runtimes:
+                    type: boolean
+                    description: Sync to both Claude Code and Antigravity
+                    default: true
+                  max_entries:
+                    type: integer
+                    description: Max pgvector entries to process
+                    default: 50
+      responses:
+        "200":
+          description: Sync summary with entry counts for each runtime
+
+  /tools/memory_bridge_status:
+    get:
+      tags:
+        - Memory Bridge
+      summary: Get memory bridge status
+      description: |
+        Reports the health and count of all memory systems including
+        pgvector tables, Claude Code agent memory files, and Antigravity entries.
+      operationId: memory_bridge_status
+      responses:
+        "200":
+          description: Memory system status with counts
+
+  /tools/agent_runner:
+    post:
+      tags:
+        - Internal
+      summary: Run any registered agent by name
+      description: |
+        Internal tool that resolves an agent by name, retrieves relevant
+        vector-indexed context, and runs the agent with telemetry.
+        Supports remote GKS offloading.
+      operationId: run_agent_by_name
+      parameters:
+        - name: agent_name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Registered agent name
+        - name: run_on_gks
+          in: query
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request
+                properties:
+                  request:
+                    type: string
+      responses:
+        "200":
+          description: Agent response
+
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      description: Standard error response
+      properties:
+        error:
+          type: string
+          description: Error code
+          example: "agent_not_found"
+        message:
+          type: string
+          description: Human-readable error description
+          example: "Agent 'nonexistent' is not registered"
+        details:
+          type: object
+          description: Additional error context
+      required:
+        - error
+        - message
+
+    UserStory:
+      type: object
+      description: A user story with Gherkin acceptance criteria
+      properties:
+        id:
+          type: string
+          description: Story ID (e.g., ORDERS-01)
+          example: "PAYMENTS-01"
+        title:
+          type: string
+          description: Story title
+          example: "Process Credit Card Payment"
+        gherkin:
+          type: string
+          description: Given/When/Then acceptance criteria
+        event_triggers:
+          type: array
+          items:
+            $ref: "#/components/schemas/EventTrigger"
+      required:
+        - id
+        - title
+        - gherkin
+
+    EventTrigger:
+      type: object
+      description: A domain event trigger
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          description: Event name (past-tense, namespaced)
+          example: "payments.PaymentCaptured"
+        description:
+          type: string
+      required:
+        - id
+        - name
+        - description
+
+    Artifact:
+      type: object
+      description: Agent-generated output with file contents
+      properties:
+        agent_name:
+          type: string
+          description: Name of the producing agent
+          example: "backend"
+        files:
+          type: object
+          description: Map of file paths to their contents
+          additionalProperties:
+            type: string
+          example:
+            "cmd/server/main.go": "package main\n..."
+            "internal/domain/service.go": "package domain\n..."
+        metadata:
+          type: object
+          properties:
+            user_story_id:
+              type: string
+            service_name:
+              type: string
+            language:
+              type: string
+            framework:
+              type: string
+      required:
+        - agent_name
+        - files
+
+    ReviewResult:
+      type: object
+      properties:
+        approved:
+          type: boolean
+        feedback:
+          type: array
+          items:
+            type: string
+        security_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        risk_level:
+          $ref: "#/components/schemas/RiskLevel"
+      required:
+        - approved
+        - feedback
+        - security_score
+        - risk_level
+
+    QualityGateResult:
+      type: object
+      properties:
+        passed:
+          type: boolean
+        complexity_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: 0=simple, 100=overly complex
+        feedback:
+          type: array
+          items:
+            type: string
+      required:
+        - passed
+        - complexity_score
+        - feedback
+
+    AgentAdvice:
+      type: object
+      properties:
+        bottlenecks_identified:
+          type: array
+          items:
+            type: string
+        recommendations:
+          type: array
+          items:
+            type: string
+        approved_to_proceed:
+          type: boolean
+          default: true
+
+    SecurityReport:
+      type: object
+      properties:
+        passed:
+          type: boolean
+        score:
+          type: integer
+        feedback:
+          type: array
+          items:
+            type: string
+
+    PipelineState:
+      type: object
+      properties:
+        run_id:
+          type: string
+        stage:
+          type: string
+        attempt:
+          type: integer
+          default: 1
+        user_stories:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserStory"
+        advisory_results:
+          type: object
+          additionalProperties:
+            type: string
+        cto_approved:
+          type: boolean
+          default: true
+        approved:
+          type: boolean
+          default: false
+        artifacts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Artifact"
+        feedback:
+          type: string
+          nullable: true
+        failure_report:
+          $ref: "#/components/schemas/FailureReport"
+
+    FailureReport:
+      type: object
+      properties:
+        source:
+          type: string
+          description: Stage or agent that produced the failure
+        error_type:
+          type: string
+          description: Category of failure
+        trace:
+          type: string
+          description: Detailed error trace
+        relevant_files:
+          type: array
+          items:
+            type: string
+
+    ExistingCodeResult:
+      type: object
+      properties:
+        passed:
+          type: boolean
+        changed_files:
+          type: array
+          items:
+            type: string
+        test_files:
+          type: array
+          items:
+            type: string
+        quality_gate_score:
+          type: integer
+        quality_gate_feedback:
+          type: array
+          items:
+            type: string
+        review_approved:
+          type: boolean
+        review_risk:
+          type: string
+        errors:
+          type: array
+          items:
+            type: string
+        retries_used:
+          type: integer
+
+    RiskLevel:
+      type: string
+      enum:
+        - LOW
+        - MEDIUM
+        - HIGH
+        - CRITICAL
+
+    EventKind:
+      type: string
+      enum:
+        - task_submitted
+        - task_started
+        - task_completed
+        - task_failed
+        - task_timeout
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "bad_request"
+            message: "Missing required parameter: request"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "internal_error"
+            message: "Agent execution failed: LLM provider returned an error"
+
+tags:
+  - name: Agent Execution
+    description: |
+      Run individual OpenClaw agents for specific tasks. Each agent is an
+      autonomous AI agent with domain-specific system prompts, tools, and
+      structured output models.
+  - name: Orchestration
+    description: |
+      Multi-agent orchestration tools for delegating tasks by capability,
+      running the full SDLC pipeline, planning complex goals, and
+      modifying existing codebases with autonomous remediation.
+  - name: Knowledge Management
+    description: |
+      Vector-indexed knowledge management tools. Store and retrieve ADRs,
+      project context, conventions, and architecture decisions that agents
+      automatically reference during execution.
+  - name: Async Tasks
+    description: |
+      PostgreSQL-backed async task execution for long-running operations
+      (builds, test suites, deployments) that would timeout under standard
+      MCP request/response patterns.
+  - name: Memory Bridge
+    description: |
+      Cross-runtime memory synchronization between OpenClaw (pgvector),
+      Claude Code (agent-memory files), and Antigravity (implicit memory).
+  - name: Domain Expert Agents
+    description: |
+      Specialized agents for travel planning (weather, holidays, regions)
+      and financial analysis (accounting, stocks, crypto, pricing, legal).

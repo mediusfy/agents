@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 
 from openclaw.models.core import Artifact, FailureReport, PipelineState
 from openclaw.pipeline.config import PipelineConfig
@@ -9,6 +10,51 @@ from openclaw.settings import settings
 from openclaw.stages.base import StageRunner
 
 logger = logging.getLogger(__name__)
+
+# ── Emoji markers for progress telemetry ───────────────────────────────────
+_PROGRESS = {
+    "pending": "⏳",
+    "running": "▶",
+    "done": "✓",
+    "failed": "✗",
+    "skipped": "–",
+}
+
+
+class ProgressTracker:
+    """Lightweight progress tracker that prints actionable status lines."""
+
+    def __init__(self, total_agents: int, total_stories: int):
+        self.total_agents = total_agents
+        self.total_stories = total_stories
+        self.completed = 0
+        self.failed = 0
+        self.start_time = time.time()
+        self.agent_map: dict[str, str] = {}  # label → status
+
+    def start(self, label: str):
+        self.agent_map[label] = "running"
+        self._print()
+
+    def done(self, label: str):
+        self.agent_map[label] = "done"
+        self.completed += 1
+        self._print()
+
+    def fail(self, label: str):
+        self.agent_map[label] = "failed"
+        self.failed += 1
+        self._print()
+
+    def _print(self):
+        elapsed = int(time.time() - self.start_time)
+        statuses = "  ".join(
+            f"{s} {k}" for k, s in sorted(self.agent_map.items())
+        )
+        logger.info(
+            f"[{elapsed}s] {self.completed}/{self.total_agents} agents done "
+            f"({self.failed} failed)  {statuses}"
+        )
 
 
 class ImplementationStage(StageRunner):
@@ -43,20 +89,37 @@ class ImplementationStage(StageRunner):
         ux_advice = state.advisory_results.get("ux", "")
         raw_requirements = config.requirement or ""
 
-        # Using the Workspace adapter if needed, but since it's injected we can import it
+        # ── Real project repo context ─────────────────────────────────────
         from openclaw.adapters.workspace import WorkspaceContext
 
-        workspace = WorkspaceContext()
+        workspace = WorkspaceContext(root_dir=config.target_root)
         repo_context = workspace.get_repo_context()
+        markdown_ctx = workspace.get_markdown_context()
 
-        is_retry = getattr(state, "failure_report", None) is not None
+        is_retry = bool(state.failure_report)
         artifacts = list(state.artifacts) if is_retry and state.artifacts else []
 
         from openclaw.agents.backend import ProjectState
 
-        project_state = ProjectState(base_path="/app/default", environment="dev", team_owner="platform-engineering")
+        project_state = ProjectState(base_path=f"/app/{config.project}", environment="dev", team_owner="platform-engineering")
 
-        async def _instrumented_test(sem, us):
+        # Determine total agent count for progress tracker
+        n_stories = len(user_stories)
+        n_backend = n_stories  # 1 per story (collapsed from 4)
+        n_frontend = n_stories if not is_retry else 0
+        n_db = n_stories if not is_retry else 0
+        n_test = n_stories
+        n_global = 0 if is_retry else 2  # devops + docs
+        progress = ProgressTracker(
+            total_agents=n_backend + n_frontend + n_db + n_test + n_global,
+            total_stories=n_stories,
+        )
+
+        # ── Instrumented helpers ───────────────────────────────────────────
+
+        async def _instrumented_test(sem, us, story_idx):
+            label = f"{us.id}:test_eng"
+            progress.start(label)
             async with recorder.record_span(
                 run_id=state.run_id,
                 agent_name="test_eng",
@@ -70,11 +133,13 @@ class ImplementationStage(StageRunner):
                 )
                 rec.set_output(res)
                 res.output.metadata["user_story_id"] = us.id
+                res.output.metadata["story_index"] = story_idx
+                progress.done(label)
                 return res.output
 
         async def run_tagged(sem, agent, prompt, story_id=None, deps=None):
             label = f"{story_id or 'global'}:{agent}"
-            logger.info(f"▶ AGENT_START [{label}]")
+            progress.start(label)
             async with recorder.record_span(
                 run_id=state.run_id,
                 agent_name=agent,
@@ -85,13 +150,18 @@ class ImplementationStage(StageRunner):
                 res = await self.provider.run_agent(sem, agent, registry.get(agent), prompt, deps=deps)
                 rec.set_output(res)
                 res.output.metadata["user_story_id"] = story_id or "global"
-                logger.info(f"✓ AGENT_END   [{label}]")
+                progress.done(label)
                 return res.output
 
-        async def run_backend_phases(sem, us, repo_ctx, cto_adv, proj_state):
+        # ── Backend: single consolidated prompt per story ──────────────────
+        # Collapsed from 4 sequential phases into 1. The backend agent already
+        # self-validates with run_go_build, so splitting doesn't buy quality.
+        async def run_backend(sem, us, repo_ctx, cto_adv, proj_state, story_idx):
             if is_retry:
-                patch_prompt = (
-                    f"{repo_ctx}\n\nCTO ADVICE:\n{cto_adv}\n\nFULL GHERKIN:\n{us.gherkin}\n\n"
+                prompt = (
+                    f"{repo_ctx}\n\n"
+                    "CTO ADVICE:\n{cto_adv}\n\n"
+                    f"FULL GHERKIN:\n{us.gherkin}\n\n"
                     "PREVIOUS FAILURE DETECTED:\n"
                     f"Source: {state.failure_report.source}\n"
                     f"Error Type: {state.failure_report.error_type}\n"
@@ -99,139 +169,92 @@ class ImplementationStage(StageRunner):
                     "TASK: Analyze the failure telemetry and generate a hyper-specific patch to fix the issue. "
                     "Only output the corrected files instead of rewriting the entire backend from scratch."
                 )
-                res = await run_tagged(sem, "backend", patch_prompt, story_id=us.id, deps=proj_state)
-                return [res]
+            else:
+                prompt = (
+                    f"{repo_ctx}\n\n"
+                    "CTO ADVICE:\n{cto_adv}\n\n"
+                    f"FULL GHERKIN:\n{us.gherkin}\n\n"
+                    "TASK: Generate a complete Go backend for this user story using Hexagonal Architecture. "
+                    "Include ALL of the following in one pass:\n"
+                    "1. Domain structs and interfaces (domain/types.go)\n"
+                    "2. Postgres database adapters (adapters/postgres_repo.go)\n"
+                    "3. Pub/Sub event handlers and definitions (ports/events.go)\n"
+                    "4. Core business logic service wiring (domain/service.go)\n"
+                    "5. Entry point with HTTP/gRPC server (cmd/server/main.go)\n\n"
+                    "All files must compile together. Run `run_go_build` to self-validate before returning."
+                )
+            res = await run_tagged(sem, "backend", prompt, story_id=us.id, deps=proj_state)
+            res.metadata["story_index"] = story_idx
+            return res
 
-            backend_arts = []
-
-            p1_prompt = (
-                f"{repo_ctx}\n\nCTO ADVICE:\n{cto_adv}\n\nFULL GHERKIN:\n{us.gherkin}\n\n"
-                "TASK: Phase 1. Given the user story, generate ONLY the domain structs "
-                "and interface definitions. Output: domain/types.go"
-            )
-            p1_res = await run_tagged(sem, "backend", p1_prompt, story_id=us.id, deps=proj_state)
-            backend_arts.append(p1_res)
-            p1_files = (
-                "\n".join(f"--- {k} ---\n{v}" for k, v in p1_res.files.items()) if hasattr(p1_res, "files") else ""
-            )
-
-            p2_prompt = (
-                f"Phase 2. Given these interfaces:\n{p1_files}\n\n"
-                "TASK: Implement the Postgres database adapters. Output: adapters/postgres_repo.go"
-            )
-            p2_res = await run_tagged(sem, "backend", p2_prompt, story_id=us.id, deps=proj_state)
-            backend_arts.append(p2_res)
-            p2_files = (
-                "\n".join(f"--- {k} ---\n{v}" for k, v in p2_res.files.items()) if hasattr(p2_res, "files") else ""
-            )
-
-            p3_prompt = (
-                f"Phase 3. Given the domain structs:\n{p1_files}\n\n"
-                "TASK: Write the Pub/Sub event handlers and definitions. Output: ports/events.go"
-            )
-            p3_res = await run_tagged(sem, "backend", p3_prompt, story_id=us.id, deps=proj_state)
-            backend_arts.append(p3_res)
-            p3_files = (
-                "\n".join(f"--- {k} ---\n{v}" for k, v in p3_res.files.items()) if hasattr(p3_res, "files") else ""
-            )
-
-            p4_prompt = (
-                f"Phase 4. Given the interfaces:\n{p1_files}\n\nDB Adapters:\n{p2_files}\n\nEvents:\n{p3_files}\n\n"
-                "TASK: Implement the core business logic service wiring them together. Output: domain/service.go"
-            )
-            p4_res = await run_tagged(sem, "backend", p4_prompt, story_id=us.id, deps=proj_state)
-            backend_arts.append(p4_res)
-
-            return backend_arts
-
+        # ── Build task list ────────────────────────────────────────────────
         per_story_tasks = []
-        for us in user_stories:
-            per_story_tasks.append(run_backend_phases(semaphore, us, repo_context, cto_advice, project_state))
+        for idx, us in enumerate(user_stories):
+            per_story_tasks.append(("backend", run_backend(semaphore, us, repo_context, cto_advice, project_state, idx)))
 
             if not is_retry:
                 fe_prompt = (
-                    f"{repo_context}\n\nCTO ADVICE:\n{cto_advice}\n\n"
+                    f"{repo_context}\n\n{markdown_ctx}\n\n"
+                    "CTO ADVICE:\n{cto_advice}\n\n"
                     f"UX GUIDELINES:\n{ux_advice}\n\n"
                     f"FULL GHERKIN:\n{us.gherkin}\n\n"
                     f"TASK:\nImplement frontend for story {us.id}: {us.title}"
                 )
-                per_story_tasks.append(run_tagged(semaphore, "frontend", fe_prompt, story_id=us.id))
+                per_story_tasks.append(("frontend", run_tagged(semaphore, "frontend", fe_prompt, story_id=us.id)))
 
                 db_prompt = (
-                    f"FULL GHERKIN:\n{us.gherkin}\n\nEVENTS:\n"
+                    f"FULL GHERKIN:\n{us.gherkin}\n\n"
+                    "EVENTS:\n"
                     + "\n".join(f" - {e.name}: {e.description}" for e in (us.event_triggers or []))
                     + f"\n\nTASK:\nGenerate database schema/migrations for story {us.id}: {us.title}"
                 )
-                per_story_tasks.append(run_tagged(semaphore, "database", db_prompt, story_id=us.id))
+                per_story_tasks.append(("database", run_tagged(semaphore, "database", db_prompt, story_id=us.id)))
 
+        global_tasks = []
         if not is_retry:
             devops_prompt = "Generate CI/CD pipelines and Docker Compose for these stories:\n" + "\n".join(
                 f"- {us.id}: {us.title}" for us in user_stories
             )
             docs_prompt = f"Generate API docs and README for: {raw_requirements}"
-
             global_tasks = [
-                run_tagged(semaphore, "devops", devops_prompt),
-                run_tagged(semaphore, "docs", docs_prompt),
+                ("devops", run_tagged(semaphore, "devops", devops_prompt)),
+                ("docs", run_tagged(semaphore, "docs", docs_prompt)),
             ]
-        else:
-            global_tasks = []
 
-        per_story_results = await asyncio.gather(*per_story_tasks, return_exceptions=True)
-        global_results = await asyncio.gather(*global_tasks, return_exceptions=True)
+        # ── Run all tasks concurrently ─────────────────────────────────────
+        all_tasks = per_story_tasks + global_tasks
+        results = await asyncio.gather(*[t[1] for t in all_tasks], return_exceptions=True)
 
-        for r in per_story_results + global_results:
+        # ── Collect artifacts ──────────────────────────────────────────────
+        for (agent_type, _), r in zip(all_tasks, results):
             if isinstance(r, list):
                 for sub_r in r:
                     if isinstance(sub_r, Artifact):
-                        if is_retry:
-                            # Merge files into existing artifact if it exists
-                            merged = False
-                            for art in artifacts:
-                                if art.agent_name == sub_r.agent_name and art.metadata.get(
-                                    "user_story_id"
-                                ) == sub_r.metadata.get("user_story_id"):
-                                    art.files.update(sub_r.files)
-                                    merged = True
-                                    break
-                            if not merged:
-                                artifacts.append(sub_r)
-                        else:
-                            artifacts.append(sub_r)
+                        artifacts = _merge_artifact(artifacts, sub_r, is_retry)
             elif isinstance(r, Artifact):
-                if is_retry:
-                    merged = False
-                    for art in artifacts:
-                        if art.agent_name == r.agent_name and art.metadata.get("user_story_id") == r.metadata.get(
-                            "user_story_id"
-                        ):
-                            art.files.update(r.files)
-                            merged = True
-                            break
-                    if not merged:
-                        artifacts.append(r)
-                else:
-                    artifacts.append(r)
+                artifacts = _merge_artifact(artifacts, r, is_retry)
             elif isinstance(r, Exception):
-                logger.error(f"Implementation task raised: {r}")
+                logger.error(f"Implementation task ({agent_type}) raised: {r}")
+            # None results are silently skipped (e.g. skipped retry tasks)
 
+        # ── Test phase: per-story, parallel, isolated failures ────────────
         logger.info("Running Test agents per story...")
         test_tasks = []
-        for us in user_stories:
-            test_tasks.append(_instrumented_test(semaphore, us))
+        for idx, us in enumerate(user_stories):
+            test_tasks.append(_instrumented_test(semaphore, us, idx))
 
         test_results = await asyncio.gather(*test_tasks, return_exceptions=True)
 
-        test_failure_trace = None
+        failed_stories: list[str] = []
         from openclaw.tools.test_tools import execute_test_suite
 
-        for _t, res in zip(test_tasks, test_results, strict=False):
+        for us, res in zip(user_stories, test_results):
             if isinstance(res, BaseException):
-                logger.error(f"Test agent failed: {res}")
+                logger.error(f"Test agent for {us.id} failed: {res}")
                 continue
             res.metadata["user_story_id"] = res.metadata.get("user_story_id", "?")
 
-            # Remove old test artifact for this story before appending the new one
+            # Remove old test artifact for this story
             artifacts = [
                 a
                 for a in artifacts
@@ -239,10 +262,10 @@ class ImplementationStage(StageRunner):
             ]
             artifacts.append(res)
 
+            # Find matching backend artifact for this story
             target_source_code = ""
             target_code_file = "service.go"
             for a in artifacts:
-                # Ensure we test against backend artifact specifically to prevent flaky file resolution
                 if (
                     a.agent_name == "backend"
                     and a.metadata.get("user_story_id") == res.metadata["user_story_id"]
@@ -261,27 +284,48 @@ class ImplementationStage(StageRunner):
                 test_source_code = res.files[test_file_name]
                 trace = await execute_test_suite(test_file_name, test_source_code, target_code_file, target_source_code)
                 if trace.startswith("FAILED"):
-                    test_failure_trace = trace
-                    break
+                    failed_stories.append(us.id)
+                    logger.warning(f"Test suite failed for {us.id}: {trace[:200]}...")
 
-        if test_failure_trace:
-            logger.warning("Test suite failed. Sending feedback back to state.")
+        if failed_stories:
+            logger.warning(
+                f"Test failures in {len(failed_stories)}/{len(user_stories)} stories: {', '.join(failed_stories)}"
+            )
             state.feedback = (
-                f"The test suite failed with the following trace:\n\n{test_failure_trace}\n\n"
-                "Rewrite the implementation to resolve these errors."
+                f"Test suite failed for stories: {', '.join(failed_stories)}. "
+                "Rewrite the implementations to resolve these errors."
             )
             state.failure_report = FailureReport(
                 source="test_suite",
                 error_type="test_failure",
-                trace=test_failure_trace,
+                trace=f"Failed stories: {', '.join(failed_stories)}",
+                relevant_files=failed_stories,
             )
             state.approved = False
         else:
+            logger.info("All tests passed.")
             state.feedback = None
             state.failure_report = None
-            # Explicitly clear approved status; handled by downstream gates
             state.approved = False
 
         state.artifacts = artifacts
         state.stage = "implementation"
         return state
+
+
+def _merge_artifact(artifacts: list[Artifact], new: Artifact, is_retry: bool) -> list[Artifact]:
+    """Merge an artifact into the list. On retry, merge files into matching existing artifacts."""
+    if not is_retry:
+        artifacts.append(new)
+        return artifacts
+
+    merged = False
+    us_id = new.metadata.get("user_story_id", "")
+    for art in artifacts:
+        if art.agent_name == new.agent_name and art.metadata.get("user_story_id") == us_id:
+            art.files.update(new.files)
+            merged = True
+            break
+    if not merged:
+        artifacts.append(new)
+    return artifacts

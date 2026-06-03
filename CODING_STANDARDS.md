@@ -184,6 +184,15 @@ internal/
 - Use `mock.MatchedBy` for argument matching in mock expectations.
 - Helper functions for repetitive test setup (e.g., `newAttributes()`, `newFilterConfig()`).
 
+### 2.4 Coverage Gate
+
+**Minimum coverage: 30% per package (R1), rising to 60% (R3).**
+
+- Enforced in CI via `go tool cover -func=coverage.out` check.
+- Skippable with `[skip-test-check]` in commit message.
+- New packages must include at least one test file in the introducing PR.
+- See ADR-0006 for full policy and phase roadmap.
+
 ### 2.2 Integration Tests
 - `testify/suite` for organizing integration test suites.
 - `testcontainers-go` for real dependency containers.

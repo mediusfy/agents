@@ -1,0 +1,284 @@
+-- ============================================================================
+-- Queries: ENTITYMGMT-06 — Hard-Delete (Permanent Removal) of Soft-Deleted Entities
+-- Bounded Context: Entity Management
+--
+-- This file documents the primary SQL query patterns used by the application
+-- layer for hard-delete operations.
+--
+-- Gherkin SCENARIO 1: Successful hard-delete (soft-deleted → permanently removed)
+-- Gherkin SCENARIO 2: Active entity hard-delete rejected (ErrNotDeleted)
+-- Gherkin SCENARIO 3: Non-existent entity returns 404 (ERR_ENTITY_NOT_FOUND)
+-- ============================================================================
+
+-- ============================================================================
+-- Query 1: Hard-delete entity with outbox event (success path)
+-- The primary entry point for DELETE /api/v1/entities/{id}?permanent=true.
+--
+-- Gherkin SCENARIO 1:
+--   Given entity "ent-001" is soft-deleted (deleted_at set, status="deleted")
+--   When a DELETE /api/v1/entities/ent-001?permanent=true request is sent
+--   Then the entity record is permanently removed from the database
+--     And an entitymanagement.entity.hard_deleted event is written to the outbox
+--     And HTTP 200 is returned with {"status": "hard_deleted", "entity_id": "ent-001"}
+--
+-- Usage:
+--   SELECT * FROM hard_delete_entity_with_outbox(
+--     p_entity_id := 'e0000001-0000-4000-8000-000000000001'
+--   );
+--
+-- Expected result (SCENARIO 1):
+--   success         = TRUE
+--   deleted_entity  = {
+--       "id": "e0000001-...",
+--       "name": "Alice",
+--       "status": "deleted",
+--       "region": "eu-west-1",
+--       "deleted_at": "2025-06-01T12:00:00Z",   -- original soft-delete timestamp
+--       "hard_deleted_at": "2025-06-15T12:00:00Z", -- when permanent removal occurred
+--       "version": 3,
+--       ...
+--   }
+--   event_id      = <uuid>  (outbox trace ID)
+--   error_code    = NULL
+--   error_message = NULL
+--
+-- The application layer then constructs the HTTP response:
+--   {
+--     "status": "hard_deleted",
+--     "entity_id": "e0000001-..."
+--   }
+--
+-- Cascading side effects:
+--   - request_idempotency rows referencing this entity are auto-deleted
+--     via ON DELETE CASCADE FK on request_idempotency(entity_id)
+-- ============================================================================
+
+-- ============================================================================
+-- Query 2: Hard-delete entity (not soft-deleted — CONFLICT path)
+-- When the entity exists but has NOT been soft-deleted, the function returns
+-- ERR_NOT_DELETED without emitting any event or modifying data.
+--
+-- Gherkin SCENARIO 2:
+--   Given entity "ent-002" is active (deleted_at is NULL)
+--   When a hard-delete is attempted on entity "ent-002"
+--   Then ErrNotDeleted is returned (HTTP 400)
+--     And message: "entity must be soft-deleted before hard deletion"
+--     And no data is modified
+--
+-- Usage:
+--   SELECT * FROM hard_delete_entity_with_outbox(
+--     p_entity_id := 'e0000002-0000-4000-8000-000000000001'
+--   );
+--
+-- Expected result (SCENARIO 2):
+--   success         = FALSE
+--   deleted_entity  = NULL
+--   event_id        = NULL  (NO event emitted)
+--   error_code      = 'ERR_NOT_DELETED'
+--   error_message   = 'Entity Bob (e0000002-...) is not soft-deleted. Entity must be
+--                       soft-deleted before hard deletion. Current status: active'
+--
+-- The application layer maps error_code to HTTP status:
+--   ERR_NOT_DELETED       → HTTP 400 Bad Request
+--   ERR_ENTITY_NOT_FOUND   → HTTP 404 Not Found
+--   ERR_INVALID_STATUS     → HTTP 409 Conflict
+-- ============================================================================
+
+-- ============================================================================
+-- Query 3: Hard-delete entity (not found — CONFLICT path)
+-- When the entity does not exist at all, the function returns
+-- ERR_ENTITY_NOT_FOUND without emitting any event.
+--
+-- Gherkin SCENARIO 3:
+--   Given entity "ent-999" does not exist
+--   When a hard-delete is attempted
+--   Then HTTP 404 Not Found is returned
+--
+-- Usage:
+--   SELECT * FROM hard_delete_entity_with_outbox(
+--     p_entity_id := 'e0000fff-0000-4000-8000-000000000009'
+--   );
+--
+-- Expected result (SCENARIO 3):
+--   success         = FALSE
+--   deleted_entity  = NULL
+--   event_id        = NULL  (NO event emitted)
+--   error_code      = 'ERR_ENTITY_NOT_FOUND'
+--   error_message   = 'Entity with ID e0000fff-0000-4000-8000-000000000009 not found'
+-- ============================================================================
+
+-- ============================================================================
+-- Query 4: Check if entity is eligible for hard-delete (lookup only)
+-- Used by the application layer before presenting the "permanent delete"
+-- confirmation dialog to the user.
+--
+-- Usage:
+--   SELECT id, name, status, deleted_at, version
+--   FROM entities
+--   WHERE id = 'e0000001-0000-4000-8000-000000000001'
+--     AND deleted_at IS NOT NULL
+--     AND status = 'deleted';
+--
+-- If this returns a row, the entity IS eligible for hard-delete.
+-- If no rows, either the entity doesn't exist or isn't soft-deleted.
+-- ============================================================================
+
+-- ============================================================================
+-- Query 5: Create entity.hard_deleted outbox event (reference SQL)
+--
+-- INSERT INTO outbox_events (
+--     id, event_id, aggregate_id, aggregate_type,
+--     event_type, source, subject, payload,
+--     status, retry_count, last_error, created_at
+-- ) VALUES (
+--     gen_random_uuid()::TEXT,
+--     gen_random_uuid()::TEXT,
+--     'e0000001-...'::TEXT,                     -- aggregate_id (entity_id)
+--     'entity',                                  -- aggregate_type
+--     'entitymanagement.entity.hard_deleted',    -- event_type
+--     '/entity-manager',                         -- source
+--     'entity/e0000001-...',                     -- subject
+--     jsonb_build_object(                        -- payload
+--         'event_id',        '<uuid>',
+--         'entity_id',       'e0000001-...',
+--         'entity_name',     'Alice',
+--         'region',          'eu-west-1',
+--         'deleted_at',      '2025-06-01T12:00:00Z',  -- original soft-delete time
+--         'hard_deleted_at', NOW(),                    -- when permanent removal occurred
+--         'occurred_at',     NOW()
+--     ),
+--     'pending',                                 -- status
+--     0,                                         -- retry_count
+--     NULL,                                      -- last_error
+--     NOW()                                      -- created_at
+-- );
+-- ============================================================================
+
+-- ============================================================================
+-- Query 6: Raw hard-delete SQL (reference implementation)
+-- For understanding, this is the core SQL that powers hard_delete_entity():
+--
+--   -- Step 1: Lock and validate
+--   SELECT * FROM entities
+--   WHERE id = $1
+--   FOR UPDATE;
+--   -- If NOT FOUND → ERR_ENTITY_NOT_FOUND (SCENARIO 3)
+--   -- If deleted_at IS NULL → ERR_NOT_DELETED (SCENARIO 2)
+--   -- If status != 'deleted' → ERR_INVALID_STATUS (defensive)
+--
+--   -- Step 2: Permanently remove
+--   DELETE FROM entities
+--   WHERE id = $1
+--     AND deleted_at IS NOT NULL  -- Safety: double-verify soft-deleted
+--   RETURNING *;
+--
+-- Parameters:
+--   $1 = entity_id
+-- ============================================================================
+
+-- ============================================================================
+-- Query 7: Bulk hard-delete for retention policy enforcement
+-- Purges entities that have been soft-deleted for longer than the
+-- specified retention period (e.g., GDPR right-to-erasure, CCPA, or
+-- internal data retention policies).
+--
+-- Usage:
+--   -- Hard-delete all entities soft-deleted more than 90 days ago
+--   DELETE FROM entities
+--   WHERE deleted_at IS NOT NULL
+--     AND status = 'deleted'
+--     AND deleted_at < NOW() - INTERVAL '90 days'
+--   RETURNING id, name, region, deleted_at;
+--
+-- Note: This bulk operation does NOT emit outbox events. For GDPR/CCPA
+-- compliance, the application should iterate and use
+-- hard_delete_entity_with_outbox() per entity if event emission is required.
+-- ============================================================================
+
+-- ============================================================================
+-- Query 8: Count soft-deleted entities eligible for hard-delete
+-- Used for monitoring and compliance reporting.
+--
+-- SELECT
+--     COUNT(*) FILTER (WHERE deleted_at IS NULL) AS active_count,
+--     COUNT(*) FILTER (WHERE deleted_at IS NOT NULL AND status = 'deleted') AS soft_deleted_count,
+--     COUNT(*) FILTER (WHERE deleted_at IS NOT NULL AND deleted_at < NOW() - INTERVAL '90 days') AS eligible_for_purge
+-- FROM entities;
+-- ============================================================================
+
+-- ============================================================================
+-- Query 9: Region-scoped hard-delete eligibility (for ResidencyContext consumer)
+-- Used by the ResidencyContext to confirm regional data removal after
+-- a hard-delete event has been processed.
+--
+-- SELECT
+--     region,
+--     COUNT(*) AS total_entities,
+--     COUNT(*) FILTER (WHERE deleted_at IS NOT NULL AND status = 'deleted') AS soft_deleted,
+--     COUNT(*) FILTER (WHERE deleted_at IS NOT NULL AND deleted_at < NOW() - INTERVAL '90 days') AS purge_eligible
+-- FROM entities
+-- GROUP BY region
+-- ORDER BY region;
+-- ============================================================================
+
+-- ============================================================================
+-- Query 10: Find orphaned idempotency keys (safety audit)
+-- Finds idempotency key records that reference non-existent entities.
+-- Under normal operation, ON DELETE CASCADE handles this automatically.
+-- Run this periodically as a data integrity check.
+--
+-- SELECT ri.request_key, ri.entity_id, ri.created_at, ri.expires_at
+-- FROM request_idempotency ri
+-- LEFT JOIN entities e ON e.id = ri.entity_id
+-- WHERE e.id IS NULL;
+--
+-- To clean up orphaned records:
+--   SELECT prune_orphaned_idempotency();
+-- ============================================================================
+
+-- ============================================================================
+-- Query 11: Complete lifecycle audit for a given entity
+-- Shows all events for an entity across its entire lifecycle:
+-- created → updated → soft-deleted → hard-deleted
+--
+-- SELECT
+--     eo.event_type,
+--     eo.payload->>'entity_name' AS entity_name,
+--     eo.payload->>'status' AS status,
+--     eo.payload->>'deleted_at' AS soft_deleted_at,
+--     eo.payload->>'hard_deleted_at' AS hard_deleted_at,
+--     eo.created_at
+-- FROM outbox_events eo
+-- WHERE eo.aggregate_id = 'e0000001-0000-4000-8000-000000000001'
+--   AND eo.aggregate_type = 'entity'
+-- ORDER BY eo.created_at ASC;
+-- ============================================================================
+
+-- ============================================================================
+-- Error Code Reference for Application Layer
+-- ============================================================================
+--
+-- hard_delete_entity_with_outbox() returns the following error codes:
+--
+-- | error_code             | HTTP Status | Description                              |
+-- |------------------------|-------------|------------------------------------------|
+-- | NULL (success)         | 200         | Entity permanently removed               |
+-- | ERR_NOT_DELETED        | 400         | Entity is active, must soft-delete first |
+-- | ERR_ENTITY_NOT_FOUND   | 404         | Entity does not exist                    |
+-- | ERR_INVALID_STATUS     | 409         | Inconsistent state (deleted_at set but   |
+-- |                        |             | status != 'deleted')                     |
+--
+-- The application layer should map these error codes to appropriate HTTP
+-- status codes and response bodies.
+--
+-- SCENARIO 1 response: HTTP 200
+--   { "status": "hard_deleted", "entity_id": "e0000001-..." }
+--
+-- SCENARIO 2 response: HTTP 400
+--   { "error": "ERR_NOT_DELETED",
+--     "message": "Entity Bob (e0000002-...) is not soft-deleted. Entity must be soft-deleted before hard deletion. Current status: active" }
+--
+-- SCENARIO 3 response: HTTP 404
+--   { "error": "ERR_ENTITY_NOT_FOUND",
+--     "message": "Entity with ID e0000fff-... not found" }
+-- ============================================================================

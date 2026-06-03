@@ -1,0 +1,375 @@
+# =============================================================================
+# Entity Management CI Pipeline
+# =============================================================================
+# Supports all 12 ENTITYMGMT stories:
+#   - ENTITYMGMT-01: Schema definition
+#   - ENTITYMGMT-02: Idempotency (7-day TTL)
+#   - ENTITYMGMT-03: Read observability event
+#   - ENTITYMGMT-04: Optimistic concurrency control
+#   - ENTITYMGMT-05: Soft delete
+#   - ENTITYMGMT-06: Hard delete
+#   - ENTITYMGMT-07: Restore
+#   - ENTITYMGMT-08: Status lifecycle
+#   - ENTITYMGMT-09: Cursor pagination
+#   - ENTITYMGMT-10: Transactional outbox → NATS
+#   - ENTITYMGMT-11: Multi-region data residency
+#   - ENTITYMGMT-12: App startup (migrations, DI, health, OTel)
+# =============================================================================
+
+name: entity-management CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "entity-management/**"
+      - ".github/workflows/entity-management-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "entity-management/**"
+      - ".github/workflows/entity-management-ci.yml"
+  workflow_dispatch:
+    inputs:
+      go-version:
+        description: "Go version to use for build"
+        required: false
+        default: "1.26"
+
+# ---------------------------------------------------------------------------
+# Permissions
+# ---------------------------------------------------------------------------
+permissions:
+  contents: read
+  packages: read
+  checks: write
+  pull-requests: write
+
+# ---------------------------------------------------------------------------
+# Environment & Defaults
+# ---------------------------------------------------------------------------
+env:
+  GO_VERSION: "1.26"
+  SERVICE_DIR: entity-management
+  SERVICE_NAME: entity-management
+  GOFLAGS: -mod=mod
+  GOPROXY: https://proxy.golang.org,direct
+
+# ---------------------------------------------------------------------------
+# Concurrency control: cancel in-progress runs for same PR/branch
+# ---------------------------------------------------------------------------
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ===========================================================================
+  # LINT
+  # ===========================================================================
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ${{ env.SERVICE_DIR }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: ${{ env.SERVICE_DIR }}/go.sum
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: ${{ env.SERVICE_DIR }}
+          args: --timeout=5m --out-format=colored-line-number
+          skip-cache: false
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Check formatting
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "❌ Unformatted files found. Run 'gofmt -w' to fix:"
+            gofmt -l .
+            exit 1
+          fi
+          echo "✅ All files properly formatted"
+
+  # ===========================================================================
+  # VULNERABILITY SCAN (Security)
+  # ===========================================================================
+  vulnerability:
+    name: Vulnerability Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ${{ env.SERVICE_DIR }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: ${{ env.SERVICE_DIR }}/go.sum
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: Run govulncheck
+        run: govulncheck ./... 2>&1 | tee vuln-report.txt
+
+      - name: Upload vulnerability report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vulnerability-report
+          path: ${{ env.SERVICE_DIR }}/vuln-report.txt
+
+  # ===========================================================================
+  # UNIT TESTS (ENTITYMGMT-01 through ENTITYMGMT-12)
+  # ===========================================================================
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ${{ env.SERVICE_DIR }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: ${{ env.SERVICE_DIR }}/go.sum
+
+      - name: Run unit tests with race detection
+        run: |
+          go test -v -race -count=1 -coverprofile=coverage.out -covermode=atomic ./...
+        env:
+          ENTITYMGMT_DEFAULT_REGION: "us-east-1"
+          ENTITYMGMT_ALLOWED_REGIONS: "us-east-1,us-west-2,eu-west-1,eu-central-1"
+          ENTITYMGMT_IDEMPOTENCY_TTL_HOURS: "168"
+
+      - name: Generate coverage report
+        run: |
+          go tool cover -func=coverage.out | tee coverage-summary.txt
+          echo "### Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat coverage-summary.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            ${{ env.SERVICE_DIR }}/coverage.out
+            ${{ env.SERVICE_DIR }}/coverage-summary.txt
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          directory: ${{ env.SERVICE_DIR }}
+          files: coverage.out
+          flags: unittests
+          name: entity-management-coverage
+          fail_ci_if_error: false
+          verbose: true
+
+  # ===========================================================================
+  # INTEGRATION TESTS (requires Postgres + NATS)
+  # ===========================================================================
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: ${{ env.SERVICE_DIR }}
+
+    services:
+      # ENTITYMGMT-01..09: PostgreSQL for schema/entity persistence
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: entity_management_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready -U postgres
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 10
+
+      # ENTITYMGMT-10: NATS with JetStream for transactional outbox
+      nats:
+        image: nats:2.10-alpine
+        ports:
+          - 4222:4222
+        options: >-
+          --health-cmd "wget --no-verbose --tries=1 --spider http://localhost:8222/healthz || exit 1"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: ${{ env.SERVICE_DIR }}/go.sum
+
+      - name: Run database migrations
+        env:
+          DATABASE_URL: "postgres://postgres:postgres@localhost:5432/entity_management_test?sslmode=disable"
+        run: |
+          for f in database/migrations/*.up.sql; do
+            echo "  Applying: $$(basename $$f)"
+            psql "$DATABASE_URL" -f "$f" > /dev/null 2>&1
+          done
+          echo "✅ Migrations applied"
+
+      - name: Run integration tests
+        run: |
+          go test -v -tags=integration -count=1 -timeout 180s \
+            -coverprofile=integration-coverage.out \
+            -covermode=atomic \
+            ./internal/adapters/...
+        env:
+          DATABASE_URL: "postgres://postgres:postgres@localhost:5432/entity_management_test?sslmode=disable"
+          NATS_URL: "nats://localhost:4222"
+          ENTITYMGMT_DEFAULT_REGION: "us-east-1"
+          ENTITYMGMT_ALLOWED_REGIONS: "us-east-1,us-west-2,eu-west-1,eu-central-1"
+          ENTITYMGMT_IDEMPOTENCY_TTL_HOURS: "168"
+
+      - name: Upload integration coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-coverage
+          path: ${{ env.SERVICE_DIR }}/integration-coverage.out
+
+  # ===========================================================================
+  # BUILD (Cross-platform binary + Docker)
+  # ===========================================================================
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [lint, unit-tests]
+    defaults:
+      run:
+        working-directory: ${{ env.SERVICE_DIR }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: ${{ env.SERVICE_DIR }}/go.sum
+
+      - name: Build binary
+        run: |
+          CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/server ./cmd/server/main.go
+          echo "✅ Binary built: bin/server"
+          ls -lh bin/server
+
+      - name: Build Linux binary (for Docker)
+        run: |
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
+            -ldflags="-s -w -X main.Version=${GITHUB_SHA::7}" \
+            -o bin/server-linux ./cmd/server/main.go
+          echo "✅ Linux binary built"
+          ls -lh bin/server-linux
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-binary
+          path: ${{ env.SERVICE_DIR }}/bin/server
+          retention-days: 7
+
+      - name: Build Docker image (without push)
+        run: |
+          DOCKER_BUILDKIT=1 docker build \
+            --cache-from ghcr.io/${{ github.repository }}/entity-management:cache \
+            --tag ${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            --build-arg VERSION=${{ github.sha }} \
+            --build-arg GIT_COMMIT=${{ github.sha::7 }} \
+            --build-arg BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+            -f Dockerfile .
+          echo "✅ Docker image built"
+
+  # ===========================================================================
+  # Docker Image Scan (Security: Trivy)
+  # ===========================================================================
+  docker-scan:
+    name: Docker Image Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [build]
+    if: github.event_name == 'pull_request'
+    defaults:
+      run:
+        working-directory: ${{ env.SERVICE_DIR }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          DOCKER_BUILDKIT=1 docker build \
+            --tag ${{ env.SERVICE_NAME }}:scan \
+            -f Dockerfile .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "${{ env.SERVICE_NAME }}:scan"
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+          ignore-unfixed: true
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: ${{ env.SERVICE_DIR }}/trivy-results.sarif

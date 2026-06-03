@@ -1,0 +1,46 @@
+# =============================================================================
+# OpenClaw Namespaces and Resource Quotas
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: entity-management
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    app.kubernetes.io/managed-by: argocd
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openclaw-system
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    app.kubernetes.io/managed-by: argocd
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: entity-management-quota
+  namespace: entity-management
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: "16Gi"
+    limits.cpu: "16"
+    limits.memory: "32Gi"
+    persistentvolumeclaims: "5"
+    pods: "50"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: openclaw-system-quota
+  namespace: openclaw-system
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: "8Gi"
+    limits.cpu: "8"
+    limits.memory: "16Gi"
+    pods: "25"

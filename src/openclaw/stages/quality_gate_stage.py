@@ -37,9 +37,11 @@ class QualityGateStage(StageRunner):
                 semaphore, "sre", registry.get("sre"), "Provision infrastructure and apply Helm charts."
             )
             rec.set_output(sre_res)
-            sre_res.output.metadata["user_story_id"] = "infrastructure"
-            sre_res.output.agent_name = "infrastructure"
-            artifacts.append(sre_res.output)
+            # Create a clean copy to avoid mutating the agent's returned artifact
+            sre_artifact = sre_res.output.model_copy(deep=True)
+            sre_artifact.metadata["user_story_id"] = "infrastructure"
+            sre_artifact.agent_name = "infrastructure"
+            artifacts.append(sre_artifact)
 
         full_text = format_artifacts(artifacts, max_chars=80_000)
 

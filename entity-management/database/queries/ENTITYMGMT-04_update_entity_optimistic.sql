@@ -1,0 +1,220 @@
+-- ============================================================================
+-- Queries: ENTITYMGMT-04 — Update Entity with Optimistic Concurrency
+-- Bounded Context: Entity Management
+--
+-- This file documents the primary SQL query patterns used by the application
+-- layer for optimistic concurrency update operations.
+--
+-- Gherkin SCENARIO 1: Successful update
+-- Gherkin SCENARIO 2: Stale version rejection
+-- Gherkin SCENARIO 3: Immutable field rejection
+-- ============================================================================
+
+-- ============================================================================
+-- Query 1: Get entity with version (pre-update read)
+-- The application calls this to obtain the current version of an entity
+-- before presenting an update form or preparing an update request.
+--
+-- Gherkin: "Given an entity 'ent-001' exists with version 3"
+--   → This query returns the entity WITH its current version number
+--
+-- Usage:
+--   SELECT * FROM get_entity_by_id_with_version(
+--     'f0000001-0000-4000-8000-000000000001'
+--   );
+-- ============================================================================
+
+-- ============================================================================
+-- Query 2: Optimistic update (success path)
+-- The core optimistic concurrency update. The WHERE clause contains the
+-- version check, and SET increments version atomically.
+--
+-- Gherkin SCENARIO 1:
+--   Given entity version = 3
+--   When PUT with expected_version=3
+--   Then version incremented from 3 to 4
+--     And updated_at refreshed
+--     And event written to outbox with changed_fields
+--
+-- Usage via helper function:
+--   SELECT * FROM update_entity_with_outbox(
+--     p_entity_id         := 'f0000001-0000-4000-8000-000000000001',
+--     p_expected_version  := 3,
+--     p_name              := 'Alice Updated',
+--     p_attributes        := '{"email": "new@example.com"}'::jsonb
+--   );
+--
+-- Expected result (SCENARIO 1):
+--   success          = TRUE
+--   entity_json      = { full entity with version = 4 }
+--   previous_version = 3
+--   new_version      = 4
+--   changed_fields   = ARRAY['name', 'attributes.email']
+--   event_id         = <uuid>
+--   error_code       = NULL
+--   error_message    = NULL
+-- ============================================================================
+
+-- ============================================================================
+-- Query 3: Optimistic update (stale version — CONFLICT path)
+-- When the expected version doesn't match the current version, the UPDATE
+-- affects 0 rows (no rows match both id AND version).
+--
+-- Gherkin SCENARIO 2:
+--   Given entity now has version 4
+--   When PUT with expected_version=3 (stale)
+--   Then HTTP 409 Conflict with ErrStaleVersion
+--     And no data is modified
+--     And no entity.updated event is emitted
+--
+-- Usage via helper function:
+--   SELECT * FROM update_entity_with_outbox(
+--     p_entity_id         := 'f0000001-0000-4000-8000-000000000001',
+--     p_expected_version  := 3,  -- STALE! Current version is 4
+--     p_name              := 'Should Not Apply'
+--   );
+--
+-- Expected result (SCENARIO 2):
+--   success          = FALSE
+--   entity_json      = NULL
+--   previous_version = 4  (the ACTUAL current version, for diagnostics)
+--   new_version      = NULL
+--   changed_fields   = NULL
+--   event_id         = NULL  (NO event emitted)
+--   error_code       = 'STALE_VERSION'
+--   error_message    = 'Stale version: expected 3 but current version is 4'
+-- ============================================================================
+
+-- ============================================================================
+-- Query 4: Immutable field violation path
+-- When the update attempts to modify an immutable field like "region",
+-- the BEFORE UPDATE trigger fires and raises an exception.
+--
+-- Gherkin SCENARIO 3:
+--   Given a PUT request includes "region"
+--   When the update is attempted
+--   Then HTTP 400 Bad Request with ErrImmutableField
+--     And no changes are persisted
+--
+-- The application does NOT call update_entity_with_outbox for this case;
+-- it validates mutable fields BEFORE calling the database. However, if
+-- the validation is bypassed, the trigger catches it.
+--
+-- Result (SCENARIO 3, caught by application validation):
+--   Application checks UpdateOperation.ValidateMutable()
+--   → Returns ErrImmutableField immediately, no DB call
+--
+-- Result (SCENARIO 3, caught by DB trigger):
+--   update_entity_with_outbox catches the exception
+--   → Returns:
+--     success          = FALSE
+--     error_code       = 'IMMUTABLE_FIELD'
+--     error_message    = 'ERR_IMMUTABLE_FIELD: region cannot be changed after creation'
+-- ============================================================================
+
+-- ============================================================================
+-- Query 5: Validate version before update (early feedback)
+-- The application can call this to pre-check whether a version is current.
+-- This is useful for providing early feedback in UI forms.
+--
+-- Usage:
+--   SELECT * FROM validate_entity_version(
+--     'f0000001-0000-4000-8000-000000000001', 3
+--   );
+--
+-- Returns:
+--   is_valid        = TRUE   (version matches)
+--   entity_exists   = TRUE
+--   current_version = 3
+--   is_stale        = FALSE
+-- ============================================================================
+
+-- ============================================================================
+-- Query 6: Check staleness with diagnostic message
+-- Returns a human-readable staleness description for error responses.
+--
+-- Gherkin SCENARIO 2 error response:
+--   {
+--     "error": "stale_version",
+--     "expected_version": 3,
+--     "actual_version": 4,
+--     "message": "Entity 'ent-001' has been modified. Expected version 3 but current version is 4."
+--   }
+--
+-- Usage:
+--   SELECT * FROM check_entity_staleness(
+--     'f0000001-0000-4000-8000-000000000001', 3
+--   );
+-- ============================================================================
+
+-- ============================================================================
+-- Query 7: Count updates since a version
+-- Useful for detecting rapid updates and implementing rate limiting.
+--
+-- Usage:
+--   SELECT count_entity_updates_since_version(
+--     'f0000001-0000-4000-8000-000000000001', 3
+--   );
+--
+-- Returns: INTEGER (number of updates applied since that version)
+-- ============================================================================
+
+-- ============================================================================
+-- Query 8: Raw optimistic update SQL (reference implementation)
+-- For understanding, this is the core SQL that powers update_entity_optimistic:
+--
+--   UPDATE entities
+--   SET
+--       name       = COALESCE($3, name),
+--       status     = COALESCE($4, status),
+--       attributes = CASE WHEN $5 IS NULL THEN attributes ELSE attributes || $5 END,
+--       metadata   = CASE WHEN $6 IS NULL THEN metadata ELSE metadata || $6 END,
+--       version    = version + 1,
+--       updated_at = NOW()
+--   WHERE id = $1
+--     AND version = $2          -- Optimistic lock: expected version must match
+--   RETURNING *;
+--
+-- Parameters:
+--   $1 = entity_id
+--   $2 = expected_version (optimistic lock check)
+--   $3 = name (optional)
+--   $4 = status (optional)
+--   $5 = attributes JSONB (optional, merged with ||)
+--   $6 = metadata JSONB (optional, merged with ||)
+-- ============================================================================
+
+-- ============================================================================
+-- Query 9: Create entity_updated outbox event (reference)
+--
+-- INSERT INTO outbox_events (
+--     id, event_id, aggregate_id, aggregate_type,
+--     event_type, source, subject, payload,
+--     status, retry_count, last_error, created_at
+-- ) VALUES (
+--     gen_random_uuid()::TEXT,
+--     gen_random_uuid()::TEXT,
+--     'f0000001-...'::TEXT,           -- aggregate_id (entity_id)
+--     'entity',                       -- aggregate_type
+--     'entitymanagement.entity.updated',  -- event_type
+--     '/entity-manager',              -- source
+--     'entity/f0000001-...',          -- subject
+--     jsonb_build_object(             -- payload
+--         'event_id',          '<uuid>',
+--         'entity_id',         'f0000001-...',
+--         'entity_name',       'Alice Updated',
+--         'status',            'active',
+--         'region',            'eu-west-1',
+--         'previous_version',  3,
+--         'new_version',       4,
+--         'changed_fields',    '["name", "attributes.email"]'::jsonb,
+--         'previous_state',    '{"name":"Alice","version":3}'::jsonb,
+--         'new_state',         '{"name":"Alice Updated","version":4}'::jsonb,
+--         'occurred_at',       NOW()
+--     ),
+--     'pending',                      -- status
+--     0,                              -- retry_count
+--     NULL,                           -- last_error
+--     NOW()                           -- created_at
+-- );
+-- ============================================================================

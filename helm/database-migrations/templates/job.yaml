@@ -1,0 +1,51 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-db-migrations
+  labels:
+    app.kubernetes.io/name: database-migrations
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+spec:
+  ttlSecondsAfterFinished: 86400
+  backoffLimit: 3
+  template:
+    metadata:
+      name: db-migrations
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: PGHOST
+              value: "{{ .Values.postgresql.host }}"
+            - name: PGPORT
+              value: "{{ .Values.postgresql.port | toString }}"
+            - name: PGDATABASE
+              value: "{{ .Values.postgresql.database }}"
+            - name: PGUSER
+              value: "{{ .Values.postgresql.username }}"
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ .Values.postgresql.existingSecret }}"
+                  key: password
+          command:
+            - sh
+            - -c
+            - |
+              {{- range .Values.migrations }}
+              echo "Running migration: {{ .name }}"
+              psql -c "{{ .sql }}"
+              if [ $? -ne 0 ]; then
+                echo "Migration {{ .name }} FAILED"
+                exit 1
+              fi
+              echo "Migration {{ .name }} completed successfully"
+              {{- end }}
+              echo "All migrations applied successfully"
