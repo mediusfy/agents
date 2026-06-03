@@ -1,30 +1,33 @@
-import asyncio
 import argparse
-import os
+import asyncio
 import logging
+import os
 from typing import Any
 
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from pydantic_ai import UsageLimits
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
+from openclaw.checkpoint import CheckpointManager
+from openclaw.gates import HumanInTheLoopGate
+from openclaw.models.core import PipelineState
 from openclaw.observability import configure_observability
 from openclaw.registry import registry
-from openclaw.writer import ArtifactWriter
-from openclaw.checkpoint import CheckpointManager
-from openclaw.models.core import PipelineState
-from openclaw.telemetry import telemetry
-from openclaw.gates import HumanInTheLoopGate
-from openclaw.validators import CodeValidator
-from openclaw.utils import format_artifacts
 from openclaw.session_recorder import recorder
 from openclaw.settings import settings
+from openclaw.telemetry import telemetry
+from openclaw.utils import format_artifacts
+from openclaw.validators import CodeValidator
+from openclaw.writer import ArtifactWriter
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
 configure_observability()
 
-DEFAULT_REQUIREMENT = "Build a message processing service that processes incoming message then and emits 'NotificationDetailsEvent' or 'NotificationStatus' events."
+DEFAULT_REQUIREMENT = (
+    "Build a message processing service that processes incoming message then "
+    "and emits 'NotificationDetailsEvent' or 'NotificationStatus' events."
+)
 STEP_CHOICES = ["ba", "backend", "frontend", "test", "sre", "review", "database", "devops", "docs", "security", "all"]
 DEFAULT_AGENT_TIMEOUT = 600.0
 
@@ -45,7 +48,11 @@ async def run_agent(
             reraise=True,
         )
         async def _run_with_retry():
-            coro = agent.run(prompt, deps=deps, usage_limits=UsageLimits(request_limit=500)) if deps is not None else agent.run(prompt, usage_limits=UsageLimits(request_limit=500))
+            coro = (
+                agent.run(prompt, deps=deps, usage_limits=UsageLimits(request_limit=500))
+                if deps is not None
+                else agent.run(prompt, usage_limits=UsageLimits(request_limit=500))
+            )
             return await asyncio.wait_for(coro, timeout=timeout)
 
         return await telemetry.track(agent_name, _run_with_retry)
@@ -57,7 +64,7 @@ async def run_ba_stage(semaphore, state: PipelineState, raw_requirements: str, c
     async with recorder.record_span(
         run_id=state.run_id, agent_name="ba", pipeline_stage="ba",
         prompt=prompt, context_summary=raw_requirements,
-    ) as rec:
+    ):
         ba_agent = registry.get("ba")
         ba_result = await run_agent(semaphore, "ba", ba_agent, prompt)
         state.user_stories = ba_result.output if hasattr(ba_result, "output") else None
@@ -139,7 +146,11 @@ async def run_advisory_stage(semaphore, user_stories, checkpoint_mgr, state: Pip
     return state
 
 
-async def run_implementation_stage(semaphore, user_stories, max_retries, cto_advice, ux_advice, raw_requirements, state: PipelineState | None = None) -> tuple[list[Any], str | None]:
+async def run_implementation_stage(
+    semaphore, user_stories, max_retries,
+    cto_advice: str, ux_advice: str, raw_requirements: str,
+    state: PipelineState | None = None,
+) -> tuple[list[Any], str | None]:
     state_feedback = None
     all_artifacts = []
 
@@ -185,11 +196,20 @@ async def run_implementation_stage(semaphore, user_stories, max_retries, cto_adv
                  f"\n\nCTO ADVICE:\n{cto_advice}",
                  f"story_id={us.id}, gherkin_len={len(us.gherkin)}, events={len(us.event_triggers or [])}"),
                 ("frontend",
-                 f"Implement frontend for story {us.id}: {us.title}\n\nFULL GHERKIN:\n{us.gherkin}\n\nCTO ADVICE:\n{cto_advice}\n\nUX GUIDELINES:\n{ux_advice}",
+                 (
+                     f"Implement frontend for story {us.id}: {us.title}\n\n"
+                     f"FULL GHERKIN:\n{us.gherkin}\n\n"
+                     f"CTO ADVICE:\n{cto_advice}\n\n"
+                     f"UX GUIDELINES:\n{ux_advice}"
+                 ),
                  f"story_id={us.id}, gherkin_len={len(us.gherkin)}, ux_len={len(ux_advice)}"),
                 ("database",
-                 f"Generate database schema/migrations for story {us.id}: {us.title}\n\nFULL GHERKIN:\n{us.gherkin}\n\nEVENTS:\n" +
-                 "\n".join(f" - {e.name}: {e.description}" for e in (us.event_triggers or [])),
+                 (
+                     f"Generate database schema/migrations for story {us.id}: "
+                     f"{us.title}\n\nFULL GHERKIN:\n{us.gherkin}\n\nEVENTS:\n"
+                     + "\n".join(f" - {e.name}: {e.description}"
+                                for e in (us.event_triggers or []))
+                 ),
                  f"story_id={us.id}, gherkin_len={len(us.gherkin)}"),
             ]:
                 ctx_size = len(prompt_template)
@@ -200,7 +220,7 @@ async def run_implementation_stage(semaphore, user_stories, max_retries, cto_adv
                                                   deps=project_state if agent == "backend" else None))
 
         devops_prompt = (
-            f"Generate CI/CD pipelines and Docker Compose configurations for a project with these stories:\n" +
+            "Generate CI/CD pipelines and Docker Compose for these stories:\n" +
             "\n".join(f"- {us.id}: {us.title} — {us.gherkin[:200]}" for us in user_stories)
         )
         docs_prompt = (
@@ -232,7 +252,7 @@ async def run_implementation_stage(semaphore, user_stories, max_retries, cto_adv
                 _instrumented_test(semaphore, state, us)
             )
         test_results = await asyncio.gather(*test_tasks, return_exceptions=True)
-        for t, res in zip(test_tasks, test_results):
+        for _t, res in zip(test_tasks, test_results, strict=False):
             if isinstance(res, BaseException):
                 logger.error(f"Test agent failed: {res}")
                 continue
@@ -244,7 +264,10 @@ async def run_implementation_stage(semaphore, user_stories, max_retries, cto_adv
             run_id=state.run_id, agent_name="sre", pipeline_stage="implementation",
             prompt="Provision infrastructure and apply Helm charts for the services.",
         ) as rec:
-            sre_res = await run_agent(semaphore, "sre", registry.get("sre"), "Provision infrastructure and apply Helm charts for the services.")
+            sre_res = await run_agent(
+                semaphore, "sre", registry.get("sre"),
+                "Provision infrastructure and apply Helm charts.",
+            )
             rec.set_output(sre_res)
             sre_res.output.metadata["user_story_id"] = "infrastructure"
             sre_res.output.agent_name = "infrastructure"
@@ -280,7 +303,7 @@ async def run_implementation_stage(semaphore, user_stories, max_retries, cto_adv
         logger.info("Running Quality Gate...")
         async with recorder.record_span(
             run_id=state.run_id, agent_name="quality_gate", pipeline_stage="implementation",
-            prompt=f"Perform quality gate check on these artifacts:",
+            prompt="Perform quality gate check on these artifacts:",
         ) as rec:
             q_res = await run_agent(semaphore, "quality_gate", registry.get("quality_gate"),
                 f"Perform quality gate check on these artifacts:\n{full_text}")
@@ -307,7 +330,10 @@ async def run_implementation_stage(semaphore, user_stories, max_retries, cto_adv
             review_res = await run_agent(semaphore, "review", registry.get("review"), review_prompt)
             rec.set_output(review_res)
             result = review_res.output
-            logger.info(f"Review: approved={result.approved}, risk={result.risk_level}, security_score={result.security_score}")
+            logger.info(
+        f"Review: approved={result.approved}, risk={result.risk_level}, "
+        f"security_score={result.security_score}"
+    )
             if result.approved:
                 all_artifacts = artifacts
                 break
@@ -374,11 +400,21 @@ async def main(
 
     if dry_run:
         logger.info("DRY RUN: Using mock data.")
-        from openclaw.models.core import UserStory, EventTrigger
+        from openclaw.models.core import EventTrigger, UserStory
         state.user_stories = [
-            UserStory(id="US-001", title="Process Payment",
-                      gherkin="Given a valid payment request\nWhen the system processes it\nThen it emits PaymentSucceeded",
-                      event_triggers=[EventTrigger(id="evt-1", name="PaymentSucceeded", description="Payment processed")]),
+            UserStory(
+                id="US-001",
+                title="Process Payment",
+                gherkin=(
+                    "Given a valid payment request\n"
+                    "When the system processes it\n"
+                    "Then it emits PaymentSucceeded"
+                ),
+                event_triggers=[EventTrigger(
+                    id="evt-1", name="PaymentSucceeded",
+                    description="Payment processed",
+                )],
+            ),
         ]
     elif resume and checkpoint_mgr.stage_exists("ba"):
         loaded_state = checkpoint_mgr.load("ba")
@@ -430,9 +466,14 @@ async def main(
                      metadata={"user_story_id": "US-001", "language": "go"}),
             Artifact(agent_name="frontend", files={"src/App.vue": "<template><div>Hello</div></template>\n"},
                      metadata={"user_story_id": "US-001", "language": "vue"}),
-            Artifact(agent_name="database", files={"migrations/001_init.sql": "CREATE TABLE payments (id UUID PRIMARY KEY);\n"},
-                     metadata={"user_story_id": "US-001"}),
-            Artifact(agent_name="infrastructure", files={"terraform/main.tf": "# mock\nresource \"null_resource\" \"x\" {}\n"},
+            Artifact(
+                agent_name="database",
+                files={"migrations/001_init.sql": "CREATE TABLE payments (id UUID PRIMARY KEY);\n"},
+                metadata={"user_story_id": "US-001"},
+            ),
+            Artifact(
+                agent_name="infrastructure",
+                files={"terraform/main.tf": "# mock\nresource \"null_resource\" \"x\" {}\n"},
                      metadata={"user_story_id": "infrastructure"}),
             Artifact(agent_name="test", files={"tests/payment.spec.ts": "test('payment', () => {});\n"},
                      metadata={"user_story_id": "US-001"}),

@@ -87,6 +87,7 @@ select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "ARG", "C4", "T20"]
 "src/openclaw/models/core.py" = ["UP042"]
 "src/openclaw/memory.py" = ["ARG002"]
 "src/openclaw/vector_db_stub.py" = ["ARG002"]
+"scripts/*.py" = ["T201", "E501"]
 
 [tool.ruff.format]
 quote-style = "double"

@@ -1,20 +1,15 @@
 import asyncio
-import json
-import datetime
-from dataclasses import dataclass
-from typing import List, Optional, Any
-from pydantic_ai import RunContext
+from typing import Any
 
-from openclaw.models.core import ActivityLog, UserStory, ReviewResult, RiskLevel
-from openclaw.tools.memory import log_activity, query_history
-from openclaw.tools.docs import update_documentation
 from openclaw.agents.ba import BADeps
 from openclaw.agents.review import ReviewDeps
+from openclaw.tools.docs import update_documentation
+from openclaw.tools.memory import log_activity, query_history
 
 
-@dataclass
 class MockContext:
-    deps: Any
+    def __init__(self, deps: Any) -> None:
+        self.deps = deps
 
 
 async def simulate_ba_work(pass_num: int):
@@ -45,7 +40,7 @@ async def simulate_review_spot_check(pass_num: int):
     deps = ReviewDeps(pass_num=pass_num)
     ctx = MockContext(deps=deps)
 
-    print(f"Reviewer: Querying history for early decisions (Pass 1)...")
+    print("Reviewer: Querying history for early decisions (Pass 1)...")
     history = await query_history(ctx, "Payments bounded context", pass_num=1)
     print(f"Reviewer: Found History:\n{history}")
 

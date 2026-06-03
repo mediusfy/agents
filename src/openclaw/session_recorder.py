@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 # Context variable carrying current agent run info (run_id, agent_name, pipeline_stage)
 # Set by record_span context manager, read by tool wrappers for cross-communication tracing.
-current_run_context: ContextVar[dict[str, Any]] = ContextVar("current_run_context", default={})
+current_run_context: ContextVar[dict[str, Any]] = ContextVar("current_run_context", default=None)  # type: ignore[arg-type]
 
 
 @dataclass
@@ -128,10 +128,8 @@ class SessionRecorder:
         if output is not None:
             record.output = str(output)[:50_000]
             if hasattr(output, "model_dump"):
-                try:
+                with contextlib.suppress(Exception):
                     record.output_json = output.model_dump()
-                except Exception:
-                    pass
             elif isinstance(output, dict):
                 record.output_json = output
 
@@ -208,10 +206,8 @@ class SessionRecorder:
             return
         self._current.output = str(output)[:50_000]
         if hasattr(output, "model_dump"):
-            try:
+            with contextlib.suppress(Exception):
                 self._current.output_json = output.model_dump()
-            except Exception:
-                pass
         elif isinstance(output, dict):
             self._current.output_json = output
         self._current.success = success
@@ -264,7 +260,11 @@ def summarize_traces(filepath: str = "session_trace.jsonl") -> str:
         tools = len(r.get("tool_calls", []))
         prompt_len = len(r.get("prompt", ""))
         error = r.get("error", "")
-        line = f"{ok} {agent:20s} [{sid:15s}] stage={stage:15s} {duration:5.0f}s tools={tools:2d} prompt={prompt_len:6d}ch"
+        line = (
+            f"{ok} {agent:20s} [{sid:15s}] "
+            f"stage={stage:15s} {duration:5.0f}s "
+            f"tools={tools:2d} prompt={prompt_len:6d}ch"
+        )
         if error:
             line += f" ERROR: {error[:80]}"
         output.append(line)

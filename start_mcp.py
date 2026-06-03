@@ -15,12 +15,12 @@ except ImportError:
         os.path.join(os.path.dirname(__file__), "src", "openclaw", "vector_db.py"),
     )
 
-from openclaw.mcp_server import mcp
+import uvicorn
 from starlette.middleware.cors import CORSMiddleware
+
+from openclaw.mcp_server import mcp
 
 app = mcp.sse_app()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-
-import uvicorn
 
 uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "8002")))

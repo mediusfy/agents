@@ -130,10 +130,15 @@ class AgentRegistry:
             resolved_deps = deps or {}
             if deps_factory and not deps:
                 resolved_deps = deps_factory() if callable(deps_factory) else {}
+            run_kwargs = {
+                "deps": resolved_deps,
+                "usage_limits": UsageLimits(request_limit=500),
+            }
             if timeout:
-                result = await asyncio.wait_for(agent.run(prompt, deps=resolved_deps, usage_limits=UsageLimits(request_limit=500)), timeout=timeout)  # type: ignore
+                coro = agent.run(prompt, **run_kwargs)  # type: ignore[arg-type]
+                result = await asyncio.wait_for(coro, timeout=timeout)
             else:
-                result = await agent.run(prompt, deps=resolved_deps, usage_limits=UsageLimits(request_limit=500))  # type: ignore
+                result = await agent.run(prompt, **run_kwargs)  # type: ignore[arg-type]
             if hasattr(result, "data"):
                 return str(result.data)
             return str(result.output) if hasattr(result, "output") else str(result)

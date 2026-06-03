@@ -274,7 +274,10 @@ async def plan_and_execute(goal: str) -> str:
         from openclaw.agents.planner_agent import planner_agent
         from openclaw.registry import instrumented_query
 
-        plan_response = await planner_agent.run(f"Create a plan to achieve this goal: {goal}", usage_limits=UsageLimits(request_limit=500))
+        plan_response = await planner_agent.run(
+            f"Create a plan to achieve this goal: {goal}",
+            usage_limits=UsageLimits(request_limit=500),
+        )
         plan = plan_response.output
 
         completed: set[str] = set()

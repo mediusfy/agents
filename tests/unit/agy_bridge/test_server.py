@@ -20,7 +20,7 @@ async def test_ping_command():
 @pytest.mark.asyncio
 @patch("openclaw.agy_bridge.server.registry")
 @patch("openclaw.agy_bridge.server.BridgeAgent")
-async def test_list_agents_command(MockBridgeAgent, mock_registry):
+async def test_list_agents_command(mock_bridge_agent, mock_registry):
     """Tests the 'list-agents' command handler."""
     # Arrange
     mock_registry.list_agents.return_value = ["test_agent"]
@@ -28,7 +28,7 @@ async def test_list_agents_command(MockBridgeAgent, mock_registry):
     mock_bridge_instance = MagicMock()
     mock_bridge_instance.get_tool_names.return_value = ["tool1"]
     mock_bridge_instance.get_system_prompt.return_value = "System prompt."
-    MockBridgeAgent.from_registry.return_value = mock_bridge_instance
+    mock_bridge_agent.from_registry.return_value = mock_bridge_instance
 
     # Act
     cmd = {"command": "list-agents"}
@@ -40,7 +40,7 @@ async def test_list_agents_command(MockBridgeAgent, mock_registry):
     agent_meta = response["response"]["agents"][0]
     assert agent_meta["name"] == "test_agent"
 
-    MockBridgeAgent.from_registry.assert_called_once_with("test_agent")
+    mock_bridge_agent.from_registry.assert_called_once_with("test_agent")
 
 
 @pytest.mark.asyncio
