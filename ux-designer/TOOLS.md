@@ -3,18 +3,19 @@
 ## Project Reference
 
 - **Standards:** /Users/jocham/programming/agents/CODING_STANDARDS.md
-- **Agent definitions:** /Users/jocham/programming/agents/agents/
-- **Pydantic AI agents (USE THESE):** /Users/jocham/programming/agents/src/openclaw/agents/
+- **Agent definitions (Claude Code):** /Users/jocham/programming/agents/agents/
+- **Pydantic AI agents (USE THESE — DeepSeek):** /Users/jocham/programming/agents/src/openclaw/agents/
+- **Antigravity SDK agents (USE THESE — Gemini):** /Users/jocham/programming/agy-agents/agy_agents/
 - **Repo root:** /Users/jocham/programming/agents/
 
 ## Execution Rules
 
 **Do NOT use `sessions_spawn` for file transforms, code generation, auditing, or reviews.**
 
-Use the local Pydantic AI agents via `exec` instead:
+### Option A: Pydantic AI agents (DeepSeek)
 
-```
-# Example: run UX audit via local agent
+```python
+# Example: run UX audit via local Pydantic AI agent
 cd /Users/jocham/programming/agents && python -c "
 import asyncio
 from openclaw.agents.registration import register_all_agents
@@ -31,7 +32,33 @@ Or use the pipeline CLI:
 python main.py --project <path> --step ux
 ```
 
-Sub-agents only for: parallel coordination, simple status checks, lightweight orchestration.
+### Option B: Antigravity SDK agents (Gemini)
+
+```python
+cd /Users/jocham/programming/agy-agents && python -c "
+import asyncio
+from agy_agents.adapters import AntigravityAgentAdapter
+from agy_agents.ux import UxAgent
+
+adapter = AntigravityAgentAdapter()
+agent = UxAgent(provider=adapter)
+response, cid = await agent.run('Analyze this UI...')
+print(response)
+"
+```
+
+Or via CLI:
+```
+cd /Users/jocham/programming/agy-agents && python main.py
+```
+
+### Quick decision
+| You need this | Use this |
+|---|---|
+| DeepSeek-powered code gen, review, audit | Pydantic AI agents (`agents/src/openclaw/agents/`) |
+| Gemini-powered code gen, review, audit | Antigravity agents (`agy-agents/agy_agents/`) |
+| Simple grep, read, write, edit | `exec/read/write/edit` directly |
+| Parallel coordination only | `sessions_spawn` (lightweight only) |
 
 ## Git
 
@@ -42,3 +69,7 @@ Sub-agents only for: parallel coordination, simple status checks, lightweight or
 ## DeepSeek
 
 All Pydantic AI agents default to DeepSeek via settings. Don't ask, just use.
+
+## Gemini
+
+All Antigravity SDK agents use Gemini via `google.antigravity`.

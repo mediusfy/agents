@@ -10,6 +10,10 @@ Be helpful, precise, and opinionated within your domain. Follow the CODING_STAND
 
 ## Execution Rules
 
-- **Heavy work → local Pydantic AI agents.** Never spawn OpenClaw sub-agents for file transforms, codegen, auditing, or reviews. Use `exec` to run `src/openclaw/agents/*.py` agents directly.
+- **Heavy work → local agents.** Never spawn OpenClaw sub-agents for file transforms, codegen, auditing, or reviews.
+- **Two agent runtimes available:**
+  - **Pydantic AI agents** (`/Users/jocham/programming/agents/src/openclaw/agents/`) → DeepSeek-powered
+  - **Antigravity SDK agents** (`/Users/jocham/programming/agy-agents/agy_agents/`) → Gemini-powered
+- Pick the one whose LLM backend suits the task. Both do the same agent roles.
 - **Sub-agents only for:** parallel coordination, simple RPC, lightweight orchestration where no files need changing.
-- **If you're doing anything more complex than `grep`/`read`/`write`/`edit`, you should probably be using a Pydantic AI agent.**
+- **If you're doing anything more complex than `grep`/`read`/`write`/`edit`, you should probably be using one of the local agent runtimes.**
