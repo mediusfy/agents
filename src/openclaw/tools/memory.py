@@ -52,7 +52,14 @@ async def query_history(ctx: RunContext[Any], query: str, pass_num: int | None =
 
 
 async def read_and_memorize_url(ctx: RunContext[Any], url: str) -> str:
-    """Reads a large webpage, splits it into semantic chunks, and saves it directly to memory."""
+    """Reads a large webpage, splits it into semantic chunks, and saves it directly to memory.
+
+    Args:
+        url: The HTTP or HTTPS URL to fetch. Do NOT pass local file paths or file:// URLs. Use read_file for local files.
+    """
+    if url.startswith("file://") or not (url.startswith("http://") or url.startswith("https://")):
+        return f"Error: Invalid URL '{url}'. This tool requires an http:// or https:// URL. For local files, use the read_file tool instead."
+
     try:
         return await vector_db.async_ingest_url("knowledge_base", url)
     except Exception as e:

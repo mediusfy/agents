@@ -45,7 +45,7 @@ _test_struct = Agent(
     system_prompt="You format generated test code into the requested structure. Return ONLY valid JSON.",
     output_type=TestOutput,
     defer_model_check=True,
-    retries=3,
+    retries=5,
 )
 
 
@@ -119,7 +119,7 @@ _go_test_struct = Agent(
     system_prompt="You format generated Go test code into the requested structure. Return ONLY valid JSON.",
     output_type=GoTestOutput,
     defer_model_check=True,
-    retries=3,
+    retries=5,
 )
 
 

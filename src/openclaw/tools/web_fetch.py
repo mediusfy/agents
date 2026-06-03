@@ -5,6 +5,15 @@ from openclaw.tools.registry import register_tool
 
 
 async def fetch_url(ctx: RunContext[str], url: str, format: str = "text") -> str:
+    """Fetch content from a URL via HTTP GET.
+
+    Args:
+        url: The HTTP or HTTPS URL to fetch. Do NOT pass local file paths or file:// URLs. Use read_file for local files.
+        format: The response format requested (e.g. 'text', 'json').
+    """
+    if url.startswith("file://") or not (url.startswith("http://") or url.startswith("https://")):
+        return f"Error: Invalid URL '{url}'. This tool requires an http:// or https:// URL. For local files, use the read_file tool instead."
+
     try:
         async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
             resp = await client.get(url, headers={"User-Agent": "OpenClaw-Agent/1.0"})

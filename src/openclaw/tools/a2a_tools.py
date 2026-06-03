@@ -1,3 +1,5 @@
+from pydantic_ai import RunContext
+
 from openclaw.exceptions import AgentExecutionError, AgentNotFoundError
 from openclaw.registry import instrumented_query, registry
 from openclaw.session_recorder import current_run_context
@@ -6,7 +8,7 @@ from openclaw.tools.registry import register_tool
 MAX_DELEGATION_DEPTH = 3
 
 
-async def discover_agent_capabilities() -> str:
+async def discover_agent_capabilities(ctx: RunContext) -> str:
     """Lists all available capabilities that other agents can perform.
     Use this to find out who to delegate to."""
     caps = []
@@ -20,7 +22,7 @@ async def discover_agent_capabilities() -> str:
     return "Available Agent Capabilities for Delegation:\n" + "\n".join(caps)
 
 
-async def delegate_to_agent(capability: str, prompt: str, context_summary: str) -> str:
+async def delegate_to_agent(ctx: RunContext, capability: str, prompt: str, context_summary: str) -> str:
     """Delegate a sub-task to another agent based on their capability.
 
     To ensure proficient token usage and accurate responses:
