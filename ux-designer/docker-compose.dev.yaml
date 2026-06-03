@@ -1,0 +1,150 @@
+# Docker Compose for local development of all four strategy services.
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: finops-db
+    environment:
+      POSTGRES_DB: finops_waste
+      POSTGRES_USER: finops_svc
+      POSTGRES_PASSWORD: finops_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finops_svc -d finops_waste"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - finops-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: finops-cache
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - finops-net
+
+  nats:
+    image: nats:2.10-alpine
+    container_name: finops-nats
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    command: ["-js", "-m", "8222"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8222/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - finops-net
+
+  agent-controller:
+    build:
+      context: .
+      dockerfile: cmd/agent-controller/Dockerfile.dev
+    container_name: agent-controller
+    ports:
+      - "8081:8081"
+    environment:
+      DATABASE_URL: "postgres://finops_svc:finops_dev_password@postgres:5432/finops_waste?sslmode=disable"
+      NATS_URL: "nats://nats:4222"
+      LOG_LEVEL: "debug"
+    volumes:
+      - ./internal:/app/internal
+      - ./cmd/agent-controller:/app/cmd/agent-controller
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    networks:
+      - finops-net
+
+  pr-bridge:
+    build:
+      context: .
+      dockerfile: cmd/pr-bridge/Dockerfile.dev
+    container_name: pr-bridge
+    ports:
+      - "8082:8082"
+    environment:
+      GITHUB_TOKEN: "${GITHUB_TOKEN}"
+      LOG_LEVEL: "debug"
+    volumes:
+      - ./cmd/pr-bridge:/app/cmd/pr-bridge
+    networks:
+      - finops-net
+
+  anomstack-consumer:
+    build:
+      context: .
+      dockerfile: internal/adapters/anomstack/Dockerfile.dev
+    container_name: anomstack-consumer
+    ports:
+      - "8083:8083"
+    environment:
+      NATS_URL: "nats://nats:4222"
+      WEBHOOK_PORT: "8083"
+      LOG_LEVEL: "debug"
+    volumes:
+      - ./internal/adapters/anomstack:/app/anomstack
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - finops-net
+
+  runbook-mcp:
+    build:
+      context: .
+      dockerfile: cmd/runbook-mcp/Dockerfile.dev
+    container_name: runbook-mcp
+    ports:
+      - "8084:8084"
+    environment:
+      RUNBOOK_DIR: "/runbooks"
+      LOG_LEVEL: "debug"
+    volumes:
+      - ./cmd/runbook-mcp:/app/cmd/runbook-mcp
+      - ./runbooks:/runbooks:ro
+    networks:
+      - finops-net
+
+  finops-analyzer:
+    build:
+      context: .
+      dockerfile: cmd/finops-analyzer/Dockerfile.dev
+    container_name: finops-analyzer
+    ports:
+      - "8085:8085"
+    environment:
+      DATABASE_URL: "postgres://finops_svc:finops_dev_password@postgres:5432/finops_waste?sslmode=disable"
+      PR_BRIDGE_URL: "http://pr-bridge:8082"
+      PROMETHEUS_URL: "http://prometheus:9090"
+      LOG_LEVEL: "debug"
+    volumes:
+      - ./cmd/finops-analyzer:/app/cmd/finops-analyzer
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - finops-net
+
+volumes:
+  postgres_data:
+
+networks:
+  finops-net:
+    driver: bridge

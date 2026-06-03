@@ -1,0 +1,43 @@
+name: Build Runbook MCP
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'cmd/runbook-mcp/**'
+  pull_request:
+    paths:
+      - 'cmd/runbook-mcp/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+        cache: true
+    - name: Vet and Lint
+      run: |
+        go vet ./cmd/runbook-mcp/...
+    - name: Test
+      run: go test -v -race -count=1 ./cmd/runbook-mcp/...
+    - name: Security Scan
+      uses: securego/gosec@master
+      with:
+        args: ./cmd/runbook-mcp/...
+    - name: Build
+      run: go build -o bin/runbook-mcp ./cmd/runbook-mcp/
+    - name: Docker Build and Push
+      if: github.ref == 'refs/heads/main'
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: cmd/runbook-mcp/Dockerfile
+        push: true
+        tags: |
+          ghcr.io/${{ github.repository }}/runbook-mcp:latest
+          ghcr.io/${{ github.repository }}/runbook-mcp:${{ github.sha }}

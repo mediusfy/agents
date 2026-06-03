@@ -1,0 +1,43 @@
+name: Build Anomstack Consumer
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'internal/adapters/anomstack/**'
+  pull_request:
+    paths:
+      - 'internal/adapters/anomstack/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+        cache: true
+    - name: Vet and Lint
+      run: |
+        go vet ./internal/adapters/anomstack/...
+    - name: Test
+      run: go test -v -race -count=1 ./internal/adapters/anomstack/...
+    - name: Security Scan
+      uses: securego/gosec@master
+      with:
+        args: ./internal/adapters/anomstack/...
+    - name: Build
+      run: go build -o bin/anomstack-consumer ./internal/adapters/anomstack/
+    - name: Docker Build and Push
+      if: github.ref == 'refs/heads/main'
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: internal/adapters/anomstack/Dockerfile
+        push: true
+        tags: |
+          ghcr.io/${{ github.repository }}/anomstack-consumer:latest
+          ghcr.io/${{ github.repository }}/anomstack-consumer:${{ github.sha }}
