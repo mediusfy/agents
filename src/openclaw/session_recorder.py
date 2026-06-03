@@ -180,12 +180,14 @@ class SessionRecorder:
                 story_gherkin=story_gherkin,
             )
             # Set contextvar so tool wrappers can read run_id, agent_name, pipeline_stage
-            token = current_run_context.set({
-                "run_id": run_id,
-                "agent_name": agent_name,
-                "pipeline_stage": pipeline_stage,
-                "story_id": story_id,
-            })
+            token = current_run_context.set(
+                {
+                    "run_id": run_id,
+                    "agent_name": agent_name,
+                    "pipeline_stage": pipeline_stage,
+                    "story_id": story_id,
+                }
+            )
             try:
                 yield self
             except Exception as e:
@@ -261,9 +263,7 @@ def summarize_traces(filepath: str = "session_trace.jsonl") -> str:
         prompt_len = len(r.get("prompt", ""))
         error = r.get("error", "")
         line = (
-            f"{ok} {agent:20s} [{sid:15s}] "
-            f"stage={stage:15s} {duration:5.0f}s "
-            f"tools={tools:2d} prompt={prompt_len:6d}ch"
+            f"{ok} {agent:20s} [{sid:15s}] stage={stage:15s} {duration:5.0f}s tools={tools:2d} prompt={prompt_len:6d}ch"
         )
         if error:
             line += f" ERROR: {error[:80]}"

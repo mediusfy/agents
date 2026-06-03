@@ -81,9 +81,9 @@ async def _run_pipeline_in_background(run_id: str, project_name: str, requiremen
             PIPELINE_RUNS[run_id]["error"] = f"{type(e).__name__}: {e}"
         else:
             PIPELINE_RUNS[run_id]["status"] = "completed"
-            PIPELINE_RUNS[run_id][
-                "result"
-            ] = f"Pipeline completed for project '{project_name}'. Artifacts written to generated-app/{project_name}/."
+            PIPELINE_RUNS[run_id]["result"] = (
+                f"Pipeline completed for project '{project_name}'. Artifacts written to generated-app/{project_name}/."
+            )
         finally:
             elapsed = time.time() - start_time
             PIPELINE_RUNS[run_id]["completed_at"] = datetime.now(UTC).isoformat()

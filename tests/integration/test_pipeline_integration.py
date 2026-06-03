@@ -15,6 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from openclaw.adapters.state_repository import LocalDiskStateRepository
 from openclaw.checkpoint import CheckpointManager
 from openclaw.memory import RedisIrisMemory, VectorMemory, create_memory_backend, get_memory_backend
 from openclaw.models.core import (
@@ -34,10 +35,12 @@ class TestPipelineStageDataFlow:
 
     @pytest.mark.asyncio
     async def test_ba_stage_populates_user_stories_and_checkpoint(self, tmp_path, monkeypatch):
-        """run_ba_stage must set state.user_stories and save checkpoint."""
-        monkeypatch.setattr("openclaw.checkpoint.settings.checkpoint_dir", str(tmp_path))
+        """BAStage must set state.user_stories."""
+        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
 
-        from main import run_ba_stage
+        from openclaw.adapters.agents import AgentProviderPort
+        from openclaw.pipeline.config import PipelineConfig
+        from openclaw.stages.ba_stage import BAStage
 
         mock_ba_result = MagicMock()
         mock_ba_result.output = [
@@ -51,45 +54,42 @@ class TestPipelineStageDataFlow:
             ),
         ]
 
-        mock_agent = MagicMock()
-        mock_agent.run = AsyncMock(return_value=mock_ba_result)
+        mock_provider = AsyncMock(spec=AgentProviderPort)
+        mock_provider.run_agent.return_value = mock_ba_result
 
-        with patch.object(registry, "get", return_value=mock_agent):
-            semaphore = __import__("asyncio").Semaphore(5)
-            state = PipelineState(run_id="ba-flow-test", stage="init")
-            ckpt = CheckpointManager("test_proj", run_id="ba-flow-test")
+        state = PipelineState(run_id="ba-flow-test", stage="init")
+        config = PipelineConfig(project="test_proj", requirement="Build a payment system")
+        stage = BAStage(agent_provider=mock_provider)
 
-            result = await run_ba_stage(semaphore, state, "Build a payment system", ckpt)
+        with patch("openclaw.stages.ba_stage.registry.get", return_value=MagicMock()):
+            result = await stage.run(state, config)
 
         assert len(result.user_stories) == 2
         assert result.user_stories[0].id == "US-001"
         assert result.user_stories[1].title == "Handle Refund"
         assert result.stage == "ba"
 
-        loaded = ckpt.load("ba")
-        assert loaded is not None
-        assert len(loaded.user_stories) == 2
-        assert loaded.user_stories[0].gherkin == result.user_stories[0].gherkin
-
     @pytest.mark.asyncio
     async def test_ba_stage_returns_early_on_no_stories(self, tmp_path, monkeypatch):
         """When BA returns no stories, the pipeline should exit."""
-        monkeypatch.setattr("openclaw.checkpoint.settings.checkpoint_dir", str(tmp_path))
+        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
 
-        from main import run_ba_stage
+        from openclaw.adapters.agents import AgentProviderPort
+        from openclaw.pipeline.config import PipelineConfig
+        from openclaw.stages.ba_stage import BAStage
 
         mock_result = MagicMock()
         mock_result.output = []
 
-        mock_agent = MagicMock()
-        mock_agent.run = AsyncMock(return_value=mock_result)
+        mock_provider = AsyncMock(spec=AgentProviderPort)
+        mock_provider.run_agent.return_value = mock_result
 
-        with patch.object(registry, "get", return_value=mock_agent):
-            semaphore = __import__("asyncio").Semaphore(5)
-            state = PipelineState(run_id="ba-empty-test", stage="init")
-            ckpt = CheckpointManager("test_proj", run_id="ba-empty-test")
+        state = PipelineState(run_id="ba-empty-test", stage="init")
+        config = PipelineConfig(project="test_proj", requirement="Some requirement")
+        stage = BAStage(agent_provider=mock_provider)
 
-            result = await run_ba_stage(semaphore, state, "Some requirement", ckpt)
+        with patch("openclaw.stages.ba_stage.registry.get", return_value=MagicMock()):
+            result = await stage.run(state, config)
 
         assert len(result.user_stories) == 0
         assert result.stage == "init"
@@ -97,9 +97,11 @@ class TestPipelineStageDataFlow:
     @pytest.mark.asyncio
     async def test_advisory_stage_merges_cto_and_ux_results(self, tmp_path, monkeypatch):
         """Advisory stage must capture both CTO and UX advice in state."""
-        monkeypatch.setattr("openclaw.checkpoint.settings.checkpoint_dir", str(tmp_path))
+        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
 
-        from main import run_advisory_stage
+        from openclaw.adapters.agents import AgentProviderPort
+        from openclaw.pipeline.config import PipelineConfig
+        from openclaw.stages.advisory_stage import AdvisoryStage
 
         cto_output = MagicMock()
         cto_output.output = AgentAdvice(
@@ -115,10 +117,15 @@ class TestPipelineStageDataFlow:
             approved_to_proceed=True,
         )
 
-        mock_cto = MagicMock()
-        mock_cto.run = AsyncMock(return_value=cto_output)
-        mock_ux = MagicMock()
-        mock_ux.run = AsyncMock(return_value=ux_output)
+        mock_provider = AsyncMock(spec=AgentProviderPort)
+
+        def run_agent_side_effect(sem, agent_name, agent, prompt, deps=None):
+            if agent_name == "cto":
+                return cto_output
+            if agent_name == "ux":
+                return ux_output
+
+        mock_provider.run_agent.side_effect = run_agent_side_effect
 
         user_stories = [
             UserStory(
@@ -126,18 +133,17 @@ class TestPipelineStageDataFlow:
             ),
         ]
 
-        with patch.object(registry, "get") as mock_get:
+        state = PipelineState(run_id="advisory-flow-test", stage="ba", user_stories=user_stories)
+        config = PipelineConfig(project="test_proj", requirement="test")
+        stage = AdvisoryStage(agent_provider=mock_provider)
 
-            def side_effect(name):
-                return {"cto": mock_cto, "ux": mock_ux}[name]
-
-            mock_get.side_effect = side_effect
-
-            semaphore = __import__("asyncio").Semaphore(5)
-            state = PipelineState(run_id="advisory-flow-test", stage="ba", user_stories=user_stories)
-            ckpt = CheckpointManager("test_proj", run_id="advisory-flow-test")
-
-            result = await run_advisory_stage(semaphore, user_stories, ckpt, state)
+        # Skip cto_gate for pure stage testing to avoid prompt blocking if that logic triggers.
+        with (
+            patch("openclaw.cto_gate.apply", new_callable=AsyncMock) as mock_gate,
+            patch("openclaw.stages.advisory_stage.registry.get", return_value=MagicMock()),
+        ):
+            mock_gate.return_value = True
+            result = await stage.run(state, config)
 
         assert "cto" in result.advisory_results
         assert "ux" in result.advisory_results
@@ -145,16 +151,14 @@ class TestPipelineStageDataFlow:
         assert "loading states" in result.advisory_results["ux"]
         assert result.stage == "advisory"
 
-        loaded = ckpt.load("advisory")
-        assert loaded is not None
-        assert loaded.advisory_results["cto"] == result.advisory_results["cto"]
-
     @pytest.mark.asyncio
     async def test_advisory_stage_survives_cto_failure(self, tmp_path, monkeypatch):
         """When CTO agent fails, UX result is still preserved."""
-        monkeypatch.setattr("openclaw.checkpoint.settings.checkpoint_dir", str(tmp_path))
+        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
 
-        from main import run_advisory_stage
+        from openclaw.adapters.agents import AgentProviderPort
+        from openclaw.pipeline.config import PipelineConfig
+        from openclaw.stages.advisory_stage import AdvisoryStage
 
         ux_output = MagicMock()
         ux_output.output = AgentAdvice(
@@ -163,10 +167,15 @@ class TestPipelineStageDataFlow:
             approved_to_proceed=True,
         )
 
-        mock_cto = MagicMock()
-        mock_cto.run = AsyncMock(side_effect=Exception("CTO API error"))
-        mock_ux = MagicMock()
-        mock_ux.run = AsyncMock(return_value=ux_output)
+        mock_provider = AsyncMock(spec=AgentProviderPort)
+
+        def run_agent_side_effect(sem, agent_name, agent, prompt, deps=None):
+            if agent_name == "cto":
+                raise Exception("CTO API error")
+            if agent_name == "ux":
+                return ux_output
+
+        mock_provider.run_agent.side_effect = run_agent_side_effect
 
         user_stories = [
             UserStory(
@@ -174,18 +183,16 @@ class TestPipelineStageDataFlow:
             ),
         ]
 
-        with patch.object(registry, "get") as mock_get:
+        state = PipelineState(run_id="advisory-partial-test", stage="ba", user_stories=user_stories)
+        config = PipelineConfig(project="test_proj", requirement="test")
+        stage = AdvisoryStage(agent_provider=mock_provider)
 
-            def side_effect(name):
-                return {"cto": mock_cto, "ux": mock_ux}[name]
-
-            mock_get.side_effect = side_effect
-
-            semaphore = __import__("asyncio").Semaphore(5)
-            state = PipelineState(run_id="advisory-partial-test", stage="ba", user_stories=user_stories)
-            ckpt = CheckpointManager("test_proj", run_id="advisory-partial-test")
-
-            result = await run_advisory_stage(semaphore, user_stories, ckpt, state)
+        with (
+            patch("openclaw.cto_gate.apply", new_callable=AsyncMock) as mock_gate,
+            patch("openclaw.stages.advisory_stage.registry.get", return_value=MagicMock()),
+        ):
+            mock_gate.return_value = False
+            result = await stage.run(state, config)
 
         assert result.advisory_results.get("cto", "") == ""
         assert "design system" in result.advisory_results.get("ux", "")
@@ -196,13 +203,14 @@ class TestPipelineStageDataFlow:
 #  Pipeline with Checkpoints  (Memory Preservation)
 # =============================================================================
 
+
 class TestPipelineStatePersistence:
     """Checks if the PipelineState survives save/load."""
 
     def test_empty_state_roundtrip(self, tmp_path, monkeypatch):
         """save and loads correctly."""
-        monkeypatch.setattr("openclaw.checkpoint.settings.checkpoint_dir", str(tmp_path))
-        manager = CheckpointManager("test_proj", run_id="roundtrip-empty")
+        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
+        manager = CheckpointManager(repository=LocalDiskStateRepository("test_proj"), run_id="roundtrip-empty")
         state = PipelineState(run_id="roundtrip-empty", stage="init")
 
         manager.save("init", state)
@@ -219,8 +227,8 @@ class TestPipelineStatePersistence:
 
     def test_fully_populated_state_roundtrip(self, tmp_path, monkeypatch):
         """Full PipelineState with nested models round-trips without data loss."""
-        monkeypatch.setattr("openclaw.checkpoint.settings.checkpoint_dir", str(tmp_path))
-        manager = CheckpointManager("test_proj", run_id="roundtrip-full")
+        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
+        manager = CheckpointManager(repository=LocalDiskStateRepository("test_proj"), run_id="roundtrip-full")
 
         state = PipelineState(
             run_id="roundtrip-full",
@@ -332,8 +340,8 @@ class TestPipelineStatePersistence:
 
     def test_multiple_checkpoint_stages_preserved(self, tmp_path, monkeypatch):
         """Multiple stages (ba, advisory, implementation) are all independently loadable."""
-        monkeypatch.setattr("openclaw.checkpoint.settings.checkpoint_dir", str(tmp_path))
-        manager = CheckpointManager("test_proj", run_id="multi-stage")
+        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
+        manager = CheckpointManager(repository=LocalDiskStateRepository("test_proj"), run_id="multi-stage")
 
         ba_state = PipelineState(
             run_id="multi-stage",
@@ -385,8 +393,8 @@ class TestPipelineStatePersistence:
 
     def test_checkpoint_clear_removes_all_stages(self, tmp_path, monkeypatch):
         """clear() must remove all checkpoint files for the current run."""
-        monkeypatch.setattr("openclaw.checkpoint.settings.checkpoint_dir", str(tmp_path))
-        manager = CheckpointManager("test_proj", run_id="clear-test")
+        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
+        manager = CheckpointManager(repository=LocalDiskStateRepository("test_proj"), run_id="clear-test")
         state = PipelineState(run_id="clear-test", stage="init")
 
         manager.save("stage_a", state)
@@ -401,9 +409,9 @@ class TestPipelineStatePersistence:
 
     def test_checkpoint_does_not_affect_other_runs(self, tmp_path, monkeypatch):
         """Clearing one run's checkpoints must not affect another run."""
-        monkeypatch.setattr("openclaw.checkpoint.settings.checkpoint_dir", str(tmp_path))
-        run_a = CheckpointManager("test_proj", run_id="run-a")
-        run_b = CheckpointManager("test_proj", run_id="run-b")
+        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
+        run_a = CheckpointManager(repository=LocalDiskStateRepository("test_proj"), run_id="run-a")
+        run_b = CheckpointManager(repository=LocalDiskStateRepository("test_proj"), run_id="run-b")
         state = PipelineState(run_id="run-a", stage="init")
 
         run_a.save("s1", state)
@@ -416,10 +424,10 @@ class TestPipelineStatePersistence:
 
     def test_load_corrupt_checkpoint_returns_none(self, tmp_path, monkeypatch):
         """Corrupted JSON files should not crash — return None."""
-        monkeypatch.setattr("openclaw.checkpoint.settings.checkpoint_dir", str(tmp_path))
-        manager = CheckpointManager("test_proj", run_id="corrupt-test")
+        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
+        manager = CheckpointManager(repository=LocalDiskStateRepository("test_proj"), run_id="corrupt-test")
 
-        filepath = Path(manager._get_filepath("corrupt"))
+        filepath = Path(manager.repository._get_filepath(manager.run_id, "corrupt"))
         filepath.parent.mkdir(parents=True, exist_ok=True)
         filepath.write_text("{this is not valid json!!}")
 
@@ -520,7 +528,7 @@ class TestAgentRegistrationIntegration:
 
     def test_capability_query_o1_lookup(self, tmp_path, monkeypatch):
         """query() must route to the right agent via O(1) capability lookup."""
-        monkeypatch.setattr("openclaw.checkpoint.settings.checkpoint_dir", str(tmp_path))
+        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
         from openclaw.agents.registration import register_all_agents
 
         register_all_agents()
@@ -875,6 +883,7 @@ class TestMemoryBackendSelection:
                 for _doc_id, record in table.items():
                     emb = record["embedding"]
                     import json
+
                     if isinstance(emb, str):
                         # pgvector format "[0.1,0.2,...]"
                         emb = json.loads(emb)

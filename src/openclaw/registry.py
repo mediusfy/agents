@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 class AgentRegistry:
     def __init__(self):
-        self._agents: dict[str, tuple[Agent, list[str], Callable | None, Callable | None]] = {}
+        self._agents: dict[str, tuple[Agent[Any, Any], list[str], Callable | None, Callable | None]] = {}
         # capability -> ordered list of agent names that claim it (first-registered wins on query;
         # multiple owners are allowed but logged so the caller can disambiguate)
         self._cap_index: dict[str, list[str]] = {}
@@ -28,7 +28,7 @@ class AgentRegistry:
     def register(
         self,
         name: str,
-        agent: Agent,
+        agent: Agent[Any, Any],
         capabilities: list[str],
         deps_factory: Callable | None = None,
         post_process_hook: Callable | None = None,
@@ -92,7 +92,7 @@ class AgentRegistry:
             self._initialized.add(name)
         return agent
 
-    def _lazy_init(self, name: str, agent: Agent):
+    def _lazy_init(self, name: str, agent: Agent[Any, Any]):
         from openclaw.tool_assignments import get_tool_categories
         from openclaw.tools import apply_tools
 
@@ -130,15 +130,11 @@ class AgentRegistry:
             resolved_deps = deps or {}
             if deps_factory and not deps:
                 resolved_deps = deps_factory() if callable(deps_factory) else {}
-            run_kwargs = {
-                "deps": resolved_deps,
-                "usage_limits": UsageLimits(request_limit=500),
-            }
             if timeout:
-                coro = agent.run(prompt, **run_kwargs)  # type: ignore[arg-type]
+                coro = agent.run(prompt, deps=resolved_deps, usage_limits=UsageLimits(request_limit=500))
                 result = await asyncio.wait_for(coro, timeout=timeout)
             else:
-                result = await agent.run(prompt, **run_kwargs)  # type: ignore[arg-type]
+                result = await agent.run(prompt, deps=resolved_deps, usage_limits=UsageLimits(request_limit=500))
             if hasattr(result, "data"):
                 return str(result.data)
             return str(result.output) if hasattr(result, "output") else str(result)
@@ -184,10 +180,12 @@ async def instrumented_query(
     ctx_data = current_run_context.get()
     token = None
     if delegation_depth > 0:
-        token = current_run_context.set({
-            **ctx_data,
-            "delegation_depth": delegation_depth,
-        })
+        token = current_run_context.set(
+            {
+                **ctx_data,
+                "delegation_depth": delegation_depth,
+            }
+        )
 
     try:
         with logfire.span(span_name, **span_attrs, _level="info"):

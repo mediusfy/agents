@@ -43,7 +43,7 @@ mcp = FastMCP(
 register_all_agents()
 
 
-async def run_agent_by_name(agent_name: str, request: str) -> str:
+async def run_agent_by_name(agent_name: str, request: str, run_on_gks: bool = False) -> str:
     """Run a registered agent by its name, resolving dependencies and tracking telemetry.
 
     FORTIFIED CONTEXT MANAGEMENT:
@@ -52,6 +52,55 @@ async def run_agent_by_name(agent_name: str, request: str) -> str:
     prepends them to the request. This ensures agents are fed exactly the relevant
     context without needing to manually hunt through the file system.
     """
+    if run_on_gks:
+        import asyncio
+        import json
+        import os
+
+        try:
+            config_path = os.path.expanduser("~/.openclaw/openclaw.json")
+            with open(config_path) as f:
+                config = json.load(f)
+            remote_url = config.get("gateway", {}).get("remote", {}).get("url")
+            remote_token = config.get("gateway", {}).get("remote", {}).get("token")
+
+            if not remote_url or not remote_token:
+                return "ERROR: GKS remote URL or token is not configured in ~/.openclaw/openclaw.json"
+
+            params = json.dumps({"agent": agent_name, "message": request})
+            cmd = [
+                "openclaw",
+                "gateway",
+                "call",
+                "agent",
+                "--expect-final",
+                "--url",
+                remote_url,
+                "--token",
+                remote_token,
+                "--params",
+                params,
+            ]
+
+            with logfire.span("mcp.delegate_to_gks", agent_name=agent_name, _level="info"):
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+                )
+                stdout, stderr = await proc.communicate()
+                if proc.returncode != 0:
+                    return f"ERROR running on GKS: {stderr.decode()}\nOutput: {stdout.decode()}"
+
+                raw_out = stdout.decode().strip()
+                try:
+                    parsed = json.loads(raw_out)
+                    if isinstance(parsed, dict) and "result" in parsed:
+                        return str(parsed["result"])
+                    return raw_out
+                except Exception:
+                    return raw_out
+        except Exception as e:
+            return f"ERROR routing to GKS: {e}"
+
     try:
         agent = registry.get(agent_name)
     except ValueError as e:
@@ -129,8 +178,8 @@ AGENT_DOCSTRINGS = {
 
 def _register_agent_mcp_tools():
     def make_runner(agent_name: str):
-        async def agent_runner(request: str) -> str:
-            return await run_agent_by_name(agent_name, request)
+        async def agent_runner(request: str, run_on_gks: bool = False) -> str:
+            return await run_agent_by_name(agent_name, request, run_on_gks=run_on_gks)
 
         return agent_runner
 
@@ -184,7 +233,7 @@ def _list_capabilities() -> str:
 
 
 @mcp.tool()
-async def delegate_to_openclaw_agent(capability: str, context: str, task: str) -> str:
+async def delegate_to_openclaw_agent(capability: str, context: str, task: str, run_on_gks: bool = False) -> str:
     """
     Delegate a heavy-lifting engineering task to the OpenClaw autonomous agents.
 
@@ -195,6 +244,8 @@ async def delegate_to_openclaw_agent(capability: str, context: str, task: str) -
     are not sure which capability fits the task.
 
     For modifying existing code, prefer the 'modify_existing_code' tool.
+
+    If run_on_gks is True, the task is offloaded to the remote GKS OpenClaw instance.
     """
     from openclaw.agents.registration import register_all_agents
     from openclaw.exceptions import AgentExecutionError, AgentNotFoundError
@@ -205,6 +256,10 @@ async def delegate_to_openclaw_agent(capability: str, context: str, task: str) -
     full_prompt = (
         f"Context from IDE:\n<ide_context>\n{context}\n</ide_context>\n\nTask:\n<user_task>\n{task}\n</user_task>"
     )
+
+    if run_on_gks:
+        return await run_agent_by_name(capability, full_prompt, run_on_gks=True)
+
     try:
         return await instrumented_query(
             capability=capability,
@@ -260,6 +315,7 @@ def check_pipeline_status(run_id: str) -> str:
         line += f"Error: {run['error']}\n"
     if run.get("completed_at"):
         from datetime import datetime
+
         dt = datetime.fromisoformat(run["completed_at"])
         line += f"Completed at: {dt.strftime('%Y-%m-%d %H:%M:%S')}\n"
         elapsed = run.get("elapsed_seconds", 0)

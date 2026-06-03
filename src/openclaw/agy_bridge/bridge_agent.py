@@ -58,7 +58,7 @@ class Conversation:
         }
 
 
-# ── Hook Protocol ────────────────────────────────────────────────────
+# ── Hook Protocol
 
 
 @dataclass
@@ -109,9 +109,9 @@ class BridgeAgent:
     """Wraps a registered pydantic_ai agent for the agentapi protocol."""
 
     def __init__(
-            self,
-            name: str,
-            model: str = "",
+        self,
+        name: str,
+        model: str = "",
     ) -> None:
         self._name = name
         self._model = model or settings.resolve_model(settings.ba_model)
@@ -157,15 +157,13 @@ class BridgeAgent:
                     result = await hook(payload)
                     if result is not None and not result.allow:
                         return f"System blocked tool execution: {result.message}"
-
-                # Execute original tool
                 try:
                     tool_result = await _original_func(run_context, *args, **kwargs)
                 except TypeError:
                     # Fallback if the tool doesn't expect run_context
                     tool_result = await _original_func(*args, **kwargs)
 
-                # ── Hook: post-tool-call ──
+                # ── Hook: post-tool-call
                 payload["result"] = tool_result
                 for hook in self._hooks.post_tool_call:
                     await hook(payload)
@@ -238,14 +236,14 @@ class BridgeAgent:
         }
 
     async def run(
-            self,
-            prompt: str,
-            context: str = "",
-            conversation: Conversation | None = None,
+        self,
+        prompt: str,
+        context: str = "",
+        conversation: Conversation | None = None,
     ) -> str:
         self._resolve()
 
-        # ── Hook: pre-turn ────────────────────────────────────────────────
+        # ── Hook: pre-turn
         modified_prompt = prompt
         for hook in self._hooks.pre_turn:
             result = await hook(modified_prompt)
@@ -256,7 +254,7 @@ class BridgeAgent:
                     modified_prompt = result.modified_input
         # ──────────────────────────────────────────────────────────────────
 
-        # ── Context enrichment ────────────────────────────────────────────
+        # ── Context enrichment
         enriched = modified_prompt
         if context:
             # Bug fix: use modified_prompt instead of context for user_task
@@ -270,7 +268,8 @@ class BridgeAgent:
         success = False
 
         try:
-            resolved_deps = self._deps_factory() if callable(self._deps_factory) else {}
+            resolved_deps: dict[str, Any] = self._deps_factory() if callable(self._deps_factory) else {}
+            assert self._agent is not None, "Agent must be resolved before running"
             result = await self._agent.run(enriched, deps=resolved_deps, usage_limits=UsageLimits(request_limit=500))
             success = True
 
@@ -281,7 +280,7 @@ class BridgeAgent:
             else:
                 output = str(result)
 
-            # ── Update conversation state ─────────────────────────────────
+            # ── Update conversation state
             if conversation:
                 conversation.history.append({"role": "user", "content": modified_prompt})
                 conversation.history.append({"role": "assistant", "content": output})
@@ -289,7 +288,7 @@ class BridgeAgent:
                 conversation.status = "active"
             # ──────────────────────────────────────────────────────────────
 
-            # ── Hook: post-turn ───────────────────────────────────────────
+            # ── Hook: post-turn
             for hook in self._hooks.post_turn:
                 await hook(output)
             # ──────────────────────────────────────────────────────────────
@@ -300,9 +299,7 @@ class BridgeAgent:
             if conversation:
                 conversation.status = "failed"
                 conversation.updated_at = time.time()
-            raise AgentExecutionError(
-                f"BridgeAgent '{self._name}' failed: {e}", is_retryable=False
-            ) from e
+            raise AgentExecutionError(f"BridgeAgent '{self._name}' failed: {e}", is_retryable=False) from e
         finally:
             duration = time.time() - start
             with contextlib.suppress(Exception):

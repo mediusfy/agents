@@ -4,12 +4,7 @@ from openclaw.models.core import ReviewResult
 from openclaw.models.factory import create_model
 from openclaw.settings import settings
 
-# Review-stage configuration. These were previously fed through a `deps_type`
-# but the pipeline callers (`main.py`, `existing_code_handler.py`) never
-# supplied deps, which caused the dynamic system prompt to AttributeError on
-# `ctx.deps.blueprint_summary`. They're static today — the BA stage doesn't
-# yet emit a structured blueprint summary — so we inline them. When/if a
-# real blueprint flows through `PipelineState`, switch back to deps.
+# Review-stage configuration.
 REVIEW_BLUEPRINT_SUMMARY = "Event-driven hexagonal services, gRPC-enabled, CloudEvents-compliant."
 REVIEW_BOUNDED_CONTEXTS = ["payments", "notifications", "users"]
 REVIEW_STRICT_MODE = True
@@ -47,6 +42,6 @@ review_agent = Agent(
     model=create_model(settings.resolve_model(settings.review_model)),
     system_prompt=_build_review_prompt(),
     output_type=ReviewResult,
-    retries=3,  # Automatically retry if the output doesn't match ReviewResult schema
+    retries=3,
     defer_model_check=True,
 )

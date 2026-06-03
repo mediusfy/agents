@@ -58,6 +58,13 @@ class AgentAdvice(BaseModel):
     approved_to_proceed: bool = Field(default=True)
 
 
+class FailureReport(BaseModel):
+    source: str = Field(description="The stage or agent that produced the failure")
+    error_type: str = Field(description="The category of failure (e.g., 'compilation', 'security', 'test')")
+    trace: str = Field(description="The detailed error trace or feedback")
+    relevant_files: list[str] = Field(default_factory=list)
+
+
 class ActivityLog(BaseModel):
     pass_num: int = 0
     agent_name: str
@@ -80,5 +87,7 @@ class PipelineState(BaseModel):
     user_stories: list[UserStory] = Field(default_factory=list)
     advisory_results: dict[str, str] = Field(default_factory=dict)
     cto_approved: bool = Field(default=True, description="CTO gate: true when approved_to_proceed")
+    approved: bool = Field(default=False)
     artifacts: list[Artifact] = Field(default_factory=list)
     feedback: str | None = None
+    failure_report: FailureReport | None = None

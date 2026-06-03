@@ -42,6 +42,7 @@ def _wrap_tool_with_tracing(fn: Callable, tool_name: str) -> Callable:
     is_async = inspect.iscoroutinefunction(fn)
 
     if is_async:
+
         @wraps(fn)
         async def async_wrapper(*args, **kwargs):
             attrs = _build_span_attrs(tool_name, kwargs)
@@ -57,6 +58,7 @@ def _wrap_tool_with_tracing(fn: Callable, tool_name: str) -> Callable:
                 duration = time.time() - start
                 logger.warning(f"tool.{tool_name} failed in {duration:.1f}s: {e}")
                 raise
+
         return async_wrapper
 
     @wraps(fn)
@@ -94,6 +96,7 @@ def get_tools_for_agent(agent_name: str, categories: list[str]) -> list[tuple[st
 def _tool_takes_context(fn: Callable) -> bool:
     """Check if the first param of fn is annotated with RunContext."""
     import typing
+
     sig = inspect.signature(fn)
     params = list(sig.parameters.values())
     if not params:
@@ -104,6 +107,7 @@ def _tool_takes_context(fn: Callable) -> bool:
     hints = typing.get_type_hints(fn)
     ann = hints.get(first.name, first.annotation)
     from pydantic_ai import RunContext
+
     return ann is RunContext or getattr(ann, "__origin__", None) is RunContext
 
 

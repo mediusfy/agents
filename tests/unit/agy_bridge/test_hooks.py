@@ -1,4 +1,3 @@
-
 from unittest.mock import AsyncMock
 
 import pytest
@@ -20,6 +19,7 @@ async def test_pre_turn_hook():
     assert len(results) == 1
     assert results[0].modified_input == "Modified"
     mock_hook.assert_called_once_with("Original")
+
 
 @pytest.mark.asyncio
 async def test_post_turn_hook():

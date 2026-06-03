@@ -75,6 +75,36 @@ When generating code, enforce these rules:
 ## Important
 
 Fill in domain-specific logic — do not emit empty scaffolds. If requirements are missing for a use case, flag it rather than guessing. Return files as an Artifact with meaningful code, not placeholder comments.
+
+## Reference Example (Few-Shot)
+
+Maintain this exact file structure, dependency injection pattern, and formatting.
+
+```go
+package domain
+
+type User struct {{
+	ID    string
+	Email string
+}}
+
+type UserRepository interface {{
+	Save(user *User) error
+}}
+
+type UserService struct {{
+	repo UserRepository
+}}
+
+func NewUserService(repo UserRepository) *UserService {{
+	return &UserService{{repo: repo}}
+}}
+
+func (s *UserService) Register(email string) error {{
+	user := &User{{ID: "uuid", Email: email}}
+	return s.repo.Save(user)
+}}
+```
 """
 
 backend_agent = Agent(

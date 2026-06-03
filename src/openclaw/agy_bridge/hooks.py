@@ -47,6 +47,7 @@ def _ensure_hooks(agent_name: str) -> Hooks:
     """Get or create a Hooks container for an agent."""
     if agent_name not in _hook_registry:
         from openclaw.agy_bridge.bridge_agent import Hooks
+
         _hook_registry[agent_name] = Hooks()
     return _hook_registry[agent_name]
 
@@ -114,7 +115,7 @@ def on_session_end(agent_name: str) -> Callable[[Callable[..., Awaitable[None]]]
 
 
 def pre_turn(
-        agent_name: str,
+    agent_name: str,
 ) -> Callable[
     [Callable[[str], Awaitable[HookResult | None]]],
     Callable[[str], Awaitable[HookResult | None]],
@@ -122,7 +123,7 @@ def pre_turn(
     """Decorator: register a pre-turn hook for an agent."""
 
     def decorator(
-            fn: Callable[[str], Awaitable[HookResult | None]],
+        fn: Callable[[str], Awaitable[HookResult | None]],
     ) -> Callable[[str], Awaitable[HookResult | None]]:
         hooks = _ensure_hooks(agent_name)
 
@@ -138,7 +139,7 @@ def pre_turn(
 
 
 def post_turn(
-        agent_name: str,
+    agent_name: str,
 ) -> Callable[[Callable[[str], Awaitable[None]]], Callable[[str], Awaitable[None]]]:
     """Decorator: register a post-turn hook for an agent."""
 
@@ -160,7 +161,7 @@ def post_turn(
 
 
 def pre_tool_call(
-        agent_name: str,
+    agent_name: str,
 ) -> Callable[
     [Callable[[dict], Awaitable[HookResult | None]]],
     Callable[[dict], Awaitable[HookResult | None]],
@@ -168,7 +169,7 @@ def pre_tool_call(
     """Decorator: register a pre-tool-call hook for an agent."""
 
     def decorator(
-            fn: Callable[[dict], Awaitable[HookResult | None]],
+        fn: Callable[[dict], Awaitable[HookResult | None]],
     ) -> Callable[[dict], Awaitable[HookResult | None]]:
         hooks = _ensure_hooks(agent_name)
 
@@ -184,7 +185,7 @@ def pre_tool_call(
 
 
 def post_tool_call(
-        agent_name: str,
+    agent_name: str,
 ) -> Callable[[Callable[[dict], Awaitable[None]]], Callable[[dict], Awaitable[None]]]:
     """Decorator: register a post-tool-call hook."""
 
@@ -206,12 +207,12 @@ def post_tool_call(
 
 
 def on_tool_error(
-        agent_name: str,
+    agent_name: str,
 ) -> Callable[[Callable[[Exception], Awaitable[Exception | None]]], Callable[[Exception], Awaitable[Exception | None]]]:
     """Decorator: register a tool error hook."""
 
     def decorator(
-            fn: Callable[[Exception], Awaitable[Exception | None]],
+        fn: Callable[[Exception], Awaitable[Exception | None]],
     ) -> Callable[[Exception], Awaitable[Exception | None]]:
         @functools.wraps(fn)
         async def wrapper(exc: Exception) -> Exception | None:
@@ -224,7 +225,7 @@ def on_tool_error(
 
 
 def on_interaction(
-        agent_name: str,
+    agent_name: str,
 ) -> Callable[
     [Callable[[dict], Awaitable[None]]],
     Callable[[dict], Awaitable[None]],
@@ -243,7 +244,7 @@ def on_interaction(
 
 
 def on_compaction(
-        agent_name: str,
+    agent_name: str,
 ) -> Callable[[Callable[..., Awaitable[None]]], Callable[..., Awaitable[None]]]:
     """Decorator: register a compaction hook."""
 

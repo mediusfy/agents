@@ -1,0 +1,4804 @@
+openapi: "3.1.0"
+info:
+  title: Rufkis SRE Platform API
+  description: |
+    The Rufkis SRE Platform API provides programmatic access to incident management,
+    runbook automation, GitOps-native remediation, automated FinOps ROI analysis,
+    autonomous agent triage, policy enforcement, and local-first SRE workspace management.
+
+    ## Core Themes
+
+    - **GitOps-Native Remediation**: Declarative remediation pipelines managed via Git repositories.
+    - **Automated FinOps ROI**: Real-time cost analytics, savings recommendations, and report generation.
+    - **Autonomous Agent Triage**: AI-driven incident triage with escalation recommendations.
+    - **Local-First SRE Workspace**: Offline-capable workspace config, plugins, and sync management.
+
+    ## Authentication
+
+    All API requests require a Bearer token passed via the `Authorization` header.
+    Tokens are issued per workspace and scoped to specific permissions.
+
+    ## Rate Limiting
+
+    The API enforces rate limits per authentication token.
+    Rate limit headers are returned with every response.
+  version: "1.0.0"
+  contact:
+    name: Rufkis SRE Platform Team
+    email: sre-platform@rufkis.io
+    url: https://docs.rufkis.io
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.rufkis.io
+    description: Production server
+  - url: https://api.staging.rufkis.io
+    description: Staging server
+
+security:
+  - bearerAuth: []
+
+paths:
+  # ============================================================================
+  # INCIDENTS
+  # ============================================================================
+  /api/v1/incidents:
+    get:
+      tags:
+        - Incidents
+      summary: List all incidents
+      description: |
+        Returns a paginated list of incidents filtered by the provided query parameters.
+        Supports filtering by status, severity, assignee, and time range.
+      operationId: incidents_list
+      parameters:
+        - name: status
+          in: query
+          description: Filter by incident status
+          required: false
+          schema:
+            type: string
+            enum:
+              - open
+              - acknowledged
+              - investigating
+              - resolved
+              - closed
+        - name: severity
+          in: query
+          description: Filter by severity level
+          required: false
+          schema:
+            type: string
+            enum:
+              - critical
+              - major
+              - minor
+              - warning
+              - info
+        - name: assignee_id
+          in: query
+          description: Filter by assignee user ID
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: runbook_id
+          in: query
+          description: Filter by associated runbook ID
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: created_after
+          in: query
+          description: Filter incidents created after this timestamp (ISO 8601)
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: created_before
+          in: query
+          description: Filter incidents created before this timestamp (ISO 8601)
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: search
+          in: query
+          description: Full-text search across title and description
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: Page number (1-indexed)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+      responses:
+        "200":
+          description: A paginated list of incidents
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining API requests in the current rate limit window
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix timestamp when the rate limit resets
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IncidentListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      tags:
+        - Incidents
+      summary: Create a new incident
+      description: |
+        Creates a new incident record. The incident will be automatically
+        evaluated against active policies and may trigger automated runbooks
+        or triage workflows.
+      operationId: incidents_create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IncidentCreateRequest"
+      responses:
+        "201":
+          description: The created incident
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Incident"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/incidents/{incident_id}:
+    get:
+      tags:
+        - Incidents
+      summary: Get an incident by ID
+      description: Returns the full incident details including timeline events and notes.
+      operationId: incidents_get
+      parameters:
+        - name: incident_id
+          in: path
+          required: true
+          description: The unique identifier of the incident
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Incident details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Incident"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    patch:
+      tags:
+        - Incidents
+      summary: Update an incident
+      description: |
+        Partially updates an incident. Fields not provided in the request body
+        will remain unchanged. Use this to acknowledge, update status, reassign,
+        or change severity.
+      operationId: incidents_update
+      parameters:
+        - name: incident_id
+          in: path
+          required: true
+          description: The unique identifier of the incident
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IncidentUpdateRequest"
+      responses:
+        "200":
+          description: The updated incident
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Incident"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/incidents/{incident_id}/notes:
+    get:
+      tags:
+        - Incidents
+      summary: List incident notes
+      description: Returns all notes attached to an incident in chronological order.
+      operationId: incidents_list_notes
+      parameters:
+        - name: incident_id
+          in: path
+          required: true
+          description: The unique identifier of the incident
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: A list of incident notes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IncidentNote"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      tags:
+        - Incidents
+      summary: Add a note to an incident
+      description: Appends a new note to the incident's timeline.
+      operationId: incidents_create_note
+      parameters:
+        - name: incident_id
+          in: path
+          required: true
+          description: The unique identifier of the incident
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IncidentNoteCreateRequest"
+      responses:
+        "201":
+          description: The created note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IncidentNote"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/incidents/{incident_id}/triage:
+    post:
+      tags:
+        - Incidents
+        - Triage
+      summary: Trigger autonomous triage on an incident
+      description: |
+        Triggers the autonomous agent triage engine for the specified incident.
+        The agent will analyze the incident context, correlate with historical
+        data, and produce recommendations for severity, assignee, runbook
+        attachment, and suggested remediation steps.
+      operationId: incidents_trigger_triage
+      parameters:
+        - name: incident_id
+          in: path
+          required: true
+          description: The unique identifier of the incident to triage
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TriageTriggerRequest"
+      responses:
+        "200":
+          description: Triage analysis completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TriageResult"
+        "202":
+          description: Triage request accepted and is being processed asynchronously
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  triage_id:
+                    type: string
+                    format: uuid
+                    description: The ID of the queued triage analysis
+                  status:
+                    type: string
+                    enum:
+                      - queued
+                      - processing
+                    description: Current processing status
+                required:
+                  - triage_id
+                  - status
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ============================================================================
+  # RUNBOOKS
+  # ============================================================================
+  /api/v1/runbooks:
+    get:
+      tags:
+        - Runbooks
+      summary: List all runbooks
+      description: Returns a paginated list of runbooks with optional filtering.
+      operationId: runbooks_list
+      parameters:
+        - name: status
+          in: query
+          description: Filter by runbook status
+          required: false
+          schema:
+            type: string
+            enum:
+              - active
+              - draft
+              - archived
+        - name: category
+          in: query
+          description: Filter by runbook category
+          required: false
+          schema:
+            type: string
+        - name: search
+          in: query
+          description: Full-text search across name and description
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: Page number (1-indexed)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+      responses:
+        "200":
+          description: A paginated list of runbooks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunbookListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      tags:
+        - Runbooks
+      summary: Create a new runbook
+      description: |
+        Creates a new runbook. Runbooks define automated response procedures
+        that can be triggered manually or automatically by policies.
+      operationId: runbooks_create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunbookCreateRequest"
+      responses:
+        "201":
+          description: The created runbook
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Runbook"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/runbooks/{runbook_id}:
+    get:
+      tags:
+        - Runbooks
+      summary: Get a runbook by ID
+      description: Returns the full runbook definition including all steps.
+      operationId: runbooks_get
+      parameters:
+        - name: runbook_id
+          in: path
+          required: true
+          description: The unique identifier of the runbook
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Runbook details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Runbook"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    put:
+      tags:
+        - Runbooks
+      summary: Update a runbook
+      description: Fully replaces a runbook definition. All steps must be provided.
+      operationId: runbooks_update
+      parameters:
+        - name: runbook_id
+          in: path
+          required: true
+          description: The unique identifier of the runbook
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunbookUpdateRequest"
+      responses:
+        "200":
+          description: The updated runbook
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Runbook"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    delete:
+      tags:
+        - Runbooks
+      summary: Delete a runbook
+      description: Permanently deletes a runbook. Cannot be undone.
+      operationId: runbooks_delete
+      parameters:
+        - name: runbook_id
+          in: path
+          required: true
+          description: The unique identifier of the runbook
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Runbook deleted successfully
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/runbooks/{runbook_id}/execute:
+    post:
+      tags:
+        - Runbooks
+      summary: Execute a runbook
+      description: |
+        Triggers immediate execution of a runbook. If the runbook requires
+        input parameters, they must be provided in the request body.
+      operationId: runbooks_execute
+      parameters:
+        - name: runbook_id
+          in: path
+          required: true
+          description: The unique identifier of the runbook to execute
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                incident_id:
+                  type: string
+                  format: uuid
+                  description: Associate this execution with an incident
+                parameters:
+                  type: object
+                  description: Runbook input parameters (varies per runbook)
+                  example:
+                    target_service: api-gateway
+                    region: us-east-1
+                reason:
+                  type: string
+                  description: Human-readable reason for execution
+                  example: "Auto-remediation of elevated error rate"
+      responses:
+        "200":
+          description: Runbook execution completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunbookExecution"
+        "202":
+          description: Runbook execution accepted and is running asynchronously
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunbookExecution"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/runbooks/{runbook_id}/history:
+    get:
+      tags:
+        - Runbooks
+      summary: Get runbook execution history
+      description: Returns a paginated list of past executions for a runbook.
+      operationId: runbooks_list_executions
+      parameters:
+        - name: runbook_id
+          in: path
+          required: true
+          description: The unique identifier of the runbook
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          description: Filter by execution status
+          required: false
+          schema:
+            type: string
+            enum:
+              - pending
+              - running
+              - succeeded
+              - failed
+              - cancelled
+        - name: page
+          in: query
+          description: Page number (1-indexed)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+      responses:
+        "200":
+          description: A paginated list of runbook executions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunbookExecutionListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ============================================================================
+  # REMEDIATIONS
+  # ============================================================================
+  /api/v1/remediations:
+    get:
+      tags:
+        - Remediations
+      summary: List all remediations
+      description: |
+        Returns a paginated list of remediation definitions.
+        Remediations are GitOps-native, declarative pipelines stored as code.
+      operationId: remediations_list
+      parameters:
+        - name: status
+          in: query
+          description: Filter by remediation status
+          required: false
+          schema:
+            type: string
+            enum:
+              - active
+              - inactive
+              - draft
+              - deprecated
+        - name: source_repo
+          in: query
+          description: Filter by Git source repository URL
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: Page number (1-indexed)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+      responses:
+        "200":
+          description: A paginated list of remediations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemediationListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      tags:
+        - Remediations
+      summary: Create a new remediation
+      description: |
+        Creates a new remediation definition. Remediations are GitOps-native;
+        the specification can reference a Git repository for the source of truth.
+      operationId: remediations_create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RemediationCreateRequest"
+      responses:
+        "201":
+          description: The created remediation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Remediation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/remediations/{remediation_id}:
+    get:
+      tags:
+        - Remediations
+      summary: Get a remediation by ID
+      description: Returns the full remediation definition and current state.
+      operationId: remediations_get
+      parameters:
+        - name: remediation_id
+          in: path
+          required: true
+          description: The unique identifier of the remediation
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Remediation details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Remediation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    put:
+      tags:
+        - Remediations
+      summary: Update a remediation
+      description: Fully replaces a remediation definition.
+      operationId: remediations_update
+      parameters:
+        - name: remediation_id
+          in: path
+          required: true
+          description: The unique identifier of the remediation
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RemediationUpdateRequest"
+      responses:
+        "200":
+          description: The updated remediation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Remediation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    delete:
+      tags:
+        - Remediations
+      summary: Delete a remediation
+      description: Permanently deletes a remediation definition.
+      operationId: remediations_delete
+      parameters:
+        - name: remediation_id
+          in: path
+          required: true
+          description: The unique identifier of the remediation
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Remediation deleted successfully
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/remediations/{remediation_id}/execute:
+    post:
+      tags:
+        - Remediations
+      summary: Execute a remediation
+      description: |
+        Triggers immediate execution of a remediation pipeline.
+        Supports both synchronous and asynchronous execution modes.
+      operationId: remediations_execute
+      parameters:
+        - name: remediation_id
+          in: path
+          required: true
+          description: The unique identifier of the remediation to execute
+          schema:
+            type: string
+            format: uuid
+        - name: async
+          in: query
+          description: If true, execution runs asynchronously (returns 202)
+          required: false
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                incident_id:
+                  type: string
+                  format: uuid
+                  description: Associate with an incident
+                parameters:
+                  type: object
+                  description: Remediation-specific input parameters
+                commit_sha:
+                  type: string
+                  description: Git commit SHA to pin the remediation version
+              required:
+                - incident_id
+      responses:
+        "200":
+          description: Remediation execution completed synchronously
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemediationExecution"
+        "202":
+          description: Remediation execution accepted (async mode)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  execution_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [queued, running]
+                required:
+                  - execution_id
+                  - status
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/remediations/{remediation_id}/history:
+    get:
+      tags:
+        - Remediations
+      summary: Get remediation execution history
+      description: Returns the execution history for a specific remediation.
+      operationId: remediations_list_executions
+      parameters:
+        - name: remediation_id
+          in: path
+          required: true
+          description: The unique identifier of the remediation
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          description: Filter by execution status
+          required: false
+          schema:
+            type: string
+            enum:
+              - queued
+              - running
+              - succeeded
+              - failed
+              - rolled_back
+        - name: page
+          in: query
+          description: Page number (1-indexed)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+      responses:
+        "200":
+          description: A paginated list of remediation executions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemediationExecutionListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/remediations/{remediation_id}/rollback:
+    post:
+      tags:
+        - Remediations
+      summary: Rollback a remediation execution
+      description: |
+        Initiates a rollback of the last successful execution of a remediation.
+        Rollback logic is defined within the remediation pipeline itself
+        (GitOps-native approach).
+      operationId: remediations_rollback
+      parameters:
+        - name: remediation_id
+          in: path
+          required: true
+          description: The unique identifier of the remediation to rollback
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                execution_id:
+                  type: string
+                  format: uuid
+                  description: Specific execution ID to rollback (defaults to last)
+                reason:
+                  type: string
+                  description: Reason for the rollback
+      responses:
+        "200":
+          description: Rollback initiated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemediationExecution"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ============================================================================
+  # POLICIES  (GitOps-Native)
+  # ============================================================================
+  /api/v1/policies:
+    get:
+      tags:
+        - Policies
+      summary: List all policies
+      description: |
+        Returns a paginated list of policy definitions. Policies define
+        automated reactions to incidents and system conditions.
+      operationId: policies_list
+      parameters:
+        - name: status
+          in: query
+          description: Filter by policy status
+          required: false
+          schema:
+            type: string
+            enum:
+              - enabled
+              - disabled
+              - dry_run
+        - name: severity
+          in: query
+          description: Filter by target severity
+          required: false
+          schema:
+            type: string
+            enum:
+              - critical
+              - major
+              - minor
+              - warning
+              - info
+        - name: page
+          in: query
+          description: Page number (1-indexed)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+      responses:
+        "200":
+          description: A paginated list of policies
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      tags:
+        - Policies
+      summary: Create a new policy
+      description: |
+        Creates a new policy definition. Policies can auto-trigger runbooks,
+        remediations, notifications, or triage when conditions are met.
+      operationId: policies_create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PolicyCreateRequest"
+      responses:
+        "201":
+          description: The created policy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Policy"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/policies/{policy_id}:
+    get:
+      tags:
+        - Policies
+      summary: Get a policy by ID
+      description: Returns the full policy definition.
+      operationId: policies_get
+      parameters:
+        - name: policy_id
+          in: path
+          required: true
+          description: The unique identifier of the policy
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Policy details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Policy"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    put:
+      tags:
+        - Policies
+      summary: Update a policy
+      description: Fully replaces a policy definition.
+      operationId: policies_update
+      parameters:
+        - name: policy_id
+          in: path
+          required: true
+          description: The unique identifier of the policy
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PolicyUpdateRequest"
+      responses:
+        "200":
+          description: The updated policy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Policy"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    delete:
+      tags:
+        - Policies
+      summary: Delete a policy
+      description: Permanently deletes a policy definition.
+      operationId: policies_delete
+      parameters:
+        - name: policy_id
+          in: path
+          required: true
+          description: The unique identifier of the policy
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Policy deleted successfully
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/policies/{policy_id}/validate:
+    post:
+      tags:
+        - Policies
+      summary: Validate a policy (dry-run)
+      description: |
+        Validates a policy without enabling it. Simulates the conditions
+        and actions to verify correctness before going live.
+      operationId: policies_validate
+      parameters:
+        - name: policy_id
+          in: path
+          required: true
+          description: The unique identifier of the policy to validate
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                simulation_context:
+                  type: object
+                  description: Optional simulated incident context for validation
+                  properties:
+                    severity:
+                      type: string
+                      enum: [critical, major, minor, warning, info]
+                    source:
+                      type: string
+                    title:
+                      type: string
+      responses:
+        "200":
+          description: Policy validation (dry-run) result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy_id:
+                    type: string
+                    format: uuid
+                  valid:
+                    type: boolean
+                  matched_conditions:
+                    type: array
+                    items:
+                      type: string
+                  would_trigger_actions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        action_type:
+                          type: string
+                          enum:
+                            - runbook
+                            - remediation
+                            - notification
+                            - triage
+                        target_id:
+                          type: string
+                          format: uuid
+                        target_name:
+                          type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                required:
+                  - policy_id
+                  - valid
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ============================================================================
+  # FINOPS / COSTS
+  # ============================================================================
+  /api/v1/finops/costs:
+    get:
+      tags:
+        - FinOps
+      summary: List cloud costs
+      description: |
+        Returns a paginated list of cloud cost entries with filtering
+        by provider, service, region, and time range.
+      operationId: finops_list_costs
+      parameters:
+        - name: provider
+          in: query
+          description: Filter by cloud provider
+          required: false
+          schema:
+            type: string
+            enum:
+              - aws
+              - gcp
+              - azure
+              - other
+        - name: service
+          in: query
+          description: Filter by cloud service name
+          required: false
+          schema:
+            type: string
+        - name: region
+          in: query
+          description: Filter by cloud region
+          required: false
+          schema:
+            type: string
+        - name: start_date
+          in: query
+          description: Start of date range (ISO 8601 date)
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          description: End of date range (ISO 8601 date)
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: page
+          in: query
+          description: Page number (1-indexed)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+      responses:
+        "200":
+          description: A paginated list of cost entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/finops/costs/{cost_id}:
+    get:
+      tags:
+        - FinOps
+      summary: Get a cost entry by ID
+      description: Returns detailed cost data for a specific cost entry.
+      operationId: finops_get_cost
+      parameters:
+        - name: cost_id
+          in: path
+          required: true
+          description: The unique identifier of the cost entry
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Cost entry details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostEntry"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/finops/costs/summary:
+    get:
+      tags:
+        - FinOps
+      summary: Get cost summary
+      description: |
+        Returns aggregated cost summaries grouped by provider, service,
+        or region for the specified time period.
+      operationId: finops_get_cost_summary
+      parameters:
+        - name: group_by
+          in: query
+          description: Aggregation grouping
+          required: false
+          schema:
+            type: string
+            enum:
+              - provider
+              - service
+              - region
+              - daily
+              - monthly
+            default: service
+        - name: start_date
+          in: query
+          description: Start of date range (ISO 8601 date)
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          description: End of date range (ISO 8601 date)
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: provider
+          in: query
+          description: Filter by cloud provider
+          required: false
+          schema:
+            type: string
+            enum:
+              - aws
+              - gcp
+              - azure
+              - other
+      responses:
+        "200":
+          description: Aggregated cost summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostSummary"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ============================================================================
+  # FINOPS / REPORTS
+  # ============================================================================
+  /api/v1/finops/reports:
+    get:
+      tags:
+        - FinOps
+      summary: List FinOps reports
+      description: Returns a paginated list of generated FinOps reports.
+      operationId: finops_list_reports
+      parameters:
+        - name: status
+          in: query
+          description: Filter by report status
+          required: false
+          schema:
+            type: string
+            enum:
+              - generating
+              - completed
+              - failed
+        - name: page
+          in: query
+          description: Page number (1-indexed)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+      responses:
+        "200":
+          description: A paginated list of reports
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      tags:
+        - FinOps
+      summary: Generate a new FinOps report
+      description: |
+        Initiates generation of a new FinOps cost report.
+        Reports can include cost breakdowns, savings recommendations,
+        and ROI analysis. Generation is asynchronous.
+      operationId: finops_generate_report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportGenerateRequest"
+      responses:
+        "202":
+          description: Report generation accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  report_id:
+                    type: string
+                    format: uuid
+                    description: The ID of the report being generated
+                  status:
+                    type: string
+                    enum: [generating]
+                required:
+                  - report_id
+                  - status
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/finops/reports/{report_id}:
+    get:
+      tags:
+        - FinOps
+      summary: Get a report by ID
+      description: Returns the details and status of a generated report.
+      operationId: finops_get_report
+      parameters:
+        - name: report_id
+          in: path
+          required: true
+          description: The unique identifier of the report
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Report details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/finops/reports/{report_id}/download:
+    get:
+      tags:
+        - FinOps
+      summary: Download a report artifact
+      description: |
+        Downloads the generated report file (CSV, PDF, or XLSX).
+        Only available when the report status is `completed`.
+      operationId: finops_download_report
+      parameters:
+        - name: report_id
+          in: path
+          required: true
+          description: The unique identifier of the report
+          schema:
+            type: string
+            format: uuid
+        - name: format
+          in: query
+          description: Desired download format
+          required: false
+          schema:
+            type: string
+            enum:
+              - csv
+              - pdf
+              - xlsx
+            default: csv
+      responses:
+        "200":
+          description: Report file content
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ============================================================================
+  # FINOPS / SAVINGS
+  # ============================================================================
+  /api/v1/finops/savings:
+    get:
+      tags:
+        - FinOps
+      summary: List savings recommendations
+      description: |
+        Returns a paginated list of FinOps ROI/savings recommendations
+        generated by the automated FinOps engine. Each recommendation
+        includes estimated cost savings, confidence score, and suggested actions.
+      operationId: finops_list_savings
+      parameters:
+        - name: status
+          in: query
+          description: Filter by recommendation status
+          required: false
+          schema:
+            type: string
+            enum:
+              - pending
+              - applied
+              - dismissed
+              - in_progress
+        - name: category
+          in: query
+          description: Filter by savings category
+          required: false
+          schema:
+            type: string
+            enum:
+              - compute_rightsizing
+              - reserved_instances
+              - storage_optimization
+              - data_transfer
+              - idle_resources
+              - license_optimization
+        - name: min_savings
+          in: query
+          description: Minimum estimated monthly savings in USD
+          required: false
+          schema:
+            type: number
+            minimum: 0
+        - name: page
+          in: query
+          description: Page number (1-indexed)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+      responses:
+        "200":
+          description: A paginated list of savings recommendations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavingsListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ============================================================================
+  # TRIAGE
+  # ============================================================================
+  /api/v1/triage:
+    get:
+      tags:
+        - Triage
+      summary: List triage analyses
+      description: |
+        Returns a paginated list of autonomous agent triage analyses.
+      operationId: triage_list
+      parameters:
+        - name: status
+          in: query
+          description: Filter by triage status
+          required: false
+          schema:
+            type: string
+            enum:
+              - queued
+              - processing
+              - completed
+              - failed
+        - name: incident_id
+          in: query
+          description: Filter by associated incident ID
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          description: Page number (1-indexed)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+      responses:
+        "200":
+          description: A paginated list of triage analyses
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TriageListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/triage/{triage_id}:
+    get:
+      tags:
+        - Triage
+      summary: Get a triage analysis by ID
+      description: Returns the full triage analysis result including recommendations.
+      operationId: triage_get
+      parameters:
+        - name: triage_id
+          in: path
+          required: true
+          description: The unique identifier of the triage analysis
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Triage analysis details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TriageResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/triage/{triage_id}/escalate:
+    post:
+      tags:
+        - Triage
+      summary: Escalate a triage analysis
+      description: |
+        Escalates a triage analysis to a human operator or on-call team.
+        This creates an escalation record and sends notifications.
+      operationId: triage_escalate
+      parameters:
+        - name: triage_id
+          in: path
+          required: true
+          description: The unique identifier of the triage analysis
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                escalation_reason:
+                  type: string
+                  description: Reason for escalation
+                  example: "Agent confidence below threshold; manual review required"
+                target_team:
+                  type: string
+                  description: Target team or on-call schedule
+                priority:
+                  type: string
+                  enum:
+                    - low
+                    - normal
+                    - high
+                    - urgent
+                  default: normal
+      responses:
+        "200":
+          description: Escalation created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  escalation_id:
+                    type: string
+                    format: uuid
+                  triage_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum:
+                      - acknowledged
+                      - pending
+                      - resolved
+                required:
+                  - escalation_id
+                  - triage_id
+                  - status
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/triage/{triage_id}/resolve:
+    post:
+      tags:
+        - Triage
+      summary: Resolve a triage analysis
+      description: |
+        Marks a triage analysis as resolved. Can include feedback
+        on the quality of the agent's recommendations to improve
+        future triage accuracy.
+      operationId: triage_resolve
+      parameters:
+        - name: triage_id
+          in: path
+          required: true
+          description: The unique identifier of the triage analysis
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resolution_notes:
+                  type: string
+                  description: Notes about the resolution
+                agent_feedback:
+                  type: object
+                  description: Feedback on agent recommendations
+                  properties:
+                    accuracy_score:
+                      type: integer
+                      minimum: 1
+                      maximum: 5
+                      description: Rating of recommendation accuracy (1-5)
+                    actionable:
+                      type: boolean
+                      description: Whether recommendations were actionable
+                    comments:
+                      type: string
+                      description: Free-text feedback
+      responses:
+        "200":
+          description: Triage resolved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TriageResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/triage/{triage_id}/recommendations:
+    get:
+      tags:
+        - Triage
+      summary: Get triage recommendations
+      description: |
+        Returns the autonomous agent's recommendations for a specific
+        triage analysis, including suggested severity, assignee,
+        runbook attachments, and remediation steps.
+      operationId: triage_get_recommendations
+      parameters:
+        - name: triage_id
+          in: path
+          required: true
+          description: The unique identifier of the triage analysis
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Triage recommendations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  triage_id:
+                    type: string
+                    format: uuid
+                  recommendations:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TriageRecommendation"
+                required:
+                  - triage_id
+                  - recommendations
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ============================================================================
+  # WORKSPACE (Local-First SRE Workspace)
+  # ============================================================================
+  /api/v1/workspace:
+    get:
+      tags:
+        - Workspace
+      summary: Get workspace configuration
+      description: |
+        Returns the current workspace configuration.
+        The workspace is a local-first concept that supports offline operation
+        and syncs with the central platform when connectivity is available.
+      operationId: workspace_get
+      responses:
+        "200":
+          description: Workspace configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workspace"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    patch:
+      tags:
+        - Workspace
+      summary: Update workspace configuration
+      description: |
+        Partially updates the workspace configuration.
+        Supports local-first settings such as offline mode, sync intervals,
+        and plugin preferences.
+      operationId: workspace_update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkspaceUpdateRequest"
+      responses:
+        "200":
+          description: Updated workspace configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workspace"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/workspace/status:
+    get:
+      tags:
+        - Workspace
+      summary: Get workspace sync and health status
+      description: |
+        Returns the current sync status, connectivity state, and
+        health metrics for the local-first SRE workspace.
+      operationId: workspace_get_status
+      responses:
+        "200":
+          description: Workspace status and health information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/workspace/sync:
+    post:
+      tags:
+        - Workspace
+      summary: Trigger workspace sync
+      description: |
+        Manually triggers a synchronization of the local workspace
+        with the central Rufkis platform. Useful when returning from
+        offline operation.
+      operationId: workspace_trigger_sync
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                full_sync:
+                  type: boolean
+                  description: If true, performs a full resync instead of incremental
+                  default: false
+      responses:
+        "200":
+          description: Sync completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceSyncResult"
+        "202":
+          description: Sync accepted and running asynchronously
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sync_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [syncing]
+                required:
+                  - sync_id
+                  - status
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/workspace/plugins:
+    get:
+      tags:
+        - Workspace
+      summary: List installed workspace plugins
+      description: |
+        Returns a list of plugins installed in the local-first SRE workspace.
+        Plugins extend the workspace with custom capabilities, integrations,
+        and UI components.
+      operationId: workspace_list_plugins
+      responses:
+        "200":
+          description: A list of installed plugins
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WorkspacePlugin"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      tags:
+        - Workspace
+      summary: Install a workspace plugin
+      description: |
+        Installs a new plugin into the local-first SRE workspace.
+        Plugins are fetched from the plugin registry and activated locally.
+      operationId: workspace_install_plugin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                plugin_name:
+                  type: string
+                  description: The name of the plugin to install
+                version:
+                  type: string
+                  description: Plugin version (semver)
+                source:
+                  type: string
+                  description: Plugin source (registry URL or local path)
+                config:
+                  type: object
+                  description: Plugin-specific configuration
+              required:
+                - plugin_name
+                - source
+      responses:
+        "201":
+          description: Plugin installed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspacePlugin"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/workspace/export:
+    post:
+      tags:
+        - Workspace
+      summary: Export workspace configuration
+      description: |
+        Exports the workspace configuration and data as a downloadable
+        archive. Useful for backup, migration, or sharing workspace
+        configurations between team members.
+      operationId: workspace_export
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                include_plugins:
+                  type: boolean
+                  description: Include plugin configurations in the export
+                  default: true
+                include_history:
+                  type: boolean
+                  description: Include execution and sync history
+                  default: false
+                format:
+                  type: string
+                  enum:
+                    - json
+                    - yaml
+                  default: json
+      responses:
+        "200":
+          description: Workspace export data
+          content:
+            application/json:
+              schema:
+                type: object
+                description: Workspace export payload
+            application/x-yaml:
+              schema:
+                type: string
+                description: Workspace export as YAML
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Authenticate using a Bearer token issued by the Rufkis platform.
+        Tokens are obtained via the Rufkis CLI or the platform dashboard.
+
+  schemas:
+    # ==========================================================================
+    # Error Response
+    # ==========================================================================
+    ErrorResponse:
+      type: object
+      description: Standard error response for all API errors
+      properties:
+        error:
+          type: string
+          description: Short error code identifier
+          example: "validation_error"
+        message:
+          type: string
+          description: Human-readable error description
+          example: "The request body contains invalid fields"
+        code:
+          type: string
+          description: Optional machine-readable error code
+          example: "ERR_INVALID_INPUT"
+        details:
+          type: array
+          description: Detailed error information
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                description: The field that caused the error
+                example: "severity"
+              reason:
+                type: string
+                description: Why the field is invalid
+                example: "must be one of: critical, major, minor, warning, info"
+              value:
+                description: The invalid value that was provided
+            required:
+              - field
+              - reason
+        request_id:
+          type: string
+          format: uuid
+          description: Unique request identifier for tracing
+      required:
+        - error
+        - message
+
+    # ==========================================================================
+    # Pagination
+    # ==========================================================================
+    PaginationInfo:
+      type: object
+      description: Pagination metadata
+      properties:
+        page:
+          type: integer
+          description: Current page number (1-indexed)
+          example: 1
+        page_size:
+          type: integer
+          description: Number of items per page
+          example: 25
+        total:
+          type: integer
+          description: Total number of items across all pages
+          example: 142
+        total_pages:
+          type: integer
+          description: Total number of pages
+          example: 6
+      required:
+        - page
+        - page_size
+        - total
+        - total_pages
+
+    # ==========================================================================
+    # Incident
+    # ==========================================================================
+    Incident:
+      type: object
+      description: A complete incident record
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique incident identifier
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        title:
+          type: string
+          description: Incident title
+          example: "Elevated error rate in API Gateway"
+        description:
+          type: string
+          description: Detailed incident description
+          example: "Error rate on api-gateway has exceeded 5% threshold for 10 minutes"
+        status:
+          type: string
+          enum:
+            - open
+            - acknowledged
+            - investigating
+            - resolved
+            - closed
+          description: Current incident status
+          example: "open"
+        severity:
+          type: string
+          enum:
+            - critical
+            - major
+            - minor
+            - warning
+            - info
+          description: Incident severity level
+          example: "critical"
+        source:
+          type: string
+          description: Source system that reported the incident
+          example: "prometheus"
+        assignee_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the assigned user
+          example: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+        runbook_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the attached runbook
+          example: "c3d4e5f6-a7b8-9012-cdef-123456789012"
+        remediation_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the attached remediation
+          example: "d4e5f6a7-b8c9-0123-defa-234567890123"
+        policy_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the policy that triggered this incident
+          example: "e5f6a7b8-c9d0-1234-efab-345678901234"
+        triage_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the autonomous triage analysis
+          example: "f6a7b8c9-d0e1-2345-fabc-456789012345"
+        tags:
+          type: array
+          description: Incident tags for categorization
+          items:
+            type: string
+          example:
+            - "networking"
+            - "production"
+        metadata:
+          type: object
+          description: Arbitrary metadata key-value pairs
+          example:
+            region: "us-east-1"
+            service: "api-gateway"
+            environment: "production"
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when the incident was created
+          example: "2026-06-03T01:30:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Timestamp when the incident was last updated
+          example: "2026-06-03T02:00:00Z"
+        resolved_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp when the incident was resolved
+          example: "2026-06-03T03:00:00Z"
+        closed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp when the incident was closed
+      required:
+        - id
+        - title
+        - status
+        - severity
+        - source
+        - created_at
+        - updated_at
+
+    IncidentCreateRequest:
+      type: object
+      description: Payload for creating a new incident
+      properties:
+        title:
+          type: string
+          description: Incident title
+          example: "Elevated error rate in API Gateway"
+        description:
+          type: string
+          description: Detailed incident description
+          example: "Error rate on api-gateway has exceeded 5% threshold for 10 minutes"
+        severity:
+          type: string
+          enum:
+            - critical
+            - major
+            - minor
+            - warning
+            - info
+          description: Incident severity level
+          example: "critical"
+        source:
+          type: string
+          description: Source system that detected the incident
+          example: "prometheus"
+        assignee_id:
+          type: string
+          format: uuid
+          description: ID of the user to assign
+        tags:
+          type: array
+          items:
+            type: string
+          description: Tags for categorization
+          example:
+            - "networking"
+        metadata:
+          type: object
+          description: Arbitrary metadata key-value pairs
+          example:
+            region: "us-east-1"
+      required:
+        - title
+        - severity
+        - source
+
+    IncidentUpdateRequest:
+      type: object
+      description: Payload for updating an existing incident (partial update)
+      properties:
+        title:
+          type: string
+          description: Updated title
+        description:
+          type: string
+          description: Updated description
+        status:
+          type: string
+          enum:
+            - open
+            - acknowledged
+            - investigating
+            - resolved
+            - closed
+          description: Updated status
+        severity:
+          type: string
+          enum:
+            - critical
+            - major
+            - minor
+            - warning
+            - info
+          description: Updated severity
+        assignee_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Updated assignee (null to unassign)
+        tags:
+          type: array
+          items:
+            type: string
+          description: Updated tags
+        metadata:
+          type: object
+          description: Updated metadata
+
+    IncidentListResponse:
+      type: object
+      description: Paginated list of incidents
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Incident"
+        pagination:
+          $ref: "#/components/schemas/PaginationInfo"
+      required:
+        - items
+        - pagination
+
+    # ==========================================================================
+    # Incident Note
+    # ==========================================================================
+    IncidentNote:
+      type: object
+      description: A note attached to an incident
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique note identifier
+        incident_id:
+          type: string
+          format: uuid
+          description: The incident this note belongs to
+        author_id:
+          type: string
+          format: uuid
+          description: ID of the user who wrote the note
+        author_name:
+          type: string
+          description: Display name of the author
+          example: "Alice SRE"
+        content:
+          type: string
+          description: Note content
+          example: "Rolled back api-gateway to v2.1.3. Error rate dropping."
+        note_type:
+          type: string
+          enum:
+            - manual
+            - automated
+            - system
+          description: Type of note
+          example: "manual"
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when the note was created
+      required:
+        - id
+        - incident_id
+        - content
+        - created_at
+
+    IncidentNoteCreateRequest:
+      type: object
+      description: Payload for creating a new incident note
+      properties:
+        content:
+          type: string
+          description: Note content
+          example: "Rolled back api-gateway to v2.1.3. Error rate dropping."
+        note_type:
+          type: string
+          enum:
+            - manual
+            - automated
+            - system
+          default: manual
+          description: Type of note
+      required:
+        - content
+
+    # ==========================================================================
+    # Runbook
+    # ==========================================================================
+    Runbook:
+      type: object
+      description: A runbook definition
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique runbook identifier
+        name:
+          type: string
+          description: Human-readable runbook name
+          example: "API Gateway Recovery"
+        description:
+          type: string
+          description: Description of the runbook's purpose
+          example: "Steps to recover API Gateway from elevated error rates"
+        category:
+          type: string
+          description: Runbook category for organization
+          example: "networking"
+        status:
+          type: string
+          enum:
+            - active
+            - draft
+            - archived
+          description: Current runbook status
+          example: "active"
+        version:
+          type: string
+          description: Runbook version (semver)
+          example: "1.2.0"
+        steps:
+          type: array
+          description: Ordered list of runbook steps
+          items:
+            $ref: "#/components/schemas/RunbookStep"
+        git_source:
+          type: object
+          description: Git repository source (GitOps-native)
+          properties:
+            repo_url:
+              type: string
+              format: uri
+              description: Git repository URL
+              example: "https://github.com/rufkis/runbooks"
+            path:
+              type: string
+              description: Path within the repository
+              example: "runbooks/api-gateway-recovery.yaml"
+            commit_sha:
+              type: string
+              description: Current pinned commit SHA
+              example: "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"
+        timeout_seconds:
+          type: integer
+          description: Maximum execution time in seconds
+          example: 600
+        tags:
+          type: array
+          items:
+            type: string
+          description: Tags for categorization
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - status
+        - steps
+        - created_at
+        - updated_at
+
+    RunbookStep:
+      type: object
+      description: A single step within a runbook
+      properties:
+        id:
+          type: string
+          description: Step identifier
+          example: "step-1"
+        name:
+          type: string
+          description: Step name
+          example: "Verify API Gateway health"
+        description:
+          type: string
+          description: Detailed step instructions
+          example: "Check /health endpoint and verify 200 response"
+        action:
+          type: string
+          enum:
+            - manual
+            - script
+            - api_call
+            - webhook
+            - approval
+            - notification
+          description: Type of action for this step
+        command:
+          type: string
+          description: Script or command to execute (for script actions)
+        api_endpoint:
+          type: string
+          format: uri
+          description: API endpoint URL (for api_call actions)
+        api_method:
+          type: string
+          enum:
+            - GET
+            - POST
+            - PUT
+            - PATCH
+            - DELETE
+          description: HTTP method (for api_call actions)
+        expected_result:
+          type: string
+          description: Expected result or output
+        timeout_seconds:
+          type: integer
+          description: Step timeout in seconds
+          default: 300
+        on_failure:
+          type: string
+          enum:
+            - stop
+            - skip
+            - continue
+            - notify
+          description: Behavior when step fails
+          default: stop
+        approval_required:
+          type: boolean
+          description: Whether human approval is needed before this step
+          default: false
+      required:
+        - id
+        - name
+        - action
+
+    RunbookCreateRequest:
+      type: object
+      description: Payload for creating a runbook
+      properties:
+        name:
+          type: string
+          description: Runbook name
+          example: "API Gateway Recovery"
+        description:
+          type: string
+          description: Runbook description
+        category:
+          type: string
+          description: Runbook category
+          example: "networking"
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/RunbookStep"
+          description: Ordered list of runbook steps
+        git_source:
+          type: object
+          properties:
+            repo_url:
+              type: string
+              format: uri
+            path:
+              type: string
+        timeout_seconds:
+          type: integer
+          description: Maximum execution time in seconds
+          default: 600
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - name
+        - steps
+
+    RunbookUpdateRequest:
+      type: object
+      description: Payload for updating a runbook (full replacement)
+      properties:
+        name:
+          type: string
+          description: Runbook name
+        description:
+          type: string
+          description: Runbook description
+        category:
+          type: string
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/RunbookStep"
+        git_source:
+          type: object
+          properties:
+            repo_url:
+              type: string
+              format: uri
+            path:
+              type: string
+        timeout_seconds:
+          type: integer
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - name
+        - steps
+
+    RunbookListResponse:
+      type: object
+      description: Paginated list of runbooks
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Runbook"
+        pagination:
+          $ref: "#/components/schemas/PaginationInfo"
+      required:
+        - items
+        - pagination
+
+    RunbookExecution:
+      type: object
+      description: A runbook execution record
+      properties:
+        id:
+          type: string
+          format: uuid
+        runbook_id:
+          type: string
+          format: uuid
+        incident_id:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          type: string
+          enum:
+            - pending
+            - running
+            - succeeded
+            - failed
+            - cancelled
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        triggered_by:
+          type: string
+          description: User or system that triggered the execution
+          example: "system"
+        current_step:
+          type: integer
+          description: Index of current executing step (0-indexed)
+        total_steps:
+          type: integer
+          description: Total number of steps
+        step_results:
+          type: array
+          items:
+            type: object
+            properties:
+              step_id:
+                type: string
+              status:
+                type: string
+                enum:
+                  - pending
+                  - running
+                  - succeeded
+                  - failed
+                  - skipped
+              started_at:
+                type: string
+                format: date-time
+              completed_at:
+                type: string
+                format: date-time
+              output:
+                type: string
+              error:
+                type: string
+        error:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - runbook_id
+        - status
+        - created_at
+
+    RunbookExecutionListResponse:
+      type: object
+      description: Paginated list of runbook executions
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/RunbookExecution"
+        pagination:
+          $ref: "#/components/schemas/PaginationInfo"
+      required:
+        - items
+        - pagination
+
+    # ==========================================================================
+    # Remediation
+    # ==========================================================================
+    Remediation:
+      type: object
+      description: A GitOps-native remediation pipeline definition
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          description: Remediation name
+          example: "Scale Down Unused Compute"
+        description:
+          type: string
+          description: Description of the remediation's purpose
+          example: "Automatically scale down compute instances with < 5% CPU utilization for 7 days"
+        status:
+          type: string
+          enum:
+            - active
+            - inactive
+            - draft
+            - deprecated
+          example: "active"
+        source_repo:
+          type: string
+          format: uri
+          description: Git repository URL for the pipeline definition
+          example: "https://github.com/rufkis/remediations"
+        source_path:
+          type: string
+          description: Path within the repository to the pipeline definition
+          example: "remediations/scale-down-unused-compute.yaml"
+        source_commit:
+          type: string
+          description: Current pinned commit SHA
+          example: "b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1"
+        pipeline_type:
+          type: string
+          enum:
+            - terraform
+            - helm
+            - shell
+            - kubernetes
+            - custom
+          description: Type of pipeline engine
+          example: "kubernetes"
+        parameters_schema:
+          type: object
+          description: JSON Schema defining valid input parameters
+        auto_approve:
+          type: boolean
+          description: Whether the remediation can run without approval
+          default: false
+        rollback_enabled:
+          type: boolean
+          description: Whether rollback is supported
+          default: true
+        timeout_seconds:
+          type: integer
+          description: Maximum execution time
+          example: 900
+        tags:
+          type: array
+          items:
+            type: string
+        last_execution_id:
+          type: string
+          format: uuid
+          nullable: true
+        last_execution_status:
+          type: string
+          nullable: true
+          enum:
+            - succeeded
+            - failed
+            - rolled_back
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - status
+        - pipeline_type
+        - created_at
+        - updated_at
+
+    RemediationCreateRequest:
+      type: object
+      description: Payload for creating a remediation
+      properties:
+        name:
+          type: string
+          description: Remediation name
+          example: "Scale Down Unused Compute"
+        description:
+          type: string
+          description: Purpose description
+        source_repo:
+          type: string
+          format: uri
+          description: Git repository URL
+        source_path:
+          type: string
+          description: Path to pipeline definition in the repo
+        pipeline_type:
+          type: string
+          enum:
+            - terraform
+            - helm
+            - shell
+            - kubernetes
+            - custom
+          description: Pipeline engine type
+        parameters_schema:
+          type: object
+          description: JSON Schema for input parameters
+        auto_approve:
+          type: boolean
+          default: false
+        rollback_enabled:
+          type: boolean
+          default: true
+        timeout_seconds:
+          type: integer
+          default: 600
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - name
+        - pipeline_type
+
+    RemediationUpdateRequest:
+      type: object
+      description: Payload for updating a remediation (full replacement)
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        source_repo:
+          type: string
+          format: uri
+        source_path:
+          type: string
+        pipeline_type:
+          type: string
+          enum:
+            - terraform
+            - helm
+            - shell
+            - kubernetes
+            - custom
+        parameters_schema:
+          type: object
+        auto_approve:
+          type: boolean
+        rollback_enabled:
+          type: boolean
+        timeout_seconds:
+          type: integer
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - name
+        - pipeline_type
+
+    RemediationListResponse:
+      type: object
+      description: Paginated list of remediations
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Remediation"
+        pagination:
+          $ref: "#/components/schemas/PaginationInfo"
+      required:
+        - items
+        - pagination
+
+    RemediationExecution:
+      type: object
+      description: A remediation execution record
+      properties:
+        id:
+          type: string
+          format: uuid
+        remediation_id:
+          type: string
+          format: uuid
+        incident_id:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          type: string
+          enum:
+            - queued
+            - running
+            - succeeded
+            - failed
+            - rolled_back
+        commit_sha:
+          type: string
+          description: Git commit SHA used for this execution
+        parameters:
+          type: object
+          description: Parameters used for this execution
+        output:
+          type: string
+          description: Execution output/logs
+        error:
+          type: string
+          nullable: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        triggered_by:
+          type: string
+          description: Who or what triggered the execution
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - remediation_id
+        - status
+        - created_at
+
+    RemediationExecutionListResponse:
+      type: object
+      description: Paginated list of remediation executions
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/RemediationExecution"
+        pagination:
+          $ref: "#/components/schemas/PaginationInfo"
+      required:
+        - items
+        - pagination
+
+    # ==========================================================================
+    # Policy
+    # ==========================================================================
+    Policy:
+      type: object
+      description: A policy definition for automated reactions
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          description: Policy name
+          example: "Auto-remediate high error rates"
+        description:
+          type: string
+          description: Policy purpose description
+          example: "When error rate exceeds 5% for 10 minutes, trigger remediation"
+        status:
+          type: string
+          enum:
+            - enabled
+            - disabled
+            - dry_run
+          description: Policy operational status
+          example: "enabled"
+        severity:
+          type: string
+          enum:
+            - critical
+            - major
+            - minor
+            - warning
+            - info
+          description: Target incident severity
+        conditions:
+          type: object
+          description: Conditions that trigger the policy
+          properties:
+            metric:
+              type: string
+              description: Metric name to evaluate
+              example: "error_rate"
+            operator:
+              type: string
+              enum:
+                - gt
+                - gte
+                - lt
+                - lte
+                - eq
+                - neq
+              description: Comparison operator
+            threshold:
+              type: number
+              description: Threshold value
+              example: 5.0
+            duration_seconds:
+              type: integer
+              description: How long the condition must be true
+              example: 600
+            match_labels:
+              type: object
+              description: Labels to match against
+              additionalProperties:
+                type: string
+          required:
+            - metric
+            - operator
+            - threshold
+        actions:
+          type: array
+          description: Actions to execute when conditions are met
+          items:
+            type: object
+            properties:
+              action_type:
+                type: string
+                enum:
+                  - runbook
+                  - remediation
+                  - notification
+                  - triage
+                description: Type of action
+              target_id:
+                type: string
+                format: uuid
+                description: ID of the target (runbook/remediation/etc.)
+              target_name:
+                type: string
+                description: Human-readable target name
+              params:
+                type: object
+                description: Action-specific parameters
+            required:
+              - action_type
+        cooldown_seconds:
+          type: integer
+          description: Minimum time between re-triggering
+          default: 3600
+          example: 3600
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - status
+        - conditions
+        - actions
+        - created_at
+        - updated_at
+
+    PolicyCreateRequest:
+      type: object
+      description: Payload for creating a policy
+      properties:
+        name:
+          type: string
+          description: Policy name
+          example: "Auto-remediate high error rates"
+        description:
+          type: string
+          description: Policy purpose
+        status:
+          type: string
+          enum:
+            - enabled
+            - disabled
+            - dry_run
+          default: disabled
+        severity:
+          type: string
+          enum:
+            - critical
+            - major
+            - minor
+            - warning
+            - info
+        conditions:
+          type: object
+          properties:
+            metric:
+              type: string
+            operator:
+              type: string
+              enum:
+                - gt
+                - gte
+                - lt
+                - lte
+                - eq
+                - neq
+            threshold:
+              type: number
+            duration_seconds:
+              type: integer
+            match_labels:
+              type: object
+              additionalProperties:
+                type: string
+          required:
+            - metric
+            - operator
+            - threshold
+        actions:
+          type: array
+          items:
+            type: object
+            properties:
+              action_type:
+                type: string
+                enum:
+                  - runbook
+                  - remediation
+                  - notification
+                  - triage
+              target_id:
+                type: string
+                format: uuid
+              target_name:
+                type: string
+              params:
+                type: object
+            required:
+              - action_type
+              - target_id
+        cooldown_seconds:
+          type: integer
+          default: 3600
+      required:
+        - name
+        - conditions
+        - actions
+
+    PolicyUpdateRequest:
+      type: object
+      description: Payload for updating a policy (full replacement)
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum:
+            - enabled
+            - disabled
+            - dry_run
+        severity:
+          type: string
+          enum:
+            - critical
+            - major
+            - minor
+            - warning
+            - info
+        conditions:
+          type: object
+          properties:
+            metric:
+              type: string
+            operator:
+              type: string
+              enum:
+                - gt
+                - gte
+                - lt
+                - lte
+                - eq
+                - neq
+            threshold:
+              type: number
+            duration_seconds:
+              type: integer
+            match_labels:
+              type: object
+              additionalProperties:
+                type: string
+          required:
+            - metric
+            - operator
+            - threshold
+        actions:
+          type: array
+          items:
+            type: object
+            properties:
+              action_type:
+                type: string
+                enum:
+                  - runbook
+                  - remediation
+                  - notification
+                  - triage
+              target_id:
+                type: string
+                format: uuid
+              target_name:
+                type: string
+              params:
+                type: object
+            required:
+              - action_type
+              - target_id
+        cooldown_seconds:
+          type: integer
+      required:
+        - name
+        - conditions
+        - actions
+
+    PolicyListResponse:
+      type: object
+      description: Paginated list of policies
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Policy"
+        pagination:
+          $ref: "#/components/schemas/PaginationInfo"
+      required:
+        - items
+        - pagination
+
+    # ==========================================================================
+    # Cost Entry (FinOps)
+    # ==========================================================================
+    CostEntry:
+      type: object
+      description: A single cloud cost entry
+      properties:
+        id:
+          type: string
+          format: uuid
+        provider:
+          type: string
+          enum:
+            - aws
+            - gcp
+            - azure
+            - other
+          description: Cloud provider
+          example: "aws"
+        service:
+          type: string
+          description: Cloud service name
+          example: "EC2"
+        region:
+          type: string
+          description: Cloud region
+          example: "us-east-1"
+        account_id:
+          type: string
+          description: Cloud account/tenant identifier
+          example: "123456789012"
+        resource_id:
+          type: string
+          description: Specific resource identifier
+          example: "i-0abcd1234efgh5678"
+        cost_amount:
+          type: number
+          description: Cost amount in the currency unit
+          example: 1234.56
+        currency:
+          type: string
+          description: ISO 4217 currency code
+          example: "USD"
+        usage_quantity:
+          type: number
+          description: Quantity of usage
+          example: 744.0
+        usage_unit:
+          type: string
+          description: Unit of measurement
+          example: "hours"
+        cost_category:
+          type: string
+          enum:
+            - compute
+            - storage
+            - networking
+            - database
+            - security
+            - management
+            - support
+            - other
+          description: Cost categorization
+          example: "compute"
+        date:
+          type: string
+          format: date
+          description: The date this cost entry applies to
+          example: "2026-06-02"
+        tags:
+          type: object
+          description: Resource tags
+          example:
+            environment: "production"
+            team: "platform"
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - provider
+        - service
+        - cost_amount
+        - currency
+        - date
+        - created_at
+
+    CostListResponse:
+      type: object
+      description: Paginated list of cost entries
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CostEntry"
+        pagination:
+          $ref: "#/components/schemas/PaginationInfo"
+      required:
+        - items
+        - pagination
+
+    CostSummary:
+      type: object
+      description: Aggregated cost summary
+      properties:
+        total_cost:
+          type: number
+          description: Total cost for the period
+          example: 45231.89
+        currency:
+          type: string
+          example: "USD"
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        groups:
+          type: array
+          description: Cost breakdown by the specified grouping
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+                description: The grouping key (provider, service, region, or date)
+                example: "EC2"
+              cost:
+                type: number
+                description: Cost for this group
+                example: 12345.67
+              percentage:
+                type: number
+                description: Percentage of total cost
+                example: 27.3
+              trend:
+                type: string
+                enum:
+                  - increasing
+                  - stable
+                  - decreasing
+                description: Cost trend compared to previous period
+            required:
+              - key
+              - cost
+        provider_breakdown:
+          type: object
+          description: Breakdown by provider
+          additionalProperties:
+            type: number
+          example:
+            aws: 30000.00
+            gcp: 10000.00
+            azure: 5231.89
+      required:
+        - total_cost
+        - currency
+        - start_date
+        - end_date
+        - groups
+
+    # ==========================================================================
+    # Report (FinOps)
+    # ==========================================================================
+    Report:
+      type: object
+      description: A generated FinOps report
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          description: Report title
+          example: "June 2026 FinOps Cost Analysis"
+        description:
+          type: string
+          description: Report description
+        report_type:
+          type: string
+          enum:
+            - cost_analysis
+            - savings_recommendations
+            - roi_analysis
+            - budget_comparison
+            - custom
+          description: Type of report
+          example: "cost_analysis"
+        status:
+          type: string
+          enum:
+            - generating
+            - completed
+            - failed
+          description: Report generation status
+          example: "completed"
+        parameters:
+          type: object
+          description: Report generation parameters used
+          properties:
+            start_date:
+              type: string
+              format: date
+            end_date:
+              type: string
+              format: date
+            group_by:
+              type: string
+            providers:
+              type: array
+              items:
+                type: string
+        total_cost:
+          type: number
+          nullable: true
+          description: Total cost covered in the report
+        potential_savings:
+          type: number
+          nullable: true
+          description: Total potential savings identified
+        file_size_bytes:
+          type: integer
+          nullable: true
+          description: Size of the generated report file
+        available_formats:
+          type: array
+          items:
+            type: string
+            enum:
+              - csv
+              - pdf
+              - xlsx
+          example:
+            - csv
+            - pdf
+        generated_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - report_type
+        - status
+        - created_at
+
+    ReportGenerateRequest:
+      type: object
+      description: Payload for generating a new FinOps report
+      properties:
+        title:
+          type: string
+          description: Report title
+          example: "June 2026 FinOps Cost Analysis"
+        description:
+          type: string
+          description: Report description
+        report_type:
+          type: string
+          enum:
+            - cost_analysis
+            - savings_recommendations
+            - roi_analysis
+            - budget_comparison
+            - custom
+          description: Type of report to generate
+          default: cost_analysis
+        start_date:
+          type: string
+          format: date
+          description: Start date for the report data
+        end_date:
+          type: string
+          format: date
+          description: End date for the report data
+        group_by:
+          type: string
+          enum:
+            - provider
+            - service
+            - region
+            - daily
+            - monthly
+          default: service
+          description: Grouping for cost breakdown
+        providers:
+          type: array
+          items:
+            type: string
+            enum:
+              - aws
+              - gcp
+              - azure
+            description: Cloud providers to include (all if omitted)
+        formats:
+          type: array
+          items:
+            type: string
+            enum:
+              - csv
+              - pdf
+              - xlsx
+          description: Desired output formats
+          default:
+            - csv
+      required:
+        - title
+        - start_date
+        - end_date
+
+    ReportListResponse:
+      type: object
+      description: Paginated list of reports
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Report"
+        pagination:
+          $ref: "#/components/schemas/PaginationInfo"
+      required:
+        - items
+        - pagination
+
+    # ==========================================================================
+    # Savings Recommendation (FinOps ROI)
+    # ==========================================================================
+    SavingsRecommendation:
+      type: object
+      description: A FinOps savings recommendation with ROI analysis
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          description: Recommendation title
+          example: "Rightsize m5.xlarge to m5.large for dev instances"
+        description:
+          type: string
+          description: Detailed recommendation description
+        category:
+          type: string
+          enum:
+            - compute_rightsizing
+            - reserved_instances
+            - storage_optimization
+            - data_transfer
+            - idle_resources
+            - license_optimization
+          description: Savings category
+          example: "compute_rightsizing"
+        provider:
+          type: string
+          enum:
+            - aws
+            - gcp
+            - azure
+            - other
+          description: Cloud provider
+          example: "aws"
+        service:
+          type: string
+          description: Target service
+          example: "EC2"
+        region:
+          type: string
+          description: Target region
+          example: "us-east-1"
+        resource_id:
+          type: string
+          nullable: true
+          description: Specific resource identifier
+        current_cost_monthly:
+          type: number
+          description: Current monthly cost in USD
+          example: 500.00
+        estimated_savings_monthly:
+          type: number
+          description: Estimated monthly savings in USD
+          example: 250.00
+        savings_percentage:
+          type: number
+          description: Estimated savings as percentage
+          example: 50.0
+        estimated_annual_savings:
+          type: number
+          description: Estimated annual savings in USD
+          example: 3000.00
+        confidence_score:
+          type: number
+          description: Confidence score (0-100)
+          example: 85
+          minimum: 0
+          maximum: 100
+        implementation_cost:
+          type: number
+          nullable: true
+          description: Estimated cost to implement in USD
+          example: 50.00
+        roe:
+          type: number
+          nullable: true
+          description: Return on Effort (savings / implementation cost)
+          example: 5.0
+        status:
+          type: string
+          enum:
+            - pending
+            - applied
+            - dismissed
+            - in_progress
+          description: Current status of the recommendation
+          example: "pending"
+        suggested_actions:
+          type: array
+          items:
+            type: string
+          description: Suggested steps to implement
+          example:
+            - "Modify instance type from m5.xlarge to m5.large"
+            - "Schedule change during maintenance window"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - category
+        - current_cost_monthly
+        - estimated_savings_monthly
+        - confidence_score
+        - status
+        - created_at
+
+    SavingsListResponse:
+      type: object
+      description: Paginated list of savings recommendations
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SavingsRecommendation"
+        pagination:
+          $ref: "#/components/schemas/PaginationInfo"
+        total_potential_savings:
+          type: number
+          description: Total potential monthly savings from all recommendations
+          example: 12500.00
+      required:
+        - items
+        - pagination
+        - total_potential_savings
+
+    # ==========================================================================
+    # Triage
+    # ==========================================================================
+    TriageTriggerRequest:
+      type: object
+      description: Payload for triggering autonomous triage
+      properties:
+        context:
+          type: object
+          description: Additional context for the triage agent
+          properties:
+            alert_source:
+              type: string
+              description: Source alert system
+              example: "prometheus"
+            raw_alert_data:
+              type: object
+              description: Raw alert payload
+            additional_notes:
+              type: string
+              description: Free-form notes for the agent
+
+    TriageResult:
+      type: object
+      description: An autonomous agent triage analysis result
+      properties:
+        id:
+          type: string
+          format: uuid
+        incident_id:
+          type: string
+          format: uuid
+          description: The incident that was triaged
+        status:
+          type: string
+          enum:
+            - queued
+            - processing
+            - completed
+            - failed
+          description: Current analysis status
+          example: "completed"
+        agent_version:
+          type: string
+          description: Version of the triage agent used
+          example: "2.1.0"
+        analysis_duration_ms:
+          type: integer
+          description: Time taken for analysis in milliseconds
+          example: 2340
+        recommendations:
+          type: array
+          items:
+            $ref: "#/components/schemas/TriageRecommendation"
+        suggested_severity:
+          type: string
+          enum:
+            - critical
+            - major
+            - minor
+            - warning
+            - info
+          nullable: true
+          description: AI-suggested severity level
+          example: "major"
+        suggested_assignee_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: AI-suggested assignee
+        suggested_runbook_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: AI-suggested runbook to execute
+        suggested_remediation_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: AI-suggested remediation to execute
+        confidence_score:
+          type: number
+          description: Overall confidence score (0-100)
+          example: 87
+          minimum: 0
+          maximum: 100
+        summary:
+          type: string
+          description: AI-generated triage summary
+          example: "This appears to be a networking-related incident affecting the API Gateway in us-east-1. Similar to incident INC-2024-05-31-001 which was resolved by scaling out the gateway instances."
+        error:
+          type: string
+          nullable: true
+          description: Error message if analysis failed
+        escalation_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID if this analysis was escalated
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - incident_id
+        - status
+        - created_at
+
+    TriageRecommendation:
+      type: object
+      description: A single recommendation from the triage agent
+      properties:
+        type:
+          type: string
+          enum:
+            - severity_change
+            - assignee_change
+            - runbook_execution
+            - remediation_execution
+            - notification
+            - escalation
+            - custom
+          description: Type of recommendation
+          example: "runbook_execution"
+        priority:
+          type: integer
+          description: Priority of the recommendation (1 = highest)
+          example: 1
+          minimum: 1
+          maximum: 10
+        title:
+          type: string
+          description: Recommendation title
+          example: "Execute API Gateway Recovery Runbook"
+        description:
+          type: string
+          description: Detailed recommendation description
+          example: "Based on the error patterns, executing the API Gateway Recovery runbook should mitigate the issue."
+        confidence:
+          type: number
+          description: Confidence in this specific recommendation (0-100)
+          example: 92
+          minimum: 0
+          maximum: 100
+        target_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the target resource (runbook/remediation/user)
+        target_name:
+          type: string
+          nullable: true
+          description: Human-readable target name
+          example: "API Gateway Recovery"
+        rationale:
+          type: string
+          description: AI rationale for the recommendation
+          example: "Incident symptoms match 3 previous incidents that were resolved by this runbook."
+        automated:
+          type: boolean
+          description: Whether this recommendation can be auto-applied
+          default: false
+      required:
+        - type
+        - title
+        - confidence
+
+    TriageListResponse:
+      type: object
+      description: Paginated list of triage analyses
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/TriageResult"
+        pagination:
+          $ref: "#/components/schemas/PaginationInfo"
+      required:
+        - items
+        - pagination
+
+    # ==========================================================================
+    # Workspace
+    # ==========================================================================
+    Workspace:
+      type: object
+      description: Local-first SRE workspace configuration
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          description: Workspace display name
+          example: "Production SRE Workspace"
+        description:
+          type: string
+          description: Workspace description
+        version:
+          type: string
+          description: Workspace schema version
+          example: "1.0.0"
+        settings:
+          type: object
+          description: Workspace settings
+          properties:
+            offline_mode:
+              type: boolean
+              description: Enable local-first offline operation
+              default: true
+            sync_interval_seconds:
+              type: integer
+              description: Automatic sync interval in seconds
+              default: 300
+              example: 300
+            auto_sync:
+              type: boolean
+              description: Automatically sync when online
+              default: true
+            default_runbook_id:
+              type: string
+              format: uuid
+              nullable: true
+              description: Default runbook for new incidents
+            timezone:
+              type: string
+              description: Workspace timezone
+              example: "UTC"
+            notification_preferences:
+              type: object
+              description: Notification settings
+              properties:
+                email:
+                  type: boolean
+                slack:
+                  type: boolean
+                pagerduty:
+                  type: boolean
+                webhook_url:
+                  type: string
+                  format: uri
+                  nullable: true
+        plugins:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkspacePlugin"
+          description: Installed plugins
+        last_sync_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp of last successful sync
+        last_sync_status:
+          type: string
+          enum:
+            - synced
+            - syncing
+            - failed
+            - never
+          description: Status of the last sync
+          example: "synced"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - version
+        - created_at
+        - updated_at
+
+    WorkspaceUpdateRequest:
+      type: object
+      description: Payload for updating workspace configuration (partial update)
+      properties:
+        name:
+          type: string
+          description: Updated workspace name
+        description:
+          type: string
+          description: Updated workspace description
+        settings:
+          type: object
+          description: Updated settings (partial merge)
+          properties:
+            offline_mode:
+              type: boolean
+            sync_interval_seconds:
+              type: integer
+            auto_sync:
+              type: boolean
+            default_runbook_id:
+              type: string
+              format: uuid
+              nullable: true
+            timezone:
+              type: string
+            notification_preferences:
+              type: object
+              properties:
+                email:
+                  type: boolean
+                slack:
+                  type: boolean
+                pagerduty:
+                  type: boolean
+                webhook_url:
+                  type: string
+                  format: uri
+                  nullable: true
+
+    WorkspaceStatus:
+      type: object
+      description: Workspace sync and health status
+      properties:
+        workspace_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        connectivity:
+          type: string
+          enum:
+            - online
+            - offline
+            - degraded
+          description: Current connectivity status
+          example: "online"
+        sync_status:
+          type: string
+          enum:
+            - synced
+            - syncing
+            - pending
+            - failed
+            - never
+          description: Current sync status
+          example: "synced"
+        last_sync_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_sync_duration_ms:
+          type: integer
+          nullable: true
+          description: Duration of last sync in milliseconds
+        pending_changes:
+          type: integer
+          description: Number of pending changes to sync
+          example: 0
+        offline_data_size_bytes:
+          type: integer
+          description: Size of locally cached data
+          example: 52428800
+        plugin_count:
+          type: integer
+          description: Number of installed plugins
+          example: 5
+        api_version:
+          type: string
+          description: API version compatibility
+          example: "1.0.0"
+        uptime_seconds:
+          type: integer
+          description: Workspace uptime in seconds
+          example: 86400
+        healthy:
+          type: boolean
+          description: Overall workspace health
+          example: true
+      required:
+        - workspace_id
+        - name
+        - connectivity
+        - sync_status
+        - healthy
+
+    WorkspaceSyncResult:
+      type: object
+      description: Result of a workspace sync operation
+      properties:
+        sync_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - synced
+            - syncing
+            - failed
+          description: Final sync status
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        duration_ms:
+          type: integer
+          nullable: true
+        changes_pulled:
+          type: integer
+          description: Number of changes pulled from server
+          example: 15
+        changes_pushed:
+          type: integer
+          description: Number of changes pushed to server
+          example: 3
+        errors:
+          type: array
+          items:
+            type: string
+          description: Sync errors if any
+      required:
+        - sync_id
+        - status
+        - started_at
+
+    WorkspacePlugin:
+      type: object
+      description: A plugin installed in the SRE workspace
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          description: Plugin name
+          example: "grafana-datasource"
+        display_name:
+          type: string
+          description: Human-readable plugin name
+          example: "Grafana Datasource"
+        description:
+          type: string
+          description: Plugin description
+        version:
+          type: string
+          description: Installed version (semver)
+          example: "1.2.3"
+        source:
+          type: string
+          format: uri
+          description: Plugin source URL
+          example: "https://plugins.rufkis.io/grafana-datasource"
+        enabled:
+          type: boolean
+          description: Whether the plugin is active
+          default: true
+        config:
+          type: object
+          description: Plugin-specific configuration
+          example:
+            grafana_url: "https://grafana.internal.example.com"
+            api_key_name: "grafana_api_key"
+        permissions:
+          type: array
+          items:
+            type: string
+          description: Required permissions
+          example:
+            - "read:metrics"
+            - "read:alerts"
+        installed_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - version
+        - source
+        - installed_at
+
+  responses:
+    BadRequest:
+      description: Bad request — invalid input parameters
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "bad_request"
+            message: "The request contains invalid parameters"
+            code: "ERR_BAD_REQUEST"
+            details:
+              - field: "severity"
+                reason: "must be one of: critical, major, minor, warning, info"
+                value: "unknown"
+            request_id: "req-a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+    Unauthorized:
+      description: Unauthorized — missing or invalid authentication token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "unauthorized"
+            message: "Authentication is required. Provide a valid Bearer token in the Authorization header."
+            code: "ERR_UNAUTHORIZED"
+            request_id: "req-b2c3d4e5-f6a7-8901-bcde-f12345678901"
+
+    Forbidden:
+      description: Forbidden — the authenticated user lacks the required permissions
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "forbidden"
+            message: "You do not have permission to perform this action."
+            code: "ERR_FORBIDDEN"
+            request_id: "req-c3d4e5f6-a7b8-9012-cdef-123456789012"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "not_found"
+            message: "The requested resource was not found."
+            code: "ERR_NOT_FOUND"
+            request_id: "req-d4e5f6a7-b8c9-0123-defa-234567890123"
+
+    Conflict:
+      description: Conflict — the request conflicts with the current state
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "conflict"
+            message: "The resource cannot be modified due to a conflict with its current state."
+            code: "ERR_CONFLICT"
+            request_id: "req-e5f6a7b8-c9d0-1234-efab-345678901234"
+
+    UnprocessableEntity:
+      description: Unprocessable entity — validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "validation_error"
+            message: "The request body failed validation."
+            code: "ERR_VALIDATION"
+            details:
+              - field: "title"
+                reason: "is required"
+              - field: "severity"
+                reason: "must be one of: critical, major, minor, warning, info"
+                value: "extreme"
+            request_id: "req-f6a7b8c9-d0e1-2345-fabc-456789012345"
+
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          description: Number of seconds to wait before retrying
+          schema:
+            type: integer
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+          description: Remaining requests in the current window (0)
+        X-RateLimit-Reset:
+          schema:
+            type: integer
+          description: Unix timestamp when the rate limit resets
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "rate_limited"
+            message: "API rate limit exceeded. Please wait before making further requests."
+            code: "ERR_RATE_LIMITED"
+            request_id: "req-a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "internal_error"
+            message: "An unexpected error occurred. Please try again later."
+            code: "ERR_INTERNAL"
+            request_id: "req-b2c3d4e5-f6a7-8901-bcde-f12345678901"
+
+tags:
+  - name: Incidents
+    description: |
+      Incident lifecycle management. Create, update, acknowledge, and resolve
+      incidents. Attach notes and trigger autonomous triage.
+  - name: Runbooks
+    description: |
+      Runbook automation. Define, execute, and track step-by-step response
+      procedures. Runbooks can be triggered manually or automatically by policies.
+  - name: Remediations
+    description: |
+      GitOps-native remediation pipelines. Remediations are declarative,
+      version-controlled pipelines that can automatically fix infrastructure
+      issues. Supports rollback and execution history.
+  - name: Policies
+    description: |
+      Policy engine. Define automated reactions to system conditions.
+      Policies can trigger runbooks, remediations, notifications, or triage.
+  - name: FinOps
+    description: |
+      Automated FinOps ROI analysis. Track cloud costs, generate reports,
+      and discover savings opportunities with confidence scoring and
+      return-on-effort calculations.
+  - name: Triage
+    description: |
+      Autonomous agent triage. AI-driven incident analysis that recommends
+      severity, assignee, runbooks, and remediation steps with confidence scoring.
+  - name: Workspace
+    description: |
+      Local-first SRE workspace management. Configure workspace settings,
+      manage plugins, control sync behavior, and export/import configurations.
+      Designed for offline-capable operation.

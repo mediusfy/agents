@@ -24,13 +24,14 @@ from openclaw.settings import settings
 
 logger = logging.getLogger(__name__)
 
+
 def _find_agy_brain_dirs() -> list[Path]:
     """Find agy brain directories containing .agents/agents/ structure."""
     candidates = []
     base_dirs = [
         Path.home() / ".gemini" / "antigravity-cli" / "brain",
         Path.home() / ".gemini" / "antigravity-ide" / "brain",
-        ]
+    ]
 
     for base in base_dirs:
         if not base.exists():
@@ -41,6 +42,7 @@ def _find_agy_brain_dirs() -> list[Path]:
 
     return candidates
 
+
 def _describe_model(model_spec: str) -> str:
     """Map a pydantic_ai model spec to a human-readable agy model name."""
     model_map: dict[str, str] = {
@@ -49,16 +51,19 @@ def _describe_model(model_spec: str) -> str:
         "gpt-4o": "openai:gpt-4o",
         "gemini-2.0-flash": "gemini:gemini-2.0-flash",
         "gemini-2.0-pro": "gemini:gemini-2.0-pro",
-        "gemini-3.1-pro": "gemini:gemini-3.1-pro", # Added based on your correction
-        "gemini-3.1-flash": "gemini:gemini-3.1-flash" # Added based on your correction
+        "gemini-3.1-pro": "gemini:gemini-3.1-pro",
+        "gemini-3.1-flash": "gemini:gemini-3.1-flash",
     }
     clean = model_spec.split(":", 1)[-1] if ":" in model_spec else model_spec
     return model_map.get(clean, model_spec)
 
+
 def _get_capabilities_docstring(name: str) -> str:
     """Return a human-readable description from known docstrings."""
     from openclaw.mcp_server import AGENT_DOCSTRINGS
+
     return AGENT_DOCSTRINGS.get(name, f"OpenClaw {name} agent")
+
 
 def build_agent_definition(agent_name: str, force_model: str = "") -> dict[str, Any]:
     """Build a single agent.json definition from the registry."""
@@ -111,6 +116,7 @@ def build_agent_definition(agent_name: str, force_model: str = "") -> dict[str, 
         },
     }
 
+
 async def sync_agent_definitions(target_dir: str | Path | None = None) -> int:
     """Generate and write agent.json files for all registered agents."""
     from openclaw.agents.registration import register_all_agents
@@ -121,8 +127,7 @@ async def sync_agent_definitions(target_dir: str | Path | None = None) -> int:
 
     if not targets:
         logger.warning(
-            "No agy brain .agents/agents/ directories found. "
-            "Run agy to initialize one, or pass an explicit target_dir."
+            "No agy brain .agents/agents/ directories found. Run agy to initialize one, or pass an explicit target_dir."
         )
         return 0
 
@@ -174,7 +179,9 @@ async def sync_agent_definitions(target_dir: str | Path | None = None) -> int:
 
     return written
 
+
 if __name__ == "__main__":
     import asyncio
+
     logging.basicConfig(level=logging.INFO)
     asyncio.run(sync_agent_definitions())

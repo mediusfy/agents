@@ -3,14 +3,16 @@ from pathlib import Path
 
 import pytest
 
+from openclaw.adapters.state_repository import LocalDiskStateRepository
 from openclaw.checkpoint import CheckpointManager
 from openclaw.models.core import PipelineState
 
 
 @pytest.fixture
 def manager(tmp_path, monkeypatch):
-    monkeypatch.setattr("openclaw.checkpoint.settings.checkpoint_dir", str(tmp_path))
-    return CheckpointManager(project_name="test_proj", run_id="test_run")
+    monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
+    repo = LocalDiskStateRepository(project_name="test_proj")
+    return CheckpointManager(repository=repo, run_id="test_run")
 
 
 @pytest.fixture
@@ -30,7 +32,7 @@ class TestCheckpointSaveLoad:
         assert manager.load("does_not_exist") is None
 
     def test_load_corrupt_json(self, manager):
-        filepath = Path(manager._get_filepath("corrupt"))
+        filepath = Path(manager.repository._get_filepath(manager.run_id, "corrupt"))
         filepath.parent.mkdir(parents=True, exist_ok=True)
         filepath.write_text("{invalid_json: true}")
         assert manager.load("corrupt") is None
@@ -51,8 +53,9 @@ class TestCheckpointClear:
         assert not manager.stage_exists("stage2")
 
     def test_clear_other_run_unaffected(self, manager, sample_state, tmp_path, monkeypatch):
-        monkeypatch.setattr("openclaw.checkpoint.settings.checkpoint_dir", str(tmp_path))
-        other = CheckpointManager(project_name="test_proj", run_id="other_run")
+        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
+        other_repo = LocalDiskStateRepository(project_name="test_proj")
+        other = CheckpointManager(repository=other_repo, run_id="other_run")
         manager.save("stage1", sample_state)
         other.save("stage_other", sample_state)
         manager.clear()
@@ -61,21 +64,23 @@ class TestCheckpointClear:
 
 class TestFindLatestRun:
     def test_no_checkpoints_returns_none(self, tmp_path, monkeypatch):
-        monkeypatch.setattr("openclaw.checkpoint.settings.checkpoint_dir", str(tmp_path))
-        m = CheckpointManager("empty")
+        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
+        repo = LocalDiskStateRepository(project_name="empty")
+        m = CheckpointManager(repository=repo)
         assert m.find_latest_run_id() is None
 
     def test_finds_latest_by_mtime(self, manager, tmp_path, monkeypatch):
-        monkeypatch.setattr("openclaw.checkpoint.settings.checkpoint_dir", str(tmp_path))
+        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
         run_a = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
         run_b = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
-        older = CheckpointManager("test_proj", run_id=run_a)
+        repo = LocalDiskStateRepository(project_name="test_proj")
+        older = CheckpointManager(repository=repo, run_id=run_a)
         older.save("s", PipelineState(run_id=run_a, stage="s"))
         time.sleep(0.01)
-        newer = CheckpointManager("test_proj", run_id=run_b)
+        newer = CheckpointManager(repository=repo, run_id=run_b)
         newer.save("s", PipelineState(run_id=run_b, stage="s"))
 
-        latest = CheckpointManager("test_proj").find_latest_run_id()
+        latest = CheckpointManager(repository=repo).find_latest_run_id()
         assert latest == run_b
 
 
@@ -86,7 +91,7 @@ class TestAtomicSave:
 
     def test_save_leaves_no_tmp_file_behind(self, manager, sample_state):
         manager.save("stage1", sample_state)
-        filepath = Path(manager._get_filepath("stage1"))
+        filepath = Path(manager.repository._get_filepath(manager.run_id, "stage1"))
         assert filepath.exists(), "final checkpoint not created"
         assert not filepath.with_suffix(filepath.suffix + ".tmp").exists(), "tmp file was left on disk after save()"
 

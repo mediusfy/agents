@@ -68,7 +68,7 @@ def show_status(entries: list[dict]):
             agent_durs[e["agent"]].append(e["duration_sec"])
 
         print(f"║ {'Agent':<22s} {'Runs':>5s} {'OK':>4s} {'Fail':>4s} {'Avg dur':>7s}")
-        print(f"║ {'─'*22} {'─'*5} {'─'*4} {'─'*4} {'─'*7}")
+        print(f"║ {'─' * 22} {'─' * 5} {'─' * 4} {'─' * 4} {'─' * 7}")
         for agent, count in agent_counts.most_common(12):
             succ = count - fail_agents.get(agent, 0)
             avg = sum(agent_durs[agent]) / len(agent_durs[agent])

@@ -32,10 +32,7 @@ async def delegate_to_agent(capability: str, prompt: str, context_summary: str) 
     current_depth = ctx_data.get("delegation_depth", 0)
 
     if current_depth >= MAX_DELEGATION_DEPTH:
-        return (
-            "ERROR: Maximum delegation depth reached. "
-            "You must complete the task with the information you have."
-        )
+        return "ERROR: Maximum delegation depth reached. You must complete the task with the information you have."
 
     full_prompt = (
         f"--- DELEGATED TASK ---\n"

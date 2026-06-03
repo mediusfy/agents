@@ -21,6 +21,7 @@ _APPROVAL_FILE_PATH: Path | None = None
 def _approval_file_path(project: str) -> Path:
     """Return path for approval marker file inside the project output dir."""
     from openclaw.settings import settings
+
     p = Path(str(settings.output_dir)) / project / _APPROVAL_FILE
     p.parent.mkdir(parents=True, exist_ok=True)
     return p
@@ -57,11 +58,12 @@ async def apply(state: PipelineState, project: str = "default", timeout: float =
         logger.warning("=" * 60)
         logger.warning("CTO APPROVAL GATE — Implementation blocked")
         logger.warning("=" * 60)
-        blockers = state.advisory_results.get("cto_blockers", [])
-        if blockers:
+        blockers_str = state.advisory_results.get("cto_blockers", "")
+        if blockers_str:
             logger.warning("CTO-identified bottlenecks:")
-            for b in blockers:
-                logger.warning("  • %s", b)
+            for b in blockers_str.split("\n"):
+                if b.strip():
+                    logger.warning("  • %s", b.strip())
 
         # Check for env override
         if os.environ.get("OPENCLAW_CTO_OVERRIDE"):

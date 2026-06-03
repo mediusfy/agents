@@ -1,0 +1,502 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Rufkis SRE Platform — Domain 3: Autonomous Agent Triage",
+    "version": "1.0.0"
+  },
+  "components": {
+    "schemas": {
+
+      // ============================================================
+      // 3.1 Incident
+      // ============================================================
+      "Incident": {
+        "description": "An operational incident detected by monitoring, alerting, or user report. Central entity for triage, classification, and remediation.",
+        "type": "object",
+        "required": [
+          "id", "title", "severity", "status", "source",
+          "detected_at", "workspace_id"
+        ],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "external_id": {
+            "type": "string",
+            "nullable": true,
+            "description": "External alert ID (e.g., PagerDuty incident ID, Datadog alert ID)"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 512,
+            "description": "Short incident title"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 10240,
+            "description": "Detailed incident description in Markdown"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["SEV0", "SEV1", "SEV2", "SEV3", "SEV4", "UNKNOWN"],
+            "description": "SEV0 = Critical (outage), SEV1 = Major, SEV2 = Moderate, SEV3 = Minor, SEV4 = Informational"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Detected",
+              "Acknowledged",
+              "TriageInProgress",
+              "Investigating",
+              "Remediating",
+              "Monitoring",
+              "Resolved",
+              "Closed",
+              "FalsePositive"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "Datadog",
+              "Prometheus",
+              "PagerDuty",
+              "CloudWatch",
+              "Grafana",
+              "UserReport",
+              "SyntheticCheck",
+              "AgentTriage",
+              "OpsGenie",
+              "Slack",
+              "Webhook",
+              "Other"
+            ]
+          },
+          "source_event_id": {
+            "type": "string",
+            "nullable": true,
+            "description": "ID within the source system"
+          },
+          "service_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "FK → Service.id (affected service)"
+          },
+          "service_name": {
+            "type": "string",
+            "maxLength": 255,
+            "nullable": true,
+            "description": "Denormalized for quick lookup"
+          },
+          "environment": {
+            "$ref": "../domain1_gitops_remediation.json#/components/schemas/EnvironmentRef",
+            "nullable": true
+          },
+          "classification": {
+            "$ref": "#/components/schemas/IncidentClassification",
+            "nullable": true,
+            "description": "Agent-generated classification (set after triage)"
+          },
+          "rca_summary": {
+            "$ref": "#/components/schemas/RCASummary",
+            "nullable": true,
+            "description": "Root cause analysis suggestion"
+          },
+          "assigned_to": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "On-call engineer or agent ID"
+          },
+          "escalation_policy_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "FK → EscalationPolicy.id"
+          },
+          "remediation_execution_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "FK → RunbookExecution.id if auto-remediated"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "FK → Workspace.id (multi-tenant isolation)"
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Flexible incident tags"
+          },
+          "detected_at": { "type": "string", "format": "date-time" },
+          "acknowledged_at": { "type": "string", "format": "date-time", "nullable": true },
+          "resolved_at": { "type": "string", "format": "date-time", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time", "nullable": true }
+        }
+      },
+
+      // ============================================================
+      // 3.2 IncidentClassification
+      // ============================================================
+      "IncidentClassification": {
+        "description": "AI-generated classification of an incident, determining category, ownership, and urgency.",
+        "type": "object",
+        "required": ["category", "confidence_score"],
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "Infrastructure",
+              "Application",
+              "Network",
+              "Security",
+              "Database",
+              "Deployment",
+              "Configuration",
+              "Capacity",
+              "Dependency",
+              "Cost",
+              "Other"
+            ]
+          },
+          "sub_category": {
+            "type": "string",
+            "nullable": true,
+            "description": "Specific sub-category (e.g., 'PodCrashLoop', 'HighLatency', 'QuotaExceeded')"
+          },
+          "suggested_team_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "Recommended ownership team"
+          },
+          "suggested_team_name": {
+            "type": "string",
+            "maxLength": 255,
+            "nullable": true
+          },
+          "confidence_score": {
+            "type": "number",
+            "format": "float",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "reasoning": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 2048,
+            "description": "AI reasoning for this classification"
+          },
+          "classified_by": {
+            "type": "string",
+            "description": "Agent ID or model name (e.g., 'rufkis-agent-v2')"
+          },
+          "classified_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+
+      // ============================================================
+      // 3.3 RCASummary
+      // ============================================================
+      "RCASummary": {
+        "description": "AI-generated root cause analysis suggestion for an incident.",
+        "type": "object",
+        "required": ["summary", "confidence_score"],
+        "properties": {
+          "summary": {
+            "type": "string",
+            "maxLength": 4096,
+            "description": "Natural language root cause summary"
+          },
+          "confidence_score": {
+            "type": "number",
+            "format": "float",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "likely_causes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["cause", "probability"],
+              "properties": {
+                "cause": { "type": "string", "maxLength": 500 },
+                "probability": {
+                  "type": "number",
+                  "format": "float",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "evidence": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Log snippets, metric names, or event IDs supporting this cause"
+                }
+              }
+            },
+            "minItems": 1,
+            "maxItems": 5
+          },
+          "related_events": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "event_id": { "type": "string" },
+                "event_type": { "type": "string" },
+                "timestamp": { "type": "string", "format": "date-time" },
+                "summary": { "type": "string" }
+              }
+            },
+            "description": "Chronologically related events that preceded the incident"
+          },
+          "suggested_runbook_ids": {
+            "type": "array",
+            "items": { "type": "string", "format": "uuid" },
+            "description": "Runbooks that could remediate this incident"
+          },
+          "generated_by": { "type": "string" },
+          "generated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+
+      // ============================================================
+      // 3.4 SelfHealingExecution
+      // ============================================================
+      "SelfHealingExecution": {
+        "description": "An automated self-healing action executed by a triage agent without requiring human approval.",
+        "type": "object",
+        "required": [
+          "id", "incident_id", "action_type", "status",
+          "triggered_by", "started_at"
+        ],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "incident_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "FK → Incident.id"
+          },
+          "runbook_execution_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "FK → RunbookExecution.id if a full runbook was executed"
+          },
+          "action_type": {
+            "type": "string",
+            "enum": [
+              "RestartService",
+              "ScaleUp",
+              "ScaleDown",
+              "RollbackDeployment",
+              "ClearCache",
+              "DrainNode",
+              "RestartPod",
+              "IncreaseResourceLimits",
+              "RunCleanupScript",
+              "ToggleFeatureFlag",
+              "Other"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["Pending", "ApprovalRequired", "Running", "Succeeded", "Failed", "RolledBack", "Skipped"]
+          },
+          "triggered_by": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Agent or system ID"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 1024,
+            "description": "Why this action was taken"
+          },
+          "expected_impact": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 500,
+            "description": "Expected outcome of the healing action"
+          },
+          "result": {
+            "type": "string",
+            "nullable": true,
+            "description": "Result summary in Markdown"
+          },
+          "needs_human_approval": {
+            "type": "boolean",
+            "default": false,
+            "description": "If true, action was paused for human-in-the-loop approval"
+          },
+          "approved_by": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "started_at": { "type": "string", "format": "date-time" },
+          "completed_at": { "type": "string", "format": "date-time", "nullable": true },
+          "duration_ms": { "type": "integer", "nullable": true }
+        }
+      },
+
+      // ============================================================
+      // 3.5 EscalationPolicy
+      // ============================================================
+      "EscalationPolicy": {
+        "description": "Defines escalation rules for incidents based on severity, duration, and other factors.",
+        "type": "object",
+        "required": ["id", "name", "tiers", "created_at"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 1024
+          },
+          "tiers": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/EscalationTier" },
+            "description": "Ordered escalation tiers (first = primary on-call)"
+          },
+          "severity_rules": {
+            "type": "object",
+            "nullable": true,
+            "description": "Severity-specific override rules",
+            "properties": {
+              "SEV0": {
+                "type": "object",
+                "properties": {
+                  "max_wait_minutes": { "type": "integer", "default": 5 },
+                  "notify_channels": {
+                    "type": "array",
+                    "items": { "type": "string", "enum": ["Email", "Slack", "PagerDuty", "SMS", "Phone"] }
+                  }
+                }
+              },
+              "SEV1": {
+                "type": "object",
+                "properties": {
+                  "max_wait_minutes": { "type": "integer", "default": 15 },
+                  "notify_channels": {
+                    "type": "array",
+                    "items": { "type": "string", "enum": ["Email", "Slack", "PagerDuty", "SMS"] }
+                  }
+                }
+              }
+            }
+          },
+          "is_active": {
+            "type": "boolean",
+            "default": true
+          },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time", "nullable": true }
+        }
+      },
+
+      "EscalationTier": {
+        "description": "A single escalation level within a policy.",
+        "type": "object",
+        "required": ["tier_number", "target_type", "target_id", "wait_minutes"],
+        "properties": {
+          "tier_number": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Escalation level (1 = first response)"
+          },
+          "target_type": {
+            "type": "string",
+            "enum": ["User", "Team", "Schedule", "SlackChannel", "Webhook"]
+          },
+          "target_id": {
+            "type": "string",
+            "description": "ID of the target (user UUID, team UUID, schedule UUID, etc.)"
+          },
+          "target_name": {
+            "type": "string",
+            "nullable": true,
+            "description": "Human-readable name for display"
+          },
+          "wait_minutes": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Minutes to wait before escalating to the next tier"
+          },
+          "notify_channels": {
+            "type": "array",
+            "items": { "type": "string", "enum": ["Email", "Slack", "PagerDuty", "SMS", "Phone"] },
+            "default": ["Slack"]
+          },
+          "human_in_the_loop_required": {
+            "type": "boolean",
+            "default": false,
+            "description": "If true, agent cannot auto-remediate; must wait for human"
+          }
+        }
+      },
+
+      // ============================================================
+      // 3.6 IncidentTimelineEvent
+      // ============================================================
+      "IncidentTimelineEvent": {
+        "description": "A single timeline entry for an incident, tracking all state changes, actions, and notes.",
+        "type": "object",
+        "required": ["id", "incident_id", "event_type", "timestamp"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "incident_id": { "type": "string", "format": "uuid" },
+          "event_type": {
+            "type": "string",
+            "enum": [
+              "Detected",
+              "Acknowledged",
+              "ClassificationUpdated",
+              "RCAUpdated",
+              "SeverityChanged",
+              "StatusChanged",
+              "Assigned",
+              "Escalated",
+              "RunbookExecuted",
+              "SelfHealingTriggered",
+              "HumanNote",
+              "SlackMessage",
+              "TicketLinked",
+              "Resolved",
+              "Reopened",
+              "Closed"
+            ]
+          },
+          "actor_id": { "type": "string", "format": "uuid", "nullable": true },
+          "actor_type": {
+            "type": "string",
+            "enum": ["User", "Agent", "System", "Webhook"],
+            "default": "System"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 2048
+          },
+          "details": {
+            "type": "object",
+            "nullable": true,
+            "description": "Event-specific structured data (e.g., old/new severity values)"
+          },
+          "timestamp": { "type": "string", "format": "date-time" }
+        }
+      }
+
+    }
+  }
+}

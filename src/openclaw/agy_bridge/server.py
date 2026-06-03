@@ -11,6 +11,7 @@ from openclaw.registry import registry
 
 logger = logging.getLogger(__name__)
 
+
 async def _handle_command(cmd: dict) -> dict:
     """Handle an incoming command dictionary and return a response dictionary."""
     command = cmd.get("command")
@@ -23,27 +24,22 @@ async def _handle_command(cmd: dict) -> dict:
         agents_meta = []
         for name in agent_names:
             agent = BridgeAgent.from_registry(name)
-            agents_meta.append({
-                "name": name,
-                "description": agent.get_system_prompt(),
-                "tools": agent.get_tool_names()
-            })
-        return {
-            "response": {
-                "count": len(agents_meta),
-                "agents": agents_meta
-            }
-        }
+            agents_meta.append(
+                {"name": name, "description": agent.get_system_prompt(), "tools": agent.get_tool_names()}
+            )
+        return {"response": {"count": len(agents_meta), "agents": agents_meta}}
 
     elif command == "get-agent":
         agent_name = cmd.get("agent_name")
+        if not isinstance(agent_name, str):
+            return {"error": "agent_name must be a string"}
         try:
             agent = BridgeAgent.from_registry(agent_name)
             return {
                 "response": {
                     "name": agent_name,
                     "description": agent.get_system_prompt(),
-                    "tools": agent.get_tool_names()
+                    "tools": agent.get_tool_names(),
                 }
             }
         except AgentNotFoundError:
@@ -56,7 +52,9 @@ async def _handle_command(cmd: dict) -> dict:
     else:
         return {"error": f"unknown command: {command}"}
 
+
 # ── Input Processing ─────────────────────────────────────────────────
+
 
 async def _read_command_async() -> str | None:
     """Asynchronously read one command from stdin (line-based NDJSON or first-arg)."""
@@ -73,7 +71,9 @@ async def _read_command_async() -> str | None:
 
     return None
 
+
 # ── Main Loop ────────────────────────────────────────────────────────
+
 
 async def run_server_loop() -> None:
     """Run the agentapi protocol server in a loop, reading from stdin asynchronously."""
@@ -82,9 +82,7 @@ async def run_server_loop() -> None:
     register_all_agents()
     logger.info("Agy bridge server started with %d agents", len(registry.list_agents()))
 
-    sys.stderr.write(
-        json.dumps({"event": "server_started", "agents": len(registry.list_agents())}) + "\n"
-    )
+    sys.stderr.write(json.dumps({"event": "server_started", "agents": len(registry.list_agents())}) + "\n")
 
     # Read initial command asynchronously
     command = await _read_command_async()
@@ -105,9 +103,7 @@ async def run_server_loop() -> None:
 
     # Interactive/daemon mode: continuous asynchronous read loop
     logger.info("Starting interactive command loop")
-    sys.stderr.write(
-        json.dumps({"event": "ready", "agents": len(registry.list_agents())}) + "\n"
-    )
+    sys.stderr.write(json.dumps({"event": "ready", "agents": len(registry.list_agents())}) + "\n")
 
     loop = asyncio.get_running_loop()
 
@@ -137,6 +133,7 @@ async def run_server_loop() -> None:
             logger.exception("Unhandled error processing command")
             sys.stdout.write(json.dumps({"error": f"internal error: {e}"}) + "\n")
             sys.stdout.flush()
+
 
 if __name__ == "__main__":
     asyncio.run(run_server_loop())

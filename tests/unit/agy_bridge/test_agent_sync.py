@@ -1,4 +1,3 @@
-
 from unittest.mock import AsyncMock, patch
 
 from openclaw.agy_bridge.server import _handle_command

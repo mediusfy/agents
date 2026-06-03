@@ -1,0 +1,530 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Rufkis SRE Platform — Domain 1: GitOps-Native Remediation",
+    "version": "1.0.0"
+  },
+  "components": {
+    "schemas": {
+
+      // ============================================================
+      // 1.1 RunbookDefinition
+      // ============================================================
+      "RunbookDefinition": {
+        "description": "A runbook stored as a YAML definition in a Git repository. Represents a playbook for automating incident remediation steps.",
+        "type": "object",
+        "required": ["id", "name", "git_repo", "git_path", "version", "status", "created_by", "created_at"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Human-readable runbook name (e.g., 'Restart Kubernetes Pod')"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2048,
+            "nullable": true,
+            "description": "Markdown description of the runbook purpose"
+          },
+          "git_repo": {
+            "type": "string",
+            "format": "uri",
+            "description": "Git repository URL (e.g., https://github.com/rufkis/runbooks)"
+          },
+          "git_path": {
+            "type": "string",
+            "description": "Path within the repo to the YAML file (e.g., 'runbooks/infra/restart-pod.yaml')"
+          },
+          "git_ref": {
+            "type": "string",
+            "description": "Git branch or tag (e.g., 'main', 'v1.2.3')",
+            "default": "main"
+          },
+          "commit_sha": {
+            "type": "string",
+            "maxLength": 64,
+            "nullable": true,
+            "description": "Latest commit SHA that changed this runbook"
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d+\\.\\d+$",
+            "description": "Semantic version of the runbook definition"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["Active", "Draft", "Deprecated", "Archived"],
+            "description": "Lifecycle status"
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string", "maxLength": 50 },
+            "description": "Tags for categorization (e.g., ['kubernetes', 'networking'])"
+          },
+          "steps": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/RunbookStep" },
+            "description": "Ordered list of remediation steps"
+          },
+          "required_approvals": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "description": "Number of approvals required before automated execution"
+          },
+          "timeout_seconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 86400,
+            "default": 600,
+            "description": "Max execution time in seconds before timeout"
+          },
+          "allowed_services": {
+            "type": "array",
+            "items": { "type": "string" },
+            "nullable": true,
+            "description": "Service slugs this runbook is scoped to (null = unrestricted)"
+          },
+          "created_by": {
+            "type": "string",
+            "format": "uuid",
+            "description": "User ID of the creator"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+
+      // ------------------------------------------------------------
+      // 1.1a RunbookStep (nested)
+      // ------------------------------------------------------------
+      "RunbookStep": {
+        "description": "A single atomic step within a runbook.",
+        "type": "object",
+        "required": ["order", "action", "target"],
+        "properties": {
+          "order": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Execution order (1-based)"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Short step label"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "ExecuteScript",
+              "InvokeWebhook",
+              "RestartService",
+              "ScaleResource",
+              "RollbackDeployment",
+              "RunSQL",
+              "SendNotification",
+              "ManualStep"
+            ],
+            "description": "Type of action to perform"
+          },
+          "target": {
+            "type": "string",
+            "description": "Target identifier (e.g., service name, endpoint URL, script path)"
+          },
+          "parameters": {
+            "type": "object",
+            "nullable": true,
+            "description": "Action-specific key-value parameters (free-form JSON)"
+          },
+          "condition": {
+            "type": "string",
+            "nullable": true,
+            "description": "CEL or JSONPath expression that must evaluate to true before this step runs"
+          },
+          "retry_count": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          },
+          "timeout_seconds": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 300
+          },
+          "on_failure": {
+            "type": "string",
+            "enum": ["Abort", "Skip", "Retry", "Escalate"],
+            "default": "Abort",
+            "description": "Behaviour if this step fails"
+          }
+        }
+      },
+
+      // ============================================================
+      // 1.2 RemediationRequest
+      // ============================================================
+      "RemediationRequest": {
+        "description": "A PR/MR-based request to execute a runbook against a target environment. Triggered manually or by a triage agent.",
+        "type": "object",
+        "required": ["id", "runbook_id", "status", "environment", "requested_by", "created_at"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "runbook_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "FK → RunbookDefinition.id"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 512,
+            "description": "Short description (e.g., 'Restart nginx in prod-us-east-1')"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PendingApproval",
+              "Approved",
+              "Running",
+              "Succeeded",
+              "Failed",
+              "Rejected",
+              "Cancelled",
+              "RolledBack"
+            ]
+          },
+          "environment": {
+            "$ref": "#/components/schemas/EnvironmentRef",
+            "description": "Target environment for remediation"
+          },
+          "parameters_override": {
+            "type": "object",
+            "nullable": true,
+            "description": "Runtime parameter overrides for runbook steps"
+          },
+          "pull_request_url": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true,
+            "description": "Link to the generated PR/MR in the Git provider"
+          },
+          "pull_request_id": {
+            "type": "string",
+            "nullable": true,
+            "description": "Platform-specific PR ID (e.g., 'GH-142')"
+          },
+          "approval_gate_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "FK → ApprovalGate.id, if applicable"
+          },
+          "approved_by": {
+            "type": "array",
+            "items": { "type": "string", "format": "uuid" },
+            "description": "User IDs who approved this request"
+          },
+          "execution_log_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "FK → RunbookExecution.id"
+          },
+          "requested_by": {
+            "type": "string",
+            "format": "uuid",
+            "description": "User or agent ID that initiated the request"
+          },
+          "source": {
+            "type": "string",
+            "enum": ["Manual", "AgentTriage", "Scheduled", "Webhook"],
+            "default": "Manual"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+
+      // ============================================================
+      // 1.3 ApprovalGate / PolicyRule
+      // ============================================================
+      "ApprovalGate": {
+        "description": "An approval policy that gates remediation requests based on conditions.",
+        "type": "object",
+        "required": ["id", "name", "rules", "created_at"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1024,
+            "nullable": true
+          },
+          "rules": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/PolicyRule" },
+            "minItems": 1,
+            "description": "All rules must be satisfied for approval (AND semantics)"
+          },
+          "required_approver_count": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "auto_approve_if": {
+            "type": "string",
+            "nullable": true,
+            "description": "CEL expression that, if true, bypasses human approval"
+          },
+          "is_active": {
+            "type": "boolean",
+            "default": true
+          },
+          "created_by": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time", "nullable": true }
+        }
+      },
+
+      "PolicyRule": {
+        "description": "A single condition in an approval gate policy.",
+        "type": "object",
+        "required": ["field", "operator", "value"],
+        "properties": {
+          "field": {
+            "type": "string",
+            "enum": [
+              "environment",
+              "service",
+              "runbook_id",
+              "time_of_day",
+              "day_of_week",
+              "requested_by_role",
+              "cost_impact",
+              "risk_score",
+              "custom_label"
+            ],
+            "description": "Field to evaluate"
+          },
+          "operator": {
+            "type": "string",
+            "enum": [
+              "Equals",
+              "NotEquals",
+              "In",
+              "NotIn",
+              "MatchesRegex",
+              "LessThan",
+              "GreaterThan",
+              "Between"
+            ]
+          },
+          "value": {
+            "description": "Value(s) to compare against. Array for In/NotIn/Between."
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true,
+            "description": "Human-readable explanation shown to the approver"
+          }
+        }
+      },
+
+      // ============================================================
+      // 1.4 AuditLogEntry
+      // ============================================================
+      "AuditLogEntry": {
+        "description": "Immutable audit trail for all remediation and configuration change events.",
+        "type": "object",
+        "required": ["id", "action", "actor_id", "actor_type", "resource_type", "resource_id", "timestamp"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the event occurred (server time)"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "RunbookCreated", "RunbookUpdated", "RunbookDeleted",
+              "RunbookExecuted", "RunbookStepCompleted", "RunbookFailed",
+              "RemediationRequested", "RemediationApproved", "RemediationRejected",
+              "RemediationStarted", "RemediationSucceeded", "RemediationFailed",
+              "RemediationRolledBack",
+              "ApprovalGateCreated", "ApprovalGateModified",
+              "PolicyRuleViolated",
+              "ConfigurationChanged"
+            ]
+          },
+          "actor_id": {
+            "type": "string",
+            "description": "User ID, Agent ID, or System"
+          },
+          "actor_type": {
+            "type": "string",
+            "enum": ["User", "Agent", "System", "Webhook"]
+          },
+          "resource_type": {
+            "type": "string",
+            "enum": ["RunbookDefinition", "RemediationRequest", "ApprovalGate", "PolicyRule", "Configuration"]
+          },
+          "resource_id": {
+            "type": "string",
+            "description": "ID of the affected resource"
+          },
+          "changes": {
+            "type": "object",
+            "nullable": true,
+            "description": "JSON diff of before/after state (RFC 6902 JSON Patch or similar)"
+          },
+          "metadata": {
+            "type": "object",
+            "nullable": true,
+            "description": "Free-form context (e.g., request IP, PR URL, environment)"
+          },
+          "correlation_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "Groups related entries across multiple resources"
+          }
+        }
+      },
+
+      // ============================================================
+      // 1.5 RunbookExecution
+      // ============================================================
+      "RunbookExecution": {
+        "description": "Record of a runbook being executed, tracking each step's result.",
+        "type": "object",
+        "required": ["id", "runbook_id", "status", "started_at"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "runbook_id": { "type": "string", "format": "uuid" },
+          "remediation_request_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "FK → RemediationRequest.id"
+          },
+          "triggered_by": { "type": "string", "format": "uuid" },
+          "status": {
+            "type": "string",
+            "enum": ["Pending", "Running", "Paused", "Succeeded", "Failed", "TimedOut", "Aborted", "RolledBack"]
+          },
+          "environment": { "$ref": "#/components/schemas/EnvironmentRef" },
+          "current_step": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Index of the currently executing step (0 = not started)"
+          },
+          "step_results": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/StepResult" }
+          },
+          "error_message": { "type": "string", "nullable": true },
+          "started_at": { "type": "string", "format": "date-time" },
+          "completed_at": { "type": "string", "format": "date-time", "nullable": true },
+          "duration_ms": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Total execution duration in milliseconds"
+          }
+        }
+      },
+
+      "StepResult": {
+        "type": "object",
+        "required": ["order", "status"],
+        "properties": {
+          "order": { "type": "integer" },
+          "status": {
+            "type": "string",
+            "enum": ["Pending", "Running", "Succeeded", "Failed", "Skipped", "TimedOut"]
+          },
+          "output": {
+            "type": "string",
+            "nullable": true,
+            "description": "Stdout / structured output of the step"
+          },
+          "error": { "type": "string", "nullable": true },
+          "started_at": { "type": "string", "format": "date-time", "nullable": true },
+          "completed_at": { "type": "string", "format": "date-time", "nullable": true },
+          "duration_ms": { "type": "integer", "nullable": true }
+        }
+      },
+
+      // ============================================================
+      // Shared: EnvironmentRef
+      // ============================================================
+      "EnvironmentRef": {
+        "description": "Reference to a target environment for remediation or deployment.",
+        "type": "object",
+        "required": ["provider", "region", "cluster", "namespace"],
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": ["aws", "gcp", "azure", "on_premise", "kubernetes"]
+          },
+          "region": {
+            "type": "string",
+            "description": "Cloud region (e.g., 'us-east-1', 'europe-west1')"
+          },
+          "cluster": {
+            "type": "string",
+            "description": "Cluster or account identifier"
+          },
+          "namespace": {
+            "type": "string",
+            "description": "Kubernetes namespace or logical environment tier (e.g., 'production', 'staging')"
+          },
+          "labels": {
+            "type": "object",
+            "additionalProperties": { "type": "string" },
+            "nullable": true
+          }
+        }
+      }
+
+    }
+  }
+}

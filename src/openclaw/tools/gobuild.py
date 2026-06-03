@@ -57,7 +57,9 @@ async def _init_and_tidy(temp_dir: str) -> str | None:
 async def _run_build(temp_dir: str) -> str:
     """Run go build and return result string."""
     build_proc = await asyncio.create_subprocess_exec(
-        "go", "build", "./...",
+        "go",
+        "build",
+        "./...",
         cwd=temp_dir,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
@@ -77,7 +79,9 @@ async def _run_build(temp_dir: str) -> str:
 async def _run_vet(temp_dir: str) -> str:
     """Run go vet and return result string."""
     vet_proc = await asyncio.create_subprocess_exec(
-        "go", "vet", "./...",
+        "go",
+        "vet",
+        "./...",
         cwd=temp_dir,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,

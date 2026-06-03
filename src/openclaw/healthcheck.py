@@ -73,6 +73,7 @@ def validate_database() -> list[str]:
     async def _check():
         try:
             import asyncpg
+
             conn = await asyncpg.connect(dsn, timeout=5)
             row = await conn.fetchrow("SELECT extversion FROM pg_extension WHERE extname = 'vector'")
             if row is None:
@@ -85,6 +86,7 @@ def validate_database() -> list[str]:
         return errors
 
     import asyncio
+
     try:
         asyncio.get_running_loop()
         # already inside an event loop — can't call asyncio.run()
