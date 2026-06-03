@@ -29,7 +29,7 @@ DEFAULT_REQUIREMENT = (
     "and emits 'NotificationDetailsEvent' or 'NotificationStatus' events."
 )
 STEP_CHOICES = ["ba", "backend", "frontend", "test", "sre", "review", "database", "devops", "docs", "security", "all"]
-DEFAULT_AGENT_TIMEOUT = 600.0
+DEFAULT_AGENT_TIMEOUT = float(os.getenv("AGENT_TIMEOUT", "3600.0"))
 
 
 async def run_agent(
@@ -191,24 +191,25 @@ async def run_implementation_stage(
         for us in user_stories:
             for agent, prompt_template, extra in [
                 ("backend",
-                 f"Implement backend for story {us.id}: {us.title}\n\nFULL GHERKIN:\n{us.gherkin}\n\nEVENTS:\n" +
+                 f"CTO ADVICE:\n{cto_advice}\n\n" +
+                 f"FULL GHERKIN:\n{us.gherkin}\n\nEVENTS:\n" +
                  "\n".join(f" - {e.name}: {e.description}" for e in (us.event_triggers or [])) +
-                 f"\n\nCTO ADVICE:\n{cto_advice}",
+                 f"\n\nTASK:\nImplement backend for story {us.id}: {us.title}",
                  f"story_id={us.id}, gherkin_len={len(us.gherkin)}, events={len(us.event_triggers or [])}"),
                 ("frontend",
                  (
-                     f"Implement frontend for story {us.id}: {us.title}\n\n"
-                     f"FULL GHERKIN:\n{us.gherkin}\n\n"
                      f"CTO ADVICE:\n{cto_advice}\n\n"
-                     f"UX GUIDELINES:\n{ux_advice}"
+                     f"UX GUIDELINES:\n{ux_advice}\n\n"
+                     f"FULL GHERKIN:\n{us.gherkin}\n\n"
+                     f"TASK:\nImplement frontend for story {us.id}: {us.title}"
                  ),
                  f"story_id={us.id}, gherkin_len={len(us.gherkin)}, ux_len={len(ux_advice)}"),
                 ("database",
                  (
-                     f"Generate database schema/migrations for story {us.id}: "
-                     f"{us.title}\n\nFULL GHERKIN:\n{us.gherkin}\n\nEVENTS:\n"
+                     f"FULL GHERKIN:\n{us.gherkin}\n\nEVENTS:\n"
                      + "\n".join(f" - {e.name}: {e.description}"
                                 for e in (us.event_triggers or []))
+                     + f"\n\nTASK:\nGenerate database schema/migrations for story {us.id}: {us.title}"
                  ),
                  f"story_id={us.id}, gherkin_len={len(us.gherkin)}"),
             ]:

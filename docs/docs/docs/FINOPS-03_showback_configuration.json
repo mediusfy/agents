@@ -1,0 +1,81 @@
+
+
+{
+  "service": "finops-showback-reporting",
+  "version": "1.0.0",
+  "database": {
+    "migrations": [
+      {
+        "file": "FINOPS-03_000_showback_reporting.up.sql",
+        "description": "Core schema: teams, services, providers, regions, allocations, reports, publications, outbox"
+      },
+      {
+        "file": "FINOPS-03_001_outbox_triggers.up.sql",
+        "description": "Transactional outbox triggers and report generation stored procedure"
+      }
+    ],
+    "seeds": [
+      {
+        "file": "FINOPS-03_000_showback_reporting_seed.sql",
+        "description": "Reference data: SRE teams, providers, regions, tags, residency rules"
+      }
+    ],
+    "queries": [
+      {
+        "file": "FINOPS-03_generate_showback_report.sql",
+        "description": "SQL query to generate complete showback report with breakdowns and projections"
+      }
+    ]
+  },
+  "redis": {
+    "config": "deploy/redis/finops_showback_redis.conf",
+    "cache_keys": {
+      "showback_report": "showback:report:{team_id}:{billing_period}",
+      "charge_report": "charge:report:{team_id}:{billing_period}",
+      "cost_aggregation": "cost:aggregation:{team_id}:{period}:{dimension}",
+      "cost_projection": "cost:projection:{team_id}:{next_period}",
+      "download_url": "report:url:{publication_id}"
+    },
+    "ttl": {
+      "report": "86400",
+      "aggregation": "3600",
+      "metadata": "3600"
+    }
+  },
+  "events": {
+    "outbox_table": "outbox_events",
+    "event_types": [
+      "finops.ShowbackReportGenerated",
+      "finops.ShowChargeReportGenerated",
+      "finops.ReportsPublished"
+    ],
+    "publisher_worker": {
+      "poll_interval_ms": 5000,
+      "batch_size": 50,
+      "max_retries": 3
+    }
+  },
+  "api": {
+    "base_path": "/api/v1/finops/reports",
+    "endpoints": [
+      "GET    /showback",
+      "GET    /showback/{report_id}",
+      "GET    /charge",
+      "GET    /charge/{charge_report_id}",
+      "GET    /{type}/{report_id}/download?format={csv|pdf}",
+      "POST   /{type}/generate"
+    ],
+    "rate_limiting": {
+      "anonymous": "10/minute",
+      "authenticated": "100/minute",
+      "admin": "500/minute"
+    }
+  },
+  "data_residency": {
+    "enforcement": "application-layer + database column filtering",
+    "zones": ["EU", "US", "APAC", "GLOBAL"],
+    "rules_table": "data_residency_rules",
+    "eu_database_cluster": "eu-central-1.finops.internal",
+    "us_database_cluster": "us-east-1.finops.internal"
+  }
+}

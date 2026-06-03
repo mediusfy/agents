@@ -1,4 +1,3 @@
-from pydantic import BaseModel
 from pydantic_ai import Agent, RunContext, UsageLimits
 
 from openclaw.models.core import Artifact
@@ -25,25 +24,12 @@ frontend_agent = Agent(
 )
 
 
-class ComponentOutput(BaseModel):
-    code: str
-
-
 # Text-first agent: reasoner generates code as free text (no result_type constraint)
 component_gen = Agent(
     create_model(settings.resolve_model(settings.frontend_model)),
     system_prompt=frontend_prompt,
     defer_model_check=True,
     retries=5,
-)
-
-# Structured output agent: deepseek-chat wraps raw code into ComponentOutput
-_component_struct = Agent(
-    create_model(settings.resolve_model(settings.frontend_model)),
-    system_prompt="You format generated code into the requested structure. Return ONLY valid JSON.",
-    output_type=ComponentOutput,
-    defer_model_check=True,
-    retries=3,
 )
 
 
@@ -58,9 +44,9 @@ async def create_component(ctx: RunContext[str], component_name: str, requiremen
     )
     # extract text — no output_type means .output is a str
     generated_code = raw.output
-    structured = await _component_struct.run(
-        f"Wrap this generated code: {generated_code}",
-        usage_limits=UsageLimits(request_limit=500),
-        model_settings={"max_tokens": 16384},
-    )
-    return structured.output.code
+    
+    import re
+    match = re.search(r"```(?:[a-zA-Z0-9]+)?\n(.*?)```", generated_code, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return generated_code.strip()
