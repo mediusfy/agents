@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=1440"><title>Access Denied — Rufkis</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;min-height:100vh;font-size:14px;color:#1A1A1A}
+.dialog{width:420px;background:#FFFFFF;border-radius:12px;border:1px solid #E8E8EC;box-shadow:0 8px 32px rgba(0,0,0,0.12);padding:24px}
+.dialog:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.icon-wrap{width:48px;height:48px;border-radius:999px;background:rgba(255,173,66,0.08);color:#FFAD42;display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+.dialog h3{font-size:16px;font-weight:600;color:#1A1A1A;margin-bottom:6px}
+.dialog p{font-size:13px;color:#7A7A80;line-height:1.5;margin-bottom:6px}
+.dialog .detail{font-size:11px;color:#7A7A80;background:#F5F5F7;border-radius:8px;padding:10px;margin-bottom:16px;font-family:'SF Mono',monospace;white-space:pre;border:1px solid #E8E8EC}
+.actions{display:flex;gap:8px;justify-content:flex-end}
+.btn{padding:8px 18px;border-radius:6px;border:1px solid #E2E2E5;background:#fff;color:#555;font-size:13px;font-family:'Inter',sans-serif;cursor:pointer;font-weight:500}
+.btn:hover{background:#F5F5F7;border-color:#C0C0C6}
+.btn:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.btn.primary{background:#6C31FF;color:#fff;border-color:#6C31FF}
+.btn.primary:hover{background:#5B28E0}
+</style>
+</head>
+<body>
+<div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="auth-title" aria-describedby="auth-desc" data-testid="auth-403-dialog">
+  <div class="icon-wrap"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+  <h3 id="auth-title">Access denied</h3>
+  <p id="auth-desc">You don't have permission to delete resources in namespace <strong>production</strong>.</p>
+  <div class="detail">Missing verb: delete
+Resource: pods
+Namespace: production
+Scope: cluster-wide</div>
+  <div class="actions">
+    <button class="btn" data-testid="auth-request-access">Request access</button>
+    <button class="btn primary" data-testid="auth-dismiss">Dismiss</button>
+  </div>
+</div>
+</body>
+</html>

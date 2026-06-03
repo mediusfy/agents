@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=1440"><title>Rufkis — Notes</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,sans-serif;background:#F5F5F7;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.app{width:1440px;height:900px;display:flex;background:#fff;overflow:hidden;border-radius:12px;box-shadow:0 4px 40px rgba(0,0,0,0.06)}
+.leftnav{width:240px;background:#F9F9FB;border-right:1px solid #EBEBED;display:flex;flex-direction:column;flex-shrink:0}
+.ln-h{padding:16px 16px 8px;display:flex;align-items:center;gap:8px}
+.ln-logo{width:28px;height:28px;border-radius:8px;background:#6C31FF;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px}
+.ln-name{font-size:14px;font-weight:600;color:#1A1A1A}
+.ln-s{padding:12px 16px 4px;font-size:10px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.04em}
+.ln-i,.ln-fl{display:flex;align-items:center;gap:8px;padding:7px 16px;margin:0 8px;border-radius:6px;font-size:13px;font-weight:500;color:#555;cursor:pointer;position:relative}
+.ln-i:hover{background:rgba(108,49,255,0.04);color:#333}
+.ln-i .active-bar{display:none}
+.ln-i.active .active-bar{display:block;position:absolute;left:-8px;width:3px;height:16px;border-radius:0 3px 3px 0;background:#6C31FF}
+.ln-i.active{background:rgba(108,49,255,0.08);color:#6C31FF;font-weight:600}
+.ln-i:focus-visible{outline:2px solid #6C31FF;outline-offset:-2px}
+.ln-i .ic{width:16px;height:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ln-i .ic svg{width:16px;height:16px}
+.ln-i .bd{margin-left:auto;font-size:10px;padding:1px 6px;border-radius:999px;background:rgba(108,49,255,0.1);color:#6C31FF;font-weight:600}
+.ln-ft{margin-top:auto;padding:12px;border-top:1px solid #EBEBED}
+.ln-fl{padding:7px 10px;margin:0;font-size:12px;color:#777}
+.ln-fl:hover{background:rgba(108,49,255,0.03);color:#333}
+.av{width:20px;height:20px;border-radius:6px;background:linear-gradient(135deg,#6C31FF,#8A5CFF);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:52px;border-bottom:1px solid #EBEBED;display:flex;align-items:center;padding:0 24px;gap:16px;flex-shrink:0}
+.topbar h1{font-size:18px;font-weight:600;color:#1A1A1A;letter-spacing:-.01em}
+.topbar-actions{margin-left:auto;display:flex;gap:6px;align-items:center}
+.tb-btn{display:flex;align-items:center;gap:5px;padding:7px 14px;border-radius:6px;border:1px solid #E2E2E5;background:#fff;color:#555;font-size:12px;font-family:inherit;cursor:pointer;font-weight:500}
+.tb-btn:hover{background:#F5F5F7;color:#333;border-color:#C0C0C6}
+.tb-btn:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.tb-btn.purple{background:#6C31FF;color:#fff;border-color:#6C31FF}
+.tb-btn.purple:hover{background:#5B28E0}
+.tb-av{width:30px;height:30px;border-radius:999px;background:linear-gradient(135deg,#6C31FF,#8A5CFF);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;cursor:pointer}
+.content{flex:1;overflow-y:auto;padding:24px;background:#F5F5F7;scrollbar-width:thin;scrollbar-color:#D0D0D4 transparent;display:flex;gap:20px}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:500}
+.pill.green{background:#E3F5E5;color:#1B8A2F}
+.pill.orange{background:#FFF1E0;color:#E57800}
+.pill.purple{background:#E8E6FF;color:#6C31FF}
+.sdot{width:6px;height:6px;flex-shrink:0;display:inline-block}
+.sdot.green{border-radius:2px;background:#00C875}
+.sdot.orange{border-radius:999px;background:#FFAD42}
+.sdot.purple{border-radius:999px;background:#6C31FF}
+.notes-list{width:320px;flex-shrink:0;background:#fff;border-radius:10px;border:1px solid #E8E8EC;overflow:hidden;display:flex;flex-direction:column}
+.notes-list .nl-header{padding:12px 14px;border-bottom:1px solid #EBEBED;font-size:12px;font-weight:600;color:#1A1A1A;display:flex;align-items:center;gap:6px}
+.notes-list .nl-header svg{width:14px;height:14px;stroke:#6C31FF}
+.notes-list .nl-item{padding:10px 14px;border-bottom:1px solid #F2F2F4;cursor:pointer;display:flex;flex-direction:column;gap:3px}
+.notes-list .nl-item:hover{background:#F9F9FB}
+.notes-list .nl-item.active{background:rgba(108,49,255,0.04);border-left:3px solid #6C31FF}
+.notes-list .nl-item .nl-title{font-size:12px;font-weight:600;color:#1A1A1A}
+.notes-list .nl-item .nl-preview{font-size:11px;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.notes-list .nl-item .nl-meta{font-size:10px;color:#999;display:flex;gap:8px}
+.notes-editor{flex:1;background:#fff;border-radius:10px;border:1px solid #E8E8EC;display:flex;flex-direction:column}
+.notes-editor .ne-toolbar{padding:10px 14px;border-bottom:1px solid #EBEBED;display:flex;gap:6px;align-items:center}
+.notes-editor .ne-toolbar .ne-btn{width:26px;height:26px;border-radius:4px;border:1px solid transparent;background:transparent;color:#777;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px}
+.notes-editor .ne-toolbar .ne-btn:hover{background:#F5F5F7;border-color:#E2E2E5;color:#333}
+.notes-editor .ne-title{padding:14px 14px 8px;border:none;outline:none;font-size:16px;font-weight:600;color:#1A1A1A;font-family:inherit;width:100%}
+.notes-editor .ne-body{padding:8px 14px 14px;border:none;outline:none;font-size:12px;color:#555;font-family:inherit;flex:1;resize:none;line-height:1.6}
+.notes-editor .ne-footer{padding:10px 14px;border-top:1px solid #F2F2F4;display:flex;align-items:center;gap:10px;font-size:10px;color:#999}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="leftnav">
+  <div class="ln-h"><div class="ln-logo">R</div><div class="ln-name">Rufkis</div></div>
+  <div class="ln-s">Workspace</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>Home</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><circle cx="12" cy="13" r="1"/><circle cx="8" cy="13" r="1"/><circle cx="16" cy="13" r="1"/></svg></div>Agents<span class="bd">5</span></div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>Workloads</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a2 2 0 012 2v2h3a3 3 0 013 3v9a3 3 0 01-3 3H7a3 3 0 01-3-3V9a3 3 0 013-3h3V4a2 2 0 012-2z"/></svg></div>Automations</div>
+  <div class="ln-s">Configure</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>Logs</div>
+  <div class="ln-i active"><div class="active-bar"></div><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>Notes</div>
+  <div class="ln-ft"><div class="ln-fl"><div class="av">D</div>Drew Jocham</div></div>
+</div>
+<div class="main">
+  <div class="topbar">
+    <h1>Notes</h1>
+    <div class="topbar-actions">
+      <button class="tb-btn" aria-label="New note"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg> Edit</button>
+      <button class="tb-btn purple" aria-label="Create new note"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New Note</button>
+      <div class="tb-av" aria-label="Drew Jocham avatar" role="img">D</div>
+    </div>
+  </div>
+  <div class="content">
+    <div class="notes-list">
+      <div class="nl-header"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> All Notes <span style="margin-left:auto;font-size:10px;color:#999;font-weight:400;">5</span></div>
+      <div class="nl-item active">
+        <div class="nl-title">Cluster recovery runbook</div>
+        <div class="nl-preview">Steps to recover from etcd corruption and control plane failure…</div>
+        <div class="nl-meta"><span>Runbooks</span><span>Updated 2h ago</span></div>
+      </div>
+      <div class="nl-item">
+        <div class="nl-title">Monitoring alert thresholds</div>
+        <div class="nl-preview">P95 latency, disk pressure, memory usage alerting rules…</div>
+        <div class="nl-meta"><span>SRE</span><span>Updated 1d ago</span></div>
+      </div>
+      <div class="nl-item">
+        <div class="nl-title">Deployment checklist</div>
+        <div class="nl-preview">Pre-flight checks: TLS certs, secret rotation, canary analysis…</div>
+        <div class="nl-meta"><span>DevOps</span><span>Updated 2d ago</span></div>
+      </div>
+      <div class="nl-item">
+        <div class="nl-title">Architecture notes</div>
+        <div class="nl-preview">Hexagonal architecture decisions for orders-svc…</div>
+        <div class="nl-meta"><span>Backend</span><span>Updated 3d ago</span></div>
+      </div>
+      <div class="nl-item">
+        <div class="nl-title">Security audit findings</div>
+        <div class="nl-preview">CVE-2024-xyz remediation plan and vulnerability scoring…</div>
+        <div class="nl-meta"><span>Security</span><span>Updated 5d ago</span></div>
+      </div>
+    </div>
+    <div class="notes-editor">
+      <div class="ne-toolbar">
+        <button class="ne-btn" aria-label="Bold"><strong>B</strong></button>
+        <button class="ne-btn" aria-label="Italic"><em>I</em></button>
+        <button class="ne-btn" aria-label="Code">{ }</button>
+        <button class="ne-btn" aria-label="List">≡</button>
+        <span style="flex:1"></span>
+        <span style="font-size:10px;color:#999;">Auto-saved</span>
+      </div>
+      <div class="ne-title" contenteditable="true">Cluster recovery runbook</div>
+      <div class="ne-body" contenteditable="true">## Recovery Steps
+
+1. Verify etcd pod status: `kubectl get pods -n kube-system | grep etcd`
+2. Restore etcd from latest snapshot in S3: `s3://rufkis-backups/etcd/`
+3. Rejoin control plane nodes
+4. Verify all nodes: `kubectl get nodes`
+5. Scale workloads back up via GitOps</div>
+      <div class="ne-footer">
+        <span class="pill purple" style="font-size:10px;">Runbooks</span>
+        <span>Last saved 2 minutes ago</span>
+        <span style="margin-left:auto;">12 lines · Markdown</span>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</body>
+</html>

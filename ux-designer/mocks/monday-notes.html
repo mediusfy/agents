@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=1440"><title>Rufkis — Notes (Markdown WYSIWYG)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,sans-serif;background:#F5F5F7;display:flex;align-items:flex-start;justify-content:center;min-height:100vh;padding:0}
+.app{width:1440px;height:900px;display:flex;background:#fff;overflow:hidden;}
+
+/* === LEFT NAV === */
+.leftnav{width:240px;background:#F9F9FB;border-right:1px solid #EBEBED;display:flex;flex-direction:column;flex-shrink:0;}
+.ln-header{padding:16px 16px 8px;display:flex;align-items:center;gap:8px;}
+.ln-logo{width:28px;height:28px;border-radius:8px;background:#6C31FF;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;}
+.ln-title{font-size:14px;font-weight:600;color:#1A1A1A;}
+.ln-search{padding:8px 12px;}
+.ln-search input{width:100%;height:32px;border-radius:8px;border:1px solid #E2E2E5;background:#fff;padding:0 10px 0 28px;font-size:12.5px;font-family:inherit;color:#1A1A1A;outline:none;background-image:url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:8px center;}
+.ln-search input::placeholder{color:#999;}
+.ln-section{padding:12px 12px 4px;font-size:10px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.05em;}
+.ln-item{display:flex;align-items:center;gap:8px;padding:7px 12px;margin:0 6px;border-radius:6px;font-size:13px;font-weight:500;color:#555;cursor:pointer;}
+.ln-item:hover{background:rgba(108,49,255,0.04);color:#333;}
+.ln-item.active{background:#6C31FF;color:#fff;}
+.ln-item .ic{width:16px;height:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.ln-item .badge{margin-left:auto;font-size:10px;padding:1px 6px;border-radius:999px;background:rgba(108,49,255,0.08);color:#6C31FF;font-weight:600;}
+.ln-item.active .badge{background:rgba(255,255,255,0.2);color:#fff;}
+.ln-footer{margin-top:auto;padding:12px;border-top:1px solid #EBEBED;}
+.ln-fl-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;font-size:12px;color:#777;cursor:pointer;}
+.ln-fl-item:hover{background:rgba(108,49,255,0.04);color:#333;}
+.ln-fl-item .avatar{width:20px;height:20px;border-radius:6px;background:linear-gradient(135deg,#6C31FF,#8A5CFF);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;}
+
+/* === MAIN CONTENT === */
+.main{flex:1;display:flex;flex-direction:row;overflow:hidden;}
+
+/* Note list sidebar */
+.note-list{width:320px;border-right:1px solid #EBEBED;display:flex;flex-direction:column;flex-shrink:0;background:#FAFAFC;}
+.nl-header{padding:14px 16px;border-bottom:1px solid #EBEBED;display:flex;align-items:center;gap:8px;}
+.nl-header h2{font-size:15px;font-weight:600;color:#1A1A1A;flex:1;}
+.nl-header .count{font-size:11px;color:#999;}
+.nl-search{padding:8px 12px;}
+.nl-search input{width:100%;height:32px;border-radius:8px;border:1px solid #E2E2E5;background:#fff;padding:0 10px 0 30px;font-size:12px;font-family:inherit;color:#1A1A1A;outline:none;background-image:url("data:image/svg+xml,%3Csvg width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:10px center;}
+.nl-search input::placeholder{color:#999;}
+.nl-items{flex:1;overflow-y:auto;padding:4px 0;}
+.nl-item{display:flex;gap:10px;padding:12px 16px;cursor:pointer;border-bottom:1px solid #F3F3F5;}
+.nl-item:hover{background:rgba(108,49,255,0.02);}
+.nl-item.selected{background:#E8E6FF;border-left:3px solid #6C31FF;}
+.nl-item .nl-dot{width:4px;height:4px;border-radius:999px;margin-top:6px;flex-shrink:0;}
+.nl-item .nl-body{flex:1;min-width:0;}
+.nl-item .nl-title{font-size:13px;font-weight:500;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.nl-item .nl-preview{font-size:11px;color:#999;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.nl-item .nl-meta{display:flex;align-items:center;gap:6px;margin-top:4px;}
+.nl-item .nl-tag{font-size:9px;padding:1px 5px;border-radius:4px;background:#F0F0F3;color:#999;}
+.nl-item .nl-time{font-size:9px;color:#BBB;margin-left:auto;}
+.nl-item .nl-star{color:#CCC;font-size:11px;cursor:pointer;flex-shrink:0;}
+.nl-item .nl-star.active{color:#FFAD42;}
+
+/* === SINGLE PANE — Markdown WYSIWYG === */
+.note-editor{flex:1;display:flex;flex-direction:column;overflow:hidden;background:#fff;}
+
+.ne-topbar{height:52px;border-bottom:1px solid #EBEBED;display:flex;align-items:center;padding:0 20px;gap:8px;flex-shrink:0;}
+.ne-topbar .ne-title-input{flex:1;font-size:18px;font-weight:600;border:0;outline:none;color:#1A1A1A;font-family:inherit;padding:4px 0;background:transparent;}
+.ne-topbar .ne-title-input::placeholder{color:#CCC;}
+.ne-topbar .ne-actions{display:flex;gap:4px;}
+.ne-btn{width:30px;height:30px;border-radius:7px;border:1px solid transparent;background:transparent;color:#999;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.ne-btn:hover{background:#F5F5F7;color:#555;border-color:#E8E8EB;}
+.ne-btn.active{background:#E8E6FF;color:#6C31FF;}
+.ne-btn.purple{background:#6C31FF;color:#fff;border-color:#6C31FF;}
+.ne-btn.purple:hover{background:#5B28E0;}
+
+/* Mode toggle */
+.ne-mode-toggle{display:flex;align-items:center;gap:2px;}
+.ne-mode-btn{width:30px;height:30px;border-radius:7px;border:1px solid transparent;background:transparent;color:#999;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.ne-mode-btn:hover{background:#F5F5F7;color:#555;border-color:#E8E8EB;}
+.ne-mode-btn.active{background:#6C31FF;color:#fff;}
+.ne-mode-divider{width:1px;height:18px;background:#E8E8EB;margin:0 4px;}
+
+/* Toolbar */
+.ne-toolbar{display:flex;align-items:center;gap:2px;padding:6px 20px;border-bottom:1px solid #F3F3F5;flex-shrink:0;}
+.tb-group{display:flex;gap:2px;padding:0 6px;border-right:1px solid #EBEBED;}
+.tb-group:last-child{border-right:0;}
+.tb-btn{width:28px;height:28px;border-radius:5px;border:0;background:transparent;color:#777;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;font-family:inherit;}
+.tb-btn:hover{background:#F5F5F7;color:#333;}
+.tb-btn.bold{font-weight:700;}
+.tb-btn.italic{font-style:italic;font-family:'Georgia',serif;}
+
+/* WYSIWYG content area — single pane, rendered markup inline */
+.ne-body{flex:1;overflow-y:auto;padding:0;}
+.wysiwyg{padding:20px 32px;max-width:760px;font-size:14px;line-height:1.75;color:#333;}
+
+/* WYSIWYG text behaves like textarea — contenteditable area */
+.wysiwyg:focus{outline:none;}
+.wysiwyg .w-placeholder{color:#CCC;pointer-events:none;}
+
+/* Rendered markdown elements */
+.wysiwyg h1{font-size:28px;font-weight:700;color:#1A1A1A;margin:24px 0 8px;line-height:1.3;}
+.wysiwyg h2{font-size:20px;font-weight:600;color:#1A1A1A;margin:20px 0 6px;line-height:1.35;}
+.wysiwyg h3{font-size:16px;font-weight:600;color:#333;margin:16px 0 4px;}
+.wysiwyg p{margin:0 0 10px;}
+.wysiwyg strong{font-weight:600;color:#1A1A1A;}
+.wysiwyg em{font-style:italic;}
+.wysiwyg .del{text-decoration:line-through;color:#999;}
+.wysiwyg code{font-family:'SF Mono','JetBrains Mono',monospace;font-size:12.5px;padding:2px 6px;border-radius:4px;background:#F3F3F5;color:#D93025;}
+.wysiwyg pre{background:#2A2A2A;color:#E8E8E8;padding:14px 16px;border-radius:8px;font-size:12.5px;font-family:'SF Mono','JetBrains Mono',monospace;overflow-x:auto;margin:10px 0;line-height:1.5;}
+.wysiwyg blockquote{padding:8px 14px;margin:10px 0;border-left:3px solid #6C31FF;background:#FAFAFC;color:#777;border-radius:0 8px 8px 0;}
+.wysiwyg ul{padding-left:24px;margin:4px 0 10px;}
+.wysiwyg ol{padding-left:24px;margin:4px 0 10px;}
+.wysiwyg li{margin:2px 0;}
+.wysiwyg li .task-check{margin-right:6px;}
+.wysiwyg hr{margin:16px 0;border:0;height:1px;background:#E8E8EB;}
+.wysiwyg a{color:#6C31FF;text-decoration:none;}
+.wysiwyg a:hover{text-decoration:underline;}
+.wysiwyg .tag{display:inline-block;font-size:10px;padding:1px 7px;border-radius:4px;background:#E8E6FF;color:#6C31FF;margin:0 1px;cursor:pointer;}
+.wysiwyg .mention{display:inline-block;font-size:12px;padding:1px 6px;border-radius:4px;background:#F5F5F7;color:#6C31FF;cursor:pointer;}
+.wysiwyg .img-embed{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:6px;background:#F5F5F7;border:1px solid #E8E8EB;font-size:11px;color:#777;margin:2px 0;}
+.wysiwyg .img-embed .img-preview{width:40px;height:30px;border-radius:4px;background:linear-gradient(135deg,#E8E6FF,#D0C8FF);display:flex;align-items:center;justify-content:center;font-size:16px;}
+
+/* Backlinks & Graph (embedded in WYSIWYG) */
+.wysiwyg .backlinks{background:#FAFAFC;border-radius:8px;border:1px solid #E8E8EB;padding:12px 14px;margin:16px 0;}
+.wysiwyg .backlinks .bl-title{font-size:11px;font-weight:600;color:#6C31FF;margin-bottom:6px;display:flex;align-items:center;gap:4px;}
+.wysiwyg .backlinks .bl-item{font-size:11px;color:#555;padding:3px 0;cursor:pointer;display:flex;align-items:center;gap:4px;}
+.wysiwyg .backlinks .bl-item:hover{color:#6C31FF;}
+.wysiwyg .backlinks .bl-item .bl-count{font-size:10px;color:#999;}
+
+.wysiwyg .graph-mini{width:180px;height:100px;background:#FAFAFC;border-radius:8px;border:1px solid #E8E8EB;margin:12px 0;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
+.wysiwyg .graph-mini .gm-label{font-size:10px;color:#999;z-index:1;}
+
+/* ── A11Y additions ── */
+.ln-item{position:relative}
+.ln-item .active-bar{display:none}
+.ln-item.active .active-bar{display:block;position:absolute;left:-6px;width:3px;height:16px;border-radius:0 3px 3px 0;background:#6C31FF}
+.ln-item:focus-visible,.tb-btn:focus-visible,.item-card:focus-visible,.tpl-card:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.tb-btn:hover{border-color:#C0C0C6;color:#1A1A1A}
+.status-dot{shape-rendering:geometricPrecision}
+.status-dot.green{border-radius:2px} /* square for green = active */
+.status-dot.purple,.status-dot.orange,.status-dot.red{border-radius:999px}
+/* Status pills: always pair with icon/text */
+.status-pill{display:inline-flex;align-items:center;gap:4px}
+.gdpr-foot{margin-top:20px;padding:12px 16px;border-radius:10px;background:#F0F0F2;border:1px solid #E0E0E4;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:14px;color:#1A1A1A}
+.gdpr-item{font-size:10.5px;color:#666;padding:3px 8px;border-radius:5px;cursor:pointer;display:flex;align-items:center;gap:4px}
+.gdpr-item:hover{background:#E4E4E8;color:#1A1A1A}
+.gdpr-badge{font-size:9px;padding:1px 5px;border-radius:3px;background:#E3F5E5;color:#0D5E1A;margin-left:4px}
+
+</style></head>
+<body>
+<div class="app">
+  <!-- Left Nav -->
+  <div class="leftnav">
+    <div class="ln-header">
+      <div class="ln-logo">R</div>
+      <div class="ln-title">Rufkis</div>
+    </div>
+    <div class="ln-search"><input type="text" placeholder="Search..."></div>
+    <div class="ln-section">Workspace</div>
+    <div class="ln-item"><div class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>Home</div>
+    <div class="ln-item"><div class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>Workloads<span class="badge">48</span></div>
+    <div class="ln-item active"><div class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>Notes<span class="badge">12</span></div>
+    <div class="ln-section">Knowledge</div>
+    <div class="ln-item"><div class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg></div>Notebooks</div>
+    <div class="ln-item"><div class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>History</div>
+    <div class="ln-footer">
+      <div class="ln-fl-item">
+        <div class="avatar">D</div>
+        Drew Jocham
+      </div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Note list sidebar -->
+    <div class="note-list">
+      <div class="nl-header">
+        <h2>Notes</h2>
+        <span class="count">12 notes</span>
+        <button class="ne-btn" style="margin-left:auto;" title="New note">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+      <div class="nl-search"><input type="text" placeholder="Search notes..." value="ingress"></div>
+      <div class="nl-items">
+        <div class="nl-item selected">
+          
+          <div class="nl-body">
+            <div class="nl-title">Ingress migration checklist</div>
+            <div class="nl-preview">1) Verify nginx ingress controller 2) Create new ingress resources 3) Test canary...</div>
+            <div class="nl-meta">
+              <span class="nl-tag" style="background:#E8E6FF;color:#6C31FF;">networking</span>
+              <span class="nl-time">Edited 1h ago</span>
+            </div>
+          </div>
+          
+        </div>
+        <div class="nl-item">
+          
+          <div class="nl-body">
+            <div class="nl-title">Post-mortem: 2026-05-28 memory incident</div>
+            <div class="nl-preview">Root cause: etcd compaction backlog. Resolution: increased backend quota...</div>
+            <div class="nl-meta">
+              <span class="nl-tag" style="background:#FFE8E8;color:#D93025;">incident</span>
+              <span class="nl-time">3d ago</span>
+            </div>
+          </div>
+          
+        </div>
+        <div class="nl-item">
+          
+          <div class="nl-body">
+            <div class="nl-title">Node maintenance plan — Q2</div>
+            <div class="nl-preview">Roll cordon-reboot-uncordon across us-east-2a workers starting 0200 UTC...</div>
+            <div class="nl-meta">
+              <span class="nl-tag" style="background:#E3F5E5;color:#1B8A2F;">operations</span>
+              <span class="nl-time">2h ago</span>
+            </div>
+          </div>
+          <span class="nl-star">☆</span>
+        </div>
+        <div class="nl-item">
+          
+          <div class="nl-body">
+            <div class="nl-title">Cost optimization candidates</div>
+            <div class="nl-preview">Deployment-A over-provisioned CPU 60%. Potential savings $400/mo via...</div>
+            <div class="nl-meta">
+              <span class="nl-tag" style="background:#FFF1E0;color:#E57800;">finops</span>
+              <span class="nl-time">5d ago</span>
+            </div>
+          </div>
+          <span class="nl-star">☆</span>
+        </div>
+        <div class="nl-item">
+          
+          <div class="nl-body">
+            <div class="nl-title">OKR Q2: Platform reliability</div>
+            <div class="nl-preview">KR1: Reduce p99 latency to <50ms KR2: Achieve 99.99% uptime KR3: Auto...</div>
+            <div class="nl-meta">
+              <span class="nl-tag" style="background:#E8E6FF;color:#6C31FF;">planning</span>
+              <span class="nl-time">1w ago</span>
+            </div>
+          </div>
+          <span class="nl-star">☆</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Single-pane WYSIWYG editor -->
+    <div class="note-editor">
+      <div class="ne-topbar">
+        <input class="ne-title-input" type="text" value="Ingress migration checklist">
+        <div class="ne-mode-toggle">
+          <button class="ne-mode-btn active" title="WYSIWYG (single pane)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="ne-mode-btn" title="Split (editor + preview)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
+          </button>
+          
+          <button class="ne-btn" title="Graph view">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="5" r="2"/><circle cx="19" cy="19" r="2"/><circle cx="5" cy="19" r="2"/><line x1="12" y1="9" x2="17" y2="7"/><line x1="7" y1="7" x2="10" y2="9"/><line x1="12" y1="15" x2="17" y2="17"/><line x1="7" y1="17" x2="10" y2="15"/></svg>
+          </button>
+          <button class="ne-btn purple" title="Save">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="ne-toolbar">
+        <div class="tb-group">
+          <button class="tb-btn bold">B</button>
+          <button class="tb-btn italic">I</button>
+          <button class="tb-btn"><s>S</s></button>
+          <button class="tb-btn"><code>&lt;/&gt;</code></button>
+        </div>
+        <div class="tb-group">
+          <button class="tb-btn">H1</button>
+          <button class="tb-btn">H2</button>
+          <button class="tb-btn">H3</button>
+        </div>
+        <div class="tb-group">
+          <button class="tb-btn">•</button>
+          <button class="tb-btn">1.</button>
+          <button class="tb-btn">☐</button>
+        </div>
+        <div class="tb-group">
+          <button class="tb-btn"></button>
+          <button class="tb-btn">@</button>
+          <button class="tb-btn">#</button>
+        </div>
+      </div>
+
+      <!-- Single pane: rendered WYSIWYG content -->
+      <div class="ne-body">
+        <div class="wysiwyg" contenteditable="false">
+          <!-- The content is displayed as rendered rich text — what you see is what you get -->
+          <h1>Ingress migration checklist</h1>
+
+          <p><strong>Status:</strong> In Progress<br>
+          <strong>Owner:</strong> <span class="mention">@drew</span><br>
+          <strong>Related:</strong> <span class="tag">[[post-mortem-2026-05-28]]</span> <span class="tag">[[node-maintenance-Q2]]</span></p>
+
+          <hr>
+
+          <h2>Pre-migration</h2>
+          <ul>
+            <li><span class="task-check">☑</span> Verify nginx ingress controller is healthy</li>
+            <li><span class="task-check">☑</span> Snapshot current ingress resources</li>
+            <li><span class="task-check">☐</span> Back up etcd</li>
+          </ul>
+
+          <h2>Migration Steps</h2>
+          <ol>
+            <li><strong>Create new ingress resources</strong></li>
+          </ol>
+          <ul>
+            <li><code>api-gateway</code> — migrate to new LB</li>
+            <li><code>webapp</code> — ADD TLS cert</li>
+            <li><code>admin-panel</code> — IP whitelist</li>
+          </ul>
+          <ol start="2">
+            <li><strong>Canary deployment</strong></li>
+          </ol>
+          <pre>kubectl set image deployment/api-gateway \
+  nginx=nginx:1.26-alpine</pre>
+          <p>Route 10% traffic, monitor error rate &lt; 1%</p>
+
+          <blockquote>If error rate exceeds 2%, revert DNS to previous LB and scale down new ingress controller.</blockquote>
+
+          <h3>Notes</h3>
+          <p>Scheduling the canary for next maintenance window. <em>Need sign-off from <span class="mention">@alex</span> on the rollback thresholds.</em></p>
+
+          <div class="img-embed">
+            
+            <span>network-topology-v2.png</span>
+            <span style="font-size:10px;color:#999;margin-left:auto;">420 KB</span>
+          </div>
+
+          <!-- Backlinks section -->
+          <div class="backlinks">
+            <div class="bl-title">↗ 2 Backlinks</div>
+            <div class="bl-item">Node maintenance plan — Q2 <span class="bl-count">· references this note</span></div>
+            <div class="bl-item">Post-mortem: 2026-05-28 <span class="bl-count">· linked as related</span></div>
+          </div>
+
+          <!-- Graph mini -->
+          <div class="graph-mini">
+            <svg width="100%" height="100%" viewBox="0 0 180 100" style="position:absolute;">
+              <circle cx="90" cy="50" r="8" fill="#6C31FF" opacity="0.9"/>
+              <circle cx="40" cy="25" r="5" fill="#6C31FF" opacity="0.4"/>
+              <circle cx="140" cy="30" r="5" fill="#6C31FF" opacity="0.4"/>
+              <circle cx="50" cy="80" r="4" fill="#6C31FF" opacity="0.3"/>
+              <circle cx="130" cy="75" r="4" fill="#6C31FF" opacity="0.3"/>
+              <circle cx="30" cy="50" r="3" fill="#6C31FF" opacity="0.25"/>
+              <circle cx="155" cy="50" r="3" fill="#6C31FF" opacity="0.25"/>
+              <line x1="90" y1="50" x2="40" y2="25" stroke="#6C31FF" stroke-width="0.8" opacity="0.25"/>
+              <line x1="90" y1="50" x2="140" y2="30" stroke="#6C31FF" stroke-width="0.8" opacity="0.25"/>
+              <line x1="90" y1="50" x2="50" y2="80" stroke="#6C31FF" stroke-width="0.6" opacity="0.2"/>
+              <line x1="90" y1="50" x2="130" y2="75" stroke="#6C31FF" stroke-width="0.6" opacity="0.2"/>
+            </svg>
+            <span class="gm-label">6 linked notes</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    <div class="gdpr-foot">
+      <span style="font-size:11px;font-weight:600;color:#444;"><span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;flex-shrink:0;vertical-align:middle;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span> Data &amp; Privacy</span>
+      <span class="gdpr-item" role="button" tabindex="0"><span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;flex-shrink:0;vertical-align:middle;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span> Export My Data</span>
+      <span class="gdpr-item" role="button" tabindex="0"><span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;flex-shrink:0;vertical-align:middle;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></span> Delete My Data</span>
+      <span class="gdpr-item" role="button" tabindex="0">⚙ Consent Preferences</span>
+      <span class="gdpr-item" role="button" tabindex="0"><span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;flex-shrink:0;vertical-align:middle;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg></span> Audit Log</span>
+      <span class="gdpr-item" style="cursor:default;"><span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;flex-shrink:0;vertical-align:middle;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span> Retention: 90 days <span class="gdpr-badge">GDPR</span></span>
+    </div>
+
+</body>
+</html>

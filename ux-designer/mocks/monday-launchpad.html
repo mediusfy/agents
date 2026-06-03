@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=1440"><title>Rufkis — Launchpad (Reflecting Codebase Agents)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,sans-serif;background:#F5F5F7;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.app{width:1440px;height:900px;display:flex;background:#fff;overflow:hidden;border-radius:12px;box-shadow:0 4px 40px rgba(0,0,0,0.06)}
+.leftnav{width:240px;background:#F9F9FB;border-right:1px solid #EBEBED;display:flex;flex-direction:column;flex-shrink:0}
+.ln-h{padding:16px 16px 8px;display:flex;align-items:center;gap:8px}
+.ln-logo{width:28px;height:28px;border-radius:8px;background:#6C31FF;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px}
+.ln-name{font-size:14px;font-weight:600;color:#1A1A1A}
+.ln-s{padding:12px 12px 4px;font-size:10px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.05em}
+.ln-i{display:flex;align-items:center;gap:8px;padding:7px 12px;margin:0 6px;border-radius:6px;font-size:13px;font-weight:500;color:#555;cursor:pointer}
+.ln-i:hover{background:rgba(108,49,255,0.04);color:#333}
+.ln-i.active{background:#6C31FF;color:#fff}
+.ln-i .ic{width:16px;height:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ln-i .ic svg{width:14px;height:14px}
+.ln-ft{margin-top:auto;padding:12px;border-top:1px solid #EBEBED}
+.ln-fl{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;font-size:12px;color:#777;cursor:pointer}
+.ln-fl .av{width:20px;height:20px;border-radius:6px;background:linear-gradient(135deg,#6C31FF,#8A5CFF);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:52px;border-bottom:1px solid #EBEBED;display:flex;align-items:center;padding:0 24px;gap:16px;flex-shrink:0}
+.topbar h1{font-size:18px;font-weight:600;color:#1A1A1A}
+.topbar-actions{margin-left:auto;display:flex;gap:6px}
+.tb-btn{display:flex;align-items:center;gap:5px;padding:7px 14px;border-radius:6px;border:1px solid #E2E2E5;background:#fff;color:#555;font-size:12px;font-family:inherit;cursor:pointer;font-weight:500}
+.tb-btn:hover{background:#F5F5F7;color:#333}
+.tb-av{width:30px;height:30px;border-radius:999px;background:linear-gradient(135deg,#6C31FF,#8A5CFF);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;cursor:pointer}
+.content{flex:1;overflow-y:auto;padding:24px;background:#F5F5F7}
+/* Welcome card */
+.wc{background:#fff;border-radius:12px;border:1px solid #E8E8EC;padding:20px 24px;display:flex;align-items:center;gap:16px;margin-bottom:20px}
+.wc-ic{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#6C31FF,#8A5CFF);display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
+.wc-ic svg{width:22px;height:22px}
+.wc h2{font-size:16px;font-weight:600;color:#1A1A1A}
+.wc p{font-size:12px;color:#888;margin-top:2px}
+.wc-actions{margin-left:auto;display:flex;gap:6px;align-items:center}
+.wc-pills{display:flex;gap:8px;align-items:center}
+.pill{display:flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:500}
+.pill.green{background:#E3F5E5;color:#1B8A2F}
+.pill.orange{background:#FFF1E0;color:#E57800}
+.pill.purple{background:#E8E6FF;color:#6C31FF}
+/* Grid */
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:20px}
+.card{background:#fff;border-radius:10px;border:1px solid #E8E8EC;padding:20px}
+.card h3{font-size:13px;font-weight:600;color:#1A1A1A;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.card h3 svg{width:14px;height:14px;stroke:#6C31FF}
+.card h3 .ct{font-size:10px;padding:2px 7px;border-radius:999px;background:#E8E6FF;color:#6C31FF;font-weight:500;margin-left:auto}
+/* Agent health side bar - in sidebar footer */
+/* Favorites */
+.fav-list{display:flex;flex-direction:column;gap:4px}
+.fav{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:12px;color:#555}
+.fav:hover{background:#F5F5F7}
+.fav .fav-ic{width:14px;height:14px;border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px}
+.fav .fav-k{font-size:9px;color:#BBB;font-weight:500;margin-left:auto}
+/* Recents */
+.ri{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;font-size:12px;color:#555}
+.ri .ri-dot{width:6px;height:6px;border-radius:999px;flex-shrink:0}
+.ri .ri-t{font-size:10px;color:#BBB;margin-left:auto}
+/* Agent activity list */
+.ag-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #F3F3F5;font-size:12px;color:#555}
+.ag-item:last-child{border:0}
+.ag-item .ag-icon{width:16px;height:16px;border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ag-item .ag-icon svg{width:10px;height:10px}
+.ag-item .ag-t{font-size:10px;color:#BBB;margin-left:auto}
+/* Resource bar */
+.rbar{display:flex;gap:12px;margin-bottom:20px;overflow:hidden}
+.rpi{display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:8px;background:#fff;border:1px solid #E8E8EC;flex:1;min-width:0}
+.rpi .rn{font-size:20px;font-weight:700;color:#1A1A1A}
+.rpi .rl{font-size:11px;color:#7A7A80}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="leftnav">
+<div class="ln-h"><div class="ln-logo">R</div><div class="ln-name">Rufkis</div></div>
+<div class="ln-s">Workspace</div>
+<div class="ln-i active"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>Home</div>
+<div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg></div>Agents<span class="bd" style="margin-left:auto;font-size:10px;padding:1px 6px;border-radius:999px;background:rgba(108,49,255,0.08);color:#6C31FF;font-weight:600;">5</span></div>
+<div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>Workloads</div>
+<div class="ln-s">Configure</div>
+<div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>Logs</div>
+<div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>Notes</div>
+<!-- Sidebar health bar -->
+<div class="ln-ft">
+  <div style="padding:8px;border-radius:8px;background:#FAFAFC;border:1px solid #F0F0F2;">
+    <div style="font-size:10px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Agent Health</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <span class="pill green" style="font-size:10px;">◉ SRE</span>
+      <span class="pill green" style="font-size:10px;">◉ Backend</span>
+      <span class="pill green" style="font-size:10px;">◉ Frontend</span>
+      <span class="pill orange" style="font-size:10px;">◯ DevOps</span>
+      <span class="pill purple" style="font-size:10px;">◉ Security</span>
+    </div>
+  </div>
+  <div class="ln-fl"><div class="av">D</div>Drew Jocham</div>
+</div>
+</div>
+
+<div class="main">
+<div class="topbar">
+<h1>Home</h1>
+<div class="topbar-actions"><div class="tb-av">D</div></div>
+</div>
+<div class="content">
+
+<div class="wc">
+<div class="wc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+<div>
+<h2>OpenClaw Agent Platform</h2>
+<p>minikube · 5 agents deployed · 4 healthy · 1 running</p>
+</div>
+<div class="wc-actions">
+<span class="wc-pills">
+<span class="pill green">4 Healthy</span>
+<span class="pill orange">1 Running</span>
+</span>
+<button class="tb-btn" style="background:#6C31FF;color:#fff;border-color:#6C31FF;">+ Create Agent</button>
+</div>
+</div>
+
+<div class="rbar">
+<div class="rpi"><span class="rn">5</span><span class="rl">Active Agents</span></div>
+<div class="rpi"><span class="rn">180m</span><span class="rl">Avg CPU</span></div>
+<div class="rpi"><span class="rn">652Mi</span><span class="rl">Avg Memory</span></div>
+<div class="rpi"><span class="rn">15</span><span class="rl">Artifacts Today</span></div>
+</div>
+
+<div class="grid">
+<!-- Recent Activity -->
+<div class="card">
+<h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Recent Activity</h3>
+<div style="display:flex;flex-direction:column;gap:2px;">
+<div class="ag-item">
+<div class="ag-icon" style="background:#E3F5E5;color:#1B8A2F;"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+<span>Applied Terraform diff for staging cluster</span><span class="ag-t">2m</span>
+</div>
+<div class="ag-item">
+<div class="ag-icon" style="background:#FFF1E0;color:#E57800;"><svg viewBox="0 0 24 24"><polygon points="16 3 21 7 8 21 3 21 3 16 16 3"/></svg></div>
+<span>Generated orders-svc scaffolding (6 files)</span><span class="ag-t">4m</span>
+</div>
+<div class="ag-item">
+<div class="ag-icon" style="background:#E8E6FF;color:#6C31FF;"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+<span>Scanned 14 services, 0 critical CVE findings</span><span class="ag-t">2h</span>
+</div>
+<div class="ag-item">
+<div class="ag-icon" style="background:#E3F5E5;color:#1B8A2F;"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="14" rx="2"/><line x1="3" y1="21" x2="21" y2="21"/><line x1="12" y1="3" x2="12" y2="21"/></svg></div>
+<span>Published pipeline for api-gateway</span><span class="ag-t">12m</span>
+</div>
+</div>
+</div>
+
+<!-- Favorites & Quick Actions -->
+<div class="card">
+<h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Quick Actions <span class="ct">⌘K</span></h3>
+<div class="fav-list">
+<div class="fav">
+<div class="fav-ic" style="background:#E3F5E5;">S</div>
+<span>Create new SRE agent</span>
+<span class="fav-k">⌘⇧S</span>
+</div>
+<div class="fav">
+<div class="fav-ic" style="background:#FFF1E0;">B</div>
+<span>Deploy Backend service</span>
+<span class="fav-k">⌘⇧B</span>
+</div>
+<div class="fav">
+<div class="fav-ic" style="background:#E8E6FF;">F</div>
+<span>Generate Frontend component</span>
+<span class="fav-k">⌘⇧F</span>
+</div>
+<div class="fav">
+<div class="fav-ic" style="background:#FFE8E8;">A</div>
+<span>Run Security Audit</span>
+<span class="fav-k">⌘⇧A</span>
+</div>
+</div>
+</div>
+</div>
+
+<div class="grid">
+<!-- Agent Summary -->
+<div class="card">
+<h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg> Active Agents</h3>
+<div style="display:flex;flex-direction:column;gap:8px;">
+<div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+<span style="width:6px;height:6px;border-radius:999px;background:#00C875;flex-shrink:0;"></span>
+<strong style="color:#1A1A1A;min-width:70px;">SRE</strong>
+<span style="color:#888;">GitOps · Terraform · Helm</span>
+<span style="margin-left:auto;font-size:10px;color:#999;">3m ago</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+<span style="width:6px;height:6px;border-radius:999px;background:#00C875;flex-shrink:0;"></span>
+<strong style="color:#1A1A1A;min-width:70px;">Backend</strong>
+<span style="color:#888;">Go hexagonal · gRPC · NATS</span>
+<span style="margin-left:auto;font-size:10px;color:#999;">4m ago</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+<span style="width:6px;height:6px;border-radius:999px;background:#FFAD42;flex-shrink:0;"></span>
+<strong style="color:#1A1A1A;min-width:70px;">Frontend</strong>
+<span style="color:#888;">Vue 3 · Composition API</span>
+<span style="margin-left:auto;font-size:10px;color:#999;">Deploying</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+<span style="width:6px;height:6px;border-radius:999px;background:#00C875;flex-shrink:0;"></span>
+<strong style="color:#1A1A1A;min-width:70px;">DevOps</strong>
+<span style="color:#888;">CI/CD · Docker · Makefiles</span>
+<span style="margin-left:auto;font-size:10px;color:#999;">12m ago</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+<span style="width:6px;height:6px;border-radius:999px;background:#6C31FF;flex-shrink:0;"></span>
+<strong style="color:#1A1A1A;min-width:70px;">Security</strong>
+<span style="color:#888;">OWASP · CVE · Secrets</span>
+<span style="margin-left:auto;font-size:10px;color:#999;">Idle</span>
+</div>
+</div>
+</div>
+
+<!-- What's New -->
+<div class="card">
+<h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 8 22 12 18 16"/><polyline points="6 8 2 12 6 16"/><line x1="2" y1="12" x2="22" y2="12"/></svg> Today's Artifacts</h3>
+<div style="display:flex;flex-direction:column;gap:6px;">
+<div class="ri">
+<span class="ri-dot" style="background:#6C31FF;"></span>
+<span>orders-svc — Go hexagonal service scaffold</span>
+<span class="ri-t">Backend</span>
+</div>
+<div class="ri">
+<span class="ri-dot" style="background:#00C875;"></span>
+<span>staging-terraform — EKS cluster config diff</span>
+<span class="ri-t">SRE</span>
+</div>
+<div class="ri">
+<span class="ri-dot" style="background:#FFAD42;"></span>
+<span>api-pipeline — GitHub Actions workflow</span>
+<span class="ri-t">DevOps</span>
+</div>
+<div class="ri">
+<span class="ri-dot" style="background:#D93025;"></span>
+<span>security-report — 14 services scanned</span>
+<span class="ri-t">Security</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>

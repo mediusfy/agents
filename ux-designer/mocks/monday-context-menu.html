@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=1440"><title>Rufkis — Bottom Sheet Context Menu</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,sans-serif;background:rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.app{width:1440px;height:900px;display:flex;background:#fff;overflow:hidden;border-radius:12px;position:relative;box-shadow:0 4px 40px rgba(0,0,0,0.06);}
+.leftnav{width:240px;background:#F9F9FB;border-right:1px solid #EBEBED;display:flex;flex-direction:column;flex-shrink:0;}
+.ln-header{padding:16px 16px 8px;display:flex;align-items:center;gap:8px;}
+.ln-logo{width:28px;height:28px;border-radius:8px;background:#6C31FF;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;}
+.ln-title{font-size:14px;font-weight:600;color:#1A1A1A;}
+.ln-section{padding:12px 12px 4px;font-size:10px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.05em;}
+.ln-item{display:flex;align-items:center;gap:8px;padding:7px 12px;margin:0 6px;border-radius:6px;font-size:13px;font-weight:500;color:#555;cursor:pointer;}
+.ln-item:hover{background:rgba(108,49,255,0.04);color:#333;}
+.ln-item{position:relative}
+.ln-item.active{background:rgba(108,49,255,0.08);color:#6C31FF;font-weight:600;
+.ln-item .active-bar{display:none}
+.ln-item.active .active-bar{display:block;position:absolute;left:-6px;width:3px;height:16px;border-radius:0 3px 3px 0;background:#6C31FF}
+.ln-item:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}}
+.ln-item .ic{width:16px;height:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.ln-item .badge{margin-left:auto;font-size:10px;padding:1px 6px;border-radius:999px;background:rgba(108,49,255,0.08);color:#6C31FF;font-weight:600;}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.topbar{height:52px;border-bottom:1px solid #EBEBED;display:flex;align-items:center;padding:0 24px;gap:16px;flex-shrink:0;}
+.topbar h1{font-size:18px;font-weight:600;color:#1A1A1A;}
+.topbar-actions{margin-left:auto;display:flex;gap:6px;}
+.tb-avatar{width:30px;height:30px;border-radius:999px;background:linear-gradient(135deg,#6C31FF,#8A5CFF);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;cursor:pointer;}
+.content{flex:1;overflow-y:auto;padding:24px;background:#F5F5F7;}
+/* Pod row that's right-clicked */
+.pod-row{display:flex;align-items:center;gap:12px;padding:12px 16px;background:#fff;border-radius:10px;border:1px solid #E8E8EB;margin-bottom:4px;cursor:pointer;position:relative;}
+.pod-row:hover{box-shadow:0 1px 6px rgba(0,0,0,0.06);}
+.pod-row .p-name{font-family:'SF Mono',monospace;font-size:12px;font-weight:500;color:#333;flex:1;}
+.pod-row .p-ns{font-size:10px;color:#999;}
+.pod-row .p-status{font-size:10px;padding:2px 8px;border-radius:999px;background:#E3F5E5;color:#1B8A2F;font-weight:600;}
+.pod-row .p-time{font-size:10px;color:#BBB;}
+.pod-row.selected{background:rgba(108,49,255,0.04);border-color:#6C31FF;}
+/* Bottom sheet overlay */
+.sheet-overlay{position:fixed;bottom:0;left:0;right:0;height:100%;pointer-events:none;display:flex;align-items:flex-end;justify-content:center;}
+.sheet-bg{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.2);pointer-events:auto;}
+.sheet{width:360px;background:#fff;border-radius:16px 16px 0 0;pointer-events:auto;padding:8px 0;margin-bottom:100px;box-shadow:0 -4px 24px rgba(0,0,0,0.08);}
+.sheet .handle{width:32px;height:4px;background:#E2E2E5;border-radius:999px;margin:0 auto 8px;}
+.sheet .si{display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;font-size:13px;color:#555;}
+.sheet .si:hover{background:rgba(108,49,255,0.03);color:#333;}
+.sheet .si .si-icon{width:20px;height:20px;border-radius:6px;background:#F5F5F7;display:flex;align-items:center;justify-content:center;color:#999;flex-shrink:0;}
+.sheet .si-s{height:1px;background:#F3F3F5;margin:4px 12px;}
+
+/* ── A11Y additions ── */
+.ln-item .active-bar{display:none}
+.ln-item.active .active-bar{display:block;position:absolute;left:-6px;width:3px;height:16px;border-radius:0 3px 3px 0;background:#6C31FF}
+.ln-item:focus-visible,.tb-btn:focus-visible,.item-card:focus-visible,.tpl-card:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.tb-btn:hover{border-color:#C0C0C6;color:#1A1A1A}
+.status-dot{shape-rendering:geometricPrecision}
+.status-dot.green{border-radius:2px} /* square for green = active */
+.status-dot.purple,.status-dot.orange,.status-dot.red{border-radius:999px}
+/* Status pills: always pair with icon/text */
+.status-pill{display:inline-flex;align-items:center;gap:4px}
+.gdpr-foot{margin-top:20px;padding:12px 16px;border-radius:10px;background:#F0F0F2;border:1px solid #E0E0E4;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:14px;color:#1A1A1A}
+.gdpr-item{font-size:10.5px;color:#666;padding:3px 8px;border-radius:5px;cursor:pointer;display:flex;align-items:center;gap:4px}
+.gdpr-item:hover{background:#E4E4E8;color:#1A1A1A}
+.gdpr-badge{font-size:9px;padding:1px 5px;border-radius:3px;background:#E3F5E5;color:#0D5E1A;margin-left:4px}
+
+</style></head>
+<body><div class="app">
+<div class="leftnav">
+<div class="ln-header"><div class="ln-logo">R</div><div class="ln-title">Rufkis</div></div>
+<div class="ln-section">Workspace</div>
+<div class="ln-item"><div class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>Home</div>
+<div class="ln-item active"><div class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>Workloads<span class="badge">48</span></div>
+</div>
+<div class="main">
+<div class="topbar"><h1>Workloads</h1><div class="topbar-actions"><div class="tb-avatar">D</div></div></div>
+<div class="content">
+<div class="pod-row selected">
+<div class="p-name">api-gateway-7f8b9c1d2-3k4m</div>
+<div class="p-ns">production</div>
+<span class="p-status">Running</span>
+<span class="p-time">24d</span>
+</div>
+<div class="pod-row"><div class="p-name">api-auth-5d4e6f7g8-9h0i</div><div class="p-ns">production</div><span class="p-status">Running</span><span class="p-time">14d</span></div>
+<div class="pod-row"><div class="p-name">api-redis-cache-1a2b3c4d5-6e7f</div><div class="p-ns">production</div><span class="p-status" style="background:#FFF1E0;color:#E57800;">Pending</span><span class="p-time">2m</span></div>
+</div>
+</div>
+<!-- Bottom sheet -->
+<div class="sheet-overlay">
+
+<div class="sheet">
+
+<div class="si"><div class="si-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg></div>View details</div>
+<div class="si"><div class="si-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>Edit</div>
+<div class="si"><div class="si-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>Add to favorites</div>
+
+<div class="si" style="color:#D93025;"><div class="si-icon" style="background:#FFE8E8;color:#D93025;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="3" ry="1"/><path d="M17 5l-1 14H8L7 5"/><path d="M5 5h14"/></svg></div>Delete</div>
+</div>
+</div>
+</div>
+
+    <div class="gdpr-foot">
+      <span style="font-size:11px;font-weight:600;color:#444;"><span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;flex-shrink:0;vertical-align:middle;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span> Data &amp; Privacy</span>
+      <span class="gdpr-item" role="button" tabindex="0"><span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;flex-shrink:0;vertical-align:middle;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span> Export My Data</span>
+      <span class="gdpr-item" role="button" tabindex="0"><span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;flex-shrink:0;vertical-align:middle;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></span> Delete My Data</span>
+      <span class="gdpr-item" role="button" tabindex="0">⚙ Consent Preferences</span>
+      <span class="gdpr-item" role="button" tabindex="0"><span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;flex-shrink:0;vertical-align:middle;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg></span> Audit Log</span>
+      <span class="gdpr-item" style="cursor:default;"><span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;flex-shrink:0;vertical-align:middle;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span> Retention: 90 days <span class="gdpr-badge">GDPR</span></span>
+    </div>
+
+</body></html>

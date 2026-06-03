@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=1440"><title>Rufkis &mdash; Agents</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,sans-serif;background:#F5F5F7;display:flex;align-items:flex-start;justify-content:center;min-height:100vh;padding:0;font-size:14px;color:#1A1A1A}
+.app{width:1440px;height:900px;display:flex;background:#fff;overflow:hidden}
+.leftnav{width:240px;background:#F9F9FB;border-right:1px solid #EBEBED;display:flex;flex-direction:column;flex-shrink:0}
+.ln-h{display:flex;align-items:center;gap:8px;padding:16px 16px 12px}
+.ln-logo{width:28px;height:28px;border-radius:8px;background:#6C31FF;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px}
+.ln-name{font-size:14px;font-weight:600;color:#1A1A1A}
+.ln-s{padding:12px 16px 4px;font-size:10px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.04em}
+.ln-i,.ln-fl{display:flex;align-items:center;gap:8px;padding:7px 16px;margin:0 8px;border-radius:6px;font-size:13px;font-weight:500;color:#555;cursor:pointer;position:relative}
+.ln-i:hover{background:rgba(108,49,255,0.04);color:#333}
+.ln-i .active-bar{display:none}
+.ln-i.active .active-bar{display:block;position:absolute;left:-8px;width:3px;height:16px;border-radius:0 3px 3px 0;background:#6C31FF}
+.ln-i.active{background:rgba(108,49,255,0.08);color:#6C31FF;font-weight:600}
+.ln-i:focus-visible{outline:2px solid #6C31FF;outline-offset:-2px}
+.ln-i .ic{width:16px;height:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ln-i .ic svg{width:16px;height:16px}
+.ln-i .bd{margin-left:auto;font-size:10px;padding:1px 6px;border-radius:999px;background:rgba(108,49,255,0.1);color:#6C31FF;font-weight:600}
+.ln-ft{margin-top:auto;padding:12px;border-top:1px solid #EBEBED}
+.ln-fl{padding:7px 10px;margin:0;font-size:12px;color:#777}
+.ln-fl:hover{background:rgba(108,49,255,0.03);color:#333}
+.av{width:20px;height:20px;border-radius:6px;background:linear-gradient(135deg,#6C31FF,#8A5CFF);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:52px;border-bottom:1px solid #EBEBED;display:flex;align-items:center;padding:0 24px;gap:16px;flex-shrink:0}
+.topbar h1{font-size:18px;font-weight:600;color:#1A1A1A;letter-spacing:-.01em}
+.topbar-actions{margin-left:auto;display:flex;gap:6px;align-items:center}
+.tb-btn{display:flex;align-items:center;gap:5px;padding:7px 14px;border-radius:6px;border:1px solid #E2E2E5;background:#fff;color:#555;font-size:12px;font-family:inherit;cursor:pointer;font-weight:500;transition:all .12s}
+.tb-btn:hover{background:#F5F5F7;color:#333;border-color:#C0C0C6}
+.tb-btn:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.tb-btn.purple{background:#6C31FF;color:#fff;border-color:#6C31FF}
+.tb-btn.purple:hover{background:#5B28E0}
+.tb-av{width:30px;height:30px;border-radius:999px;background:linear-gradient(135deg,#6C31FF,#8A5CFF);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;cursor:pointer}
+.content{flex:1;overflow-y:auto;padding:24px;background:#F5F5F7;scrollbar-width:thin;scrollbar-color:#D0D0D4 transparent}
+.agent-welcome{background:linear-gradient(135deg,#F0EDFF,#E8E6FF);border-radius:12px;padding:18px 24px;display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.agent-welcome .wi{width:36px;height:36px;border-radius:10px;background:#6C31FF;color:#fff;display:flex;align-items:center;justify-content:center}
+.agent-welcome .wi svg{width:18px;height:18px;stroke:currentColor}
+.agent-welcome h2{font-size:18px;font-weight:600;color:#1A1A1A;letter-spacing:-.01em}
+.agent-welcome p{font-size:12px;color:#666}
+.agent-welcome .w-meta{margin-left:auto;display:flex;gap:10px}
+.ag{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:24px}
+.ac{background:#fff;border-radius:10px;border:1px solid #E8E8EC;padding:16px;cursor:pointer;transition:all .12s;position:relative}
+.ac:hover{box-shadow:0 2px 12px rgba(0,0,0,0.04);border-color:#D0D0D4}
+.ac:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.ac .at{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px}
+.ac .ai{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ac .ai svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ac .anm{font-size:13px;font-weight:600;color:#1A1A1A;flex:1}
+.ac .as{font-size:10px;padding:2px 7px;border-radius:999px;font-weight:600;display:inline-flex;align-items:center;gap:3px}
+.as-green{background:#E3F5E5;color:#1B8A2F}
+.as-purple{background:#E8E6FF;color:#6C31FF}
+.as-orange{background:#FFF1E0;color:#E57800}
+.ac .ad{font-size:11px;color:#7A7A80;margin-bottom:10px;line-height:1.4}
+.ac .am{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding-top:10px;border-top:1px solid #F2F2F4;font-size:10px;color:#7A7A80}
+.ac .am .ml{display:block;font-weight:450;color:#555}
+.ac .am .mv{font-weight:600;color:#333}
+.ac .aq{display:flex;gap:4px;margin-top:10px;padding-top:10px;border-top:1px solid #F2F2F4}
+.ac .aqb{width:28px;height:28px;border-radius:6px;border:1px solid #E2E2E5;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .1s;color:#777}
+.ac .aqb svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ac .aqb:hover{background:#F5F5F7;border-color:#C8C8CE;color:#333}
+.ac .aqb:focus-visible{outline:2px solid #6C31FF;outline-offset:1px}
+.ac .aqb.pause:hover{background:#FFF1E0;border-color:#E0C080;color:#B06000}
+.ac .aqb.logs:hover{background:#EEEBFF;border-color:#CCC5F0;color:#6C31FF}
+.tabs{display:flex;gap:4px;border-bottom:1px solid #EBEBED;margin-bottom:16px}
+.tab{padding:8px 16px;font-size:12px;font-weight:500;color:#7A7A80;cursor:pointer;border-bottom:2px solid transparent;transition:all .12s}
+.tab:hover{color:#555}
+.tab.active{color:#6C31FF;border-bottom-color:#6C31FF}
+.tab .tc{font-size:10px;padding:1px 5px;border-radius:999px;background:#E4E4E8;color:#7A7A80;margin-left:4px;font-weight:600}
+.tab.active .tc{background:rgba(108,49,255,0.1);color:#6C31FF}
+.tab:focus-visible{outline:2px solid #6C31FF;outline-offset:-2px}
+.ra{background:#fff;border-radius:10px;border:1px solid #E8E8EC;padding:12px 16px;margin-bottom:20px}
+.ra .rah{display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:13px;font-weight:600;color:#1A1A1A}
+.ra .rah svg{width:16px;height:16px;stroke:#6C31FF;fill:none;stroke-width:2;stroke-linecap:round}
+.ra .rav{font-size:10px;color:#7A7A80;margin-left:auto}
+.ra .rai{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #F2F2F4;font-size:11px;color:#555}
+.ra .rai:last-child{border-bottom:none}
+.ra .rat{width:6px;height:6px;border-radius:999px;flex-shrink:0}
+.ra .rd{color:#7A7A80;font-size:10px;margin-left:auto;white-space:nowrap}
+.rbar{display:flex;gap:16px;margin-bottom:20px}
+.rpi{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;background:#fff;border:1px solid #E8E8EC}
+.rpi .rn{font-size:17px;font-weight:700;color:#1A1A1A}
+.rpi .rl{font-size:10.5px;color:#7A7A80}
+.gdpr-foot{margin-top:20px;padding:12px 16px;border-radius:10px;background:#F0F0F2;border:1px solid #E0E0E4;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:14px}
+.gdpr-item{font-size:10.5px;color:#666;padding:3px 8px;border-radius:5px;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+.gdpr-item svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+.gdpr-item:hover{background:#E4E4E8;color:#1A1A1A}
+.gdpr-item:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.gdpr-badge{font-size:9px;padding:1px 5px;border-radius:3px;background:#E3F5E5;color:#0D5E1A;margin-left:4px}
+.sdot{width:6px;height:6px;flex-shrink:0}
+.sdot.green{border-radius:2px;background:#00C875}
+.sdot.orange{border-radius:999px;background:#FFAD42}
+.sdot.purple{border-radius:999px;background:#6C31FF}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="leftnav">
+  <div class="ln-h"><div class="ln-logo">R</div><div class="ln-name">Rufkis</div></div>
+  <div class="ln-s">Workspace</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>></div>Home</div>
+  <div class="ln-i active"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><circle cx="12" cy="13" r="1"/><circle cx="8" cy="13" r="1"/><circle cx="16" cy="13" r="1"/></svg>></div>Agents<span class="bd">5</span></div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>></div>Workloads<span class="bd">48</span></div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a2 2 0 012 2v2h3a3 3 0 013 3v9a3 3 0 01-3 3H7a3 3 0 01-3-3V9a3 3 0 013-3h3V4a2 2 0 012-2z"/></svg>></div>Automations</div>
+  <div class="ln-s">Configure</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>></div>Logs</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>></div>Notes</div>
+  <div class="ln-ft"><div class="ln-fl"><div class="av">D</div>Drew Jocham</div></div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1>Agents</h1>
+    <div class="topbar-actions">
+      <button class="tb-btn" aria-label="Toggle list view"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>> List</button>
+      <button class="tb-btn purple" aria-label="Create new agent"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>> New Agent</button>
+      <div class="tb-av" aria-label="Drew Jocham avatar" role="img">D</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="agent-welcome">
+      <div class="wi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>></div>
+      <div><h2>Agents &middot; 5 deployed</h2><p>4 healthy <span aria-hidden="true">&middot;</span> 1 progressing &mdash; minikube</p></div>
+      <div class="w-meta">
+        <span class="as as-green"> 4 Healthy</span>
+        <span class="as as-orange"> 1 Progressing</span>
+      </div>
+    </div>
+
+    <div class="rbar">
+      <div class="rpi"><span class="rn">5</span><span class="rl">Agents</span></div>
+      <div class="rpi"><span class="rn">486m</span><span class="rl">Total CPU</span></div>
+      <div class="rpi"><span class="rn">1.2Gi</span><span class="rl">Total Memory</span></div>
+      <div class="rpi"><span class="rn">$1.2k</span><span class="rl">Savings / mo</span></div>
+    </div>
+    <!-- Filter tabs -->
+    <div class="tabs" role="tablist">
+      <div class="tab active" role="tab" tabindex="0" aria-selected="true">All Agents <span class="tc">5</span></div>
+      <div class="tab" role="tab" tabindex="0">Watchers <span class="tc">1</span></div>
+      <div class="tab" role="tab" tabindex="0">Schedulers <span class="tc">1</span></div>
+      <div class="tab" role="tab" tabindex="0">Analyzers <span class="tc">2</span></div>
+      <div class="tab" role="tab" tabindex="0">Integrations <span class="tc">1</span></div>
+    </div>
+
+    <!-- Agent cards -->
+    <div class="ag">
+
+            <!-- SRE Agent -->
+      <div class="ac" tabindex="0">
+        <div class="at">
+          <div class="ai" style="background:#E3F5E5;color:#1B8A2F;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>></div>
+          <div class="anm">SRE</div>
+          <span class="as as-green"> Active</span>
+        </div>
+        <div class="ad">GitOps infrastructure: Terraform, Helm, and HPA lifecycle</div>
+        <div class="am">
+          <span><span class="ml">CPU</span><span class="mv">48m</span></span>
+          <span><span class="ml">Memory</span><span class="mv">124Mi</span></span>
+          <span><span class="ml">Capabilities</span><span class="mv">terraform, helm, gitops</span></span>
+          <span><span class="ml">Scope</span><span class="mv">production</span></span>
+        </div>
+        <div class="aq">
+          <button class="aqb pause" aria-label="Pause"><svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>></button>
+          <button class="aqb" aria-label="Restart"><svg viewBox="0 0 24 24"><path d="M1 4v6h6"/><path d="M3.5 15.5A8 8 0 1 0 5 7L1 10"/></svg>></button>
+          <button class="aqb logs" aria-label="Logs"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>></button>
+          <button class="aqb" aria-label="Configure"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>></button>
+          <span style="font-size:9px;color:#999;align-self:center;">gitops@3m</span>
+        </div>
+      </div>
+
+      <!-- Backend Engineer -->
+      <div class="ac" tabindex="0">
+        <div class="at">
+          <div class="ai" style="background:#FFF1E0;color:#E57800;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="16 3 21 7 8 21 3 21 3 16 16 3"/></svg>></div>
+          <div class="anm">Backend Engineer</div>
+          <span class="as as-orange"> Running</span>
+        </div>
+        <div class="ad">Generated Go hexagonal service: orders-svc (gRPC + event-driven)</div>
+        <div class="am">
+          <span><span class="ml">CPU</span><span class="mv">64m</span></span>
+          <span><span class="ml">Memory</span><span class="mv">256Mi</span></span>
+          <span><span class="ml">Output</span><span class="mv">cmd/server, pkg/app</span></span>
+          <span><span class="ml">Frameworks</span><span class="mv">gRPC, NATS</span></span>
+        </div>
+        <div class="aq">
+          <button class="aqb pause" aria-label="Pause"><svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>></button>
+          <button class="aqb" aria-label="Restart"><svg viewBox="0 0 24 24"><path d="M1 4v6h6"/><path d="M3.5 15.5A8 8 0 1 0 5 7L1 10"/></svg>></button>
+          <button class="aqb logs" aria-label="Logs"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>></button>
+          <button class="aqb" aria-label="Configure"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>></button>
+          <span style="font-size:9px;color:#999;align-self:center;">gen@4m</span>
+        </div>
+      </div>
+
+      <!-- Security Auditor -->
+      <div class="ac" tabindex="0">
+        <div class="at">
+          <div class="ai" style="background:#E8E6FF;color:#6C31FF;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>></div>
+          <div class="anm">Security Auditor</div>
+          <span class="as as-purple"> Idle</span>
+        </div>
+        <div class="ad">OWASP scanning, secret detection, CVE analysis</div>
+        <div class="am">
+          <span><span class="ml">CPU</span><span class="mv">12m</span></span>
+          <span><span class="ml">Memory</span><span class="mv">48Mi</span></span>
+          <span><span class="ml">Last audit</span><span class="mv">2h ago</span></span>
+          <span><span class="ml">Score</span><span class="mv">92/100</span></span>
+        </div>
+        <div class="aq">
+          <button class="aqb pause" aria-label="Pause"><svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>></button>
+          <button class="aqb" aria-label="Restart"><svg viewBox="0 0 24 24"><path d="M1 4v6h6"/><path d="M3.5 15.5A8 8 0 1 0 5 7L1 10"/></svg>></button>
+          <button class="aqb logs" aria-label="Logs"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>></button>
+          <button class="aqb" aria-label="Configure"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+
+      <!-- DevOps Engineer -->
+      <div class="ac" tabindex="0">
+        <div class="at">
+          <div class="ai" style="background:#E3F5E5;color:#1B8A2F;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="14" rx="2"/><line x1="3" y1="21" x2="21" y2="21"/><line x1="12" y1="3" x2="12" y2="21"/></svg>></div>
+          <div class="anm">DevOps</div>
+          <span class="as as-green"> Active</span>
+        </div>
+        <div class="ad">CI/CD pipelines: GitHub Actions, Docker Compose, Makefiles</div>
+        <div class="am">
+          <span><span class="ml">CPU</span><span class="mv">32m</span></span>
+          <span><span class="ml">Memory</span><span class="mv">96Mi</span></span>
+          <span><span class="ml">Scope</span><span class="mv">all</span></span>
+          <span><span class="ml">Generator</span><span class="mv">Go, Docker</span></span>
+        </div>
+        <div class="aq">
+          <button class="aqb pause" aria-label="Pause"><svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>></button>
+          <button class="aqb" aria-label="Restart"><svg viewBox="0 0 24 24"><path d="M1 4v6h6"/><path d="M3.5 15.5A8 8 0 1 0 5 7L1 10"/></svg>></button>
+          <button class="aqb logs" aria-label="Logs"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>></button>
+          <button class="aqb" aria-label="Configure"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>></button>
+          <span style="font-size:9px;color:#999;align-self:center;">pipeline@1m</span>
+        </div>
+      </div>
+
+      <!-- Frontend Engineer -->
+      <div class="ac" tabindex="0">
+        <div class="at">
+          <div class="ai" style="background:#FFF1E0;color:#E57800;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/><line x1="12" y1="22" x2="12" y2="15.5"/><polyline points="22 8.5 12 15.5 2 8.5"/></svg>></div>
+          <div class="anm">Frontend Engineer</div>
+          <span class="as as-orange"> Deploying</span>
+        </div>
+        <div class="ad">Vue 3 component generation with WCAG 2.1 compliance</div>
+        <div class="am">
+          <span><span class="ml">CPU</span><span class="mv">24m</span></span>
+          <span><span class="ml">Memory</span><span class="mv">128Mi</span></span>
+          <span><span class="ml">Framework</span><span class="mv">Vue 3 + TSX</span></span>
+          <span><span class="ml">Status</span><span class="mv">Building...</span></span>
+        </div>
+        <div class="aq">
+          <button class="aqb pause" aria-label="Cancel deployment" style="color:#CCC;border-color:#E8E8EC;cursor:default;" disabled><svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>></button>
+          <button class="aqb" aria-label="Retry"><svg viewBox="0 0 24 24"><path d="M1 4v6h6"/><path d="M3.5 15.5A8 8 0 1 0 5 7L1 10"/></svg>></button>
+          <span style="font-size:9px;color:#E57800;font-weight:600;align-self:center;">deploying</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="ra">
+      <div class="rah">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>> Recent Agent Activity
+        <span class="rav">Past 24h</span>
+      </div>
+      <div class="rai"> SRE &mdash; applied Terraform diff for staging cluster, no drift <span class="rd">2m ago</span></div>
+      <div class="rai"> Backend Engineer &mdash; generated orders-svc scaffolding (6 files) <span class="rd">4m ago</span></div>
+      <div class="rai"> DevOps &mdash; published pipeline for api-gateway build &amp; test <span class="rd">12m ago</span></div>
+      <div class="rai"> Security Auditor &mdash; scanned 14 services, 0 critical CVE findings <span class="rd">2h ago</span></div>
+      <div class="rai"> Frontend Engineer &mdash; generated 3 WCAG-compliant Vue components <span class="rd">6h ago</span></div>
+    </div>
+
+    <!-- GDPR Footer -->
+    <div class="gdpr-foot">
+      <span style="font-size:11px;font-weight:600;color:#444;">
+        <svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:-3px;margin-right:4px;" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>>
+        Data &amp; Privacy
+      </span>
+      <span class="gdpr-item" role="button" tabindex="0"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>> Export My Data</span>
+      <span class="gdpr-item" role="button" tabindex="0"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>> Delete My Data</span>
+      <span class="gdpr-item" role="button" tabindex="0"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33"/></svg>> Consent Preferences</span>
+      <span class="gdpr-item" role="button" tabindex="0"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>> Audit Log</span>
+      <span class="gdpr-item" style="cursor:default;"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>> Retention: 90 days <span class="gdpr-badge">GDPR</span></span>
+    </div>
+  </div>
+</div>
+</div>
+</body>
+</html>

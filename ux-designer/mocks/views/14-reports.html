@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=1440"><title>Rufkis — Reports</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,sans-serif;background:#F5F5F7;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.app{width:1440px;height:900px;display:flex;background:#fff;overflow:hidden;border-radius:12px;box-shadow:0 4px 40px rgba(0,0,0,0.06)}
+.leftnav{width:240px;background:#F9F9FB;border-right:1px solid #EBEBED;display:flex;flex-direction:column;flex-shrink:0}
+.ln-h{padding:16px 16px 8px;display:flex;align-items:center;gap:8px}
+.ln-logo{width:28px;height:28px;border-radius:8px;background:#6C31FF;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px}
+.ln-name{font-size:14px;font-weight:600;color:#1A1A1A}
+.ln-s{padding:12px 16px 4px;font-size:10px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.04em}
+.ln-i,.ln-fl{display:flex;align-items:center;gap:8px;padding:7px 16px;margin:0 8px;border-radius:6px;font-size:13px;font-weight:500;color:#555;cursor:pointer;position:relative}
+.ln-i:hover{background:rgba(108,49,255,0.04);color:#333}
+.ln-i .active-bar{display:none}
+.ln-i.active .active-bar{display:block;position:absolute;left:-8px;width:3px;height:16px;border-radius:0 3px 3px 0;background:#6C31FF}
+.ln-i.active{background:rgba(108,49,255,0.08);color:#6C31FF;font-weight:600}
+.ln-i:focus-visible{outline:2px solid #6C31FF;outline-offset:-2px}
+.ln-i .ic{width:16px;height:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ln-i .ic svg{width:16px;height:16px}
+.ln-i .bd{margin-left:auto;font-size:10px;padding:1px 6px;border-radius:999px;background:rgba(108,49,255,0.1);color:#6C31FF;font-weight:600}
+.ln-ft{margin-top:auto;padding:12px;border-top:1px solid #EBEBED}
+.ln-fl{padding:7px 10px;margin:0;font-size:12px;color:#777}
+.ln-fl:hover{background:rgba(108,49,255,0.03);color:#333}
+.av{width:20px;height:20px;border-radius:6px;background:linear-gradient(135deg,#6C31FF,#8A5CFF);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:52px;border-bottom:1px solid #EBEBED;display:flex;align-items:center;padding:0 24px;gap:16px;flex-shrink:0}
+.topbar h1{font-size:18px;font-weight:600;color:#1A1A1A;letter-spacing:-.01em}
+.topbar-actions{margin-left:auto;display:flex;gap:6px;align-items:center}
+.tb-btn{display:flex;align-items:center;gap:5px;padding:7px 14px;border-radius:6px;border:1px solid #E2E2E5;background:#fff;color:#555;font-size:12px;font-family:inherit;cursor:pointer;font-weight:500}
+.tb-btn:hover{background:#F5F5F7;color:#333;border-color:#C0C0C6}
+.tb-btn:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.tb-btn.purple{background:#6C31FF;color:#fff;border-color:#6C31FF}
+.tb-btn.purple:hover{background:#5B28E0}
+.tb-av{width:30px;height:30px;border-radius:999px;background:linear-gradient(135deg,#6C31FF,#8A5CFF);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;cursor:pointer}
+.content{flex:1;overflow-y:auto;padding:24px;background:#F5F5F7;scrollbar-width:thin;scrollbar-color:#D0D0D4 transparent}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:500}
+.pill.green{background:#E3F5E5;color:#1B8A2F}
+.pill.orange{background:#FFF1E0;color:#E57800}
+.pill.purple{background:#E8E6FF;color:#6C31FF}
+.sdot{width:6px;height:6px;flex-shrink:0;display:inline-block}
+.sdot.green{border-radius:2px;background:#00C875}
+.sdot.orange{border-radius:999px;background:#FFAD42}
+.sdot.purple{border-radius:999px;background:#6C31FF}
+.tabs{display:flex;gap:4px;border-bottom:1px solid #EBEBED;margin-bottom:16px}
+.tab{padding:8px 16px;font-size:12px;font-weight:500;color:#7A7A80;cursor:pointer;border-bottom:2px solid transparent}
+.tab:hover{color:#555}
+.tab.active{color:#6C31FF;border-bottom-color:#6C31FF}
+.tab .tc{font-size:10px;padding:1px 5px;border-radius:999px;background:#E4E4E8;color:#7A7A80;margin-left:4px}
+.tab.active .tc{background:rgba(108,49,255,0.1);color:#6C31FF}
+.tab:focus-visible{outline:2px solid #6C31FF;outline-offset:-2px}
+.report-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px}
+.rc{background:#fff;border-radius:10px;border:1px solid #E8E8EC;padding:14px 16px;cursor:pointer}
+.rc:hover{box-shadow:0 2px 12px rgba(0,0,0,0.04);border-color:#D0D0D4}
+.rc .rc-title{font-size:13px;font-weight:600;color:#1A1A1A;margin-bottom:4px}
+.rc .rc-desc{font-size:11px;color:#888;margin-bottom:8px}
+.rc .rc-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:10px}
+.scheduled-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.sch-item{background:#fff;border-radius:8px;border:1px solid #E8E8EC;padding:10px 14px;display:flex;align-items:center;gap:10px;flex:1;font-size:11px;color:#555}
+.sch-item .sch-name{font-weight:600;color:#1A1A1A;font-size:12px}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="leftnav">
+  <div class="ln-h"><div class="ln-logo">R</div><div class="ln-name">Rufkis</div></div>
+  <div class="ln-s">Workspace</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>Home</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg></div>Agents</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>Workloads</div>
+  <div class="ln-s">Configure</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>Logs</div>
+  <div class="ln-i"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>Notes</div>
+  <div class="ln-s" style="margin-top:8px;">Analytics</div>
+  <div class="ln-i active"><div class="active-bar"></div><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 8 22 12 18 16"/><polyline points="6 8 2 12 6 16"/><line x1="2" y1="12" x2="22" y2="12"/></svg></div>Reports</div>
+  <div class="ln-ft"><div class="ln-fl"><div class="av">D</div>Drew Jocham</div></div>
+</div>
+<div class="main">
+  <div class="topbar">
+    <h1>Reports</h1>
+    <div class="topbar-actions">
+      <button class="tb-btn" aria-label="Schedule report"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Schedule</button>
+      <button class="tb-btn purple" aria-label="Create new report"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New Report</button>
+      <div class="tb-av" aria-label="Drew Jocham avatar" role="img">D</div>
+    </div>
+  </div>
+  <div class="content">
+    <div class="tabs" role="tablist">
+      <div class="tab active" role="tab" tabindex="0" aria-selected="true">Templates <span class="tc">6</span></div>
+      <div class="tab" role="tab" tabindex="0">Scheduled <span class="tc">3</span></div>
+      <div class="tab" role="tab" tabindex="0">History <span class="tc">24</span></div>
+    </div>
+    <div class="report-grid">
+      <div class="rc" tabindex="0">
+        <div class="rc-title">Cluster Health Report</div>
+        <div class="rc-desc">Node status, resource utilization, pod health, and alert summary</div>
+        <div class="rc-meta"><span class="pill purple" style="font-size:10px;">Daily</span><span style="color:#999;">Last run: 1h ago</span></div>
+      </div>
+      <div class="rc" tabindex="0">
+        <div class="rc-title">Cost Analysis</div>
+        <div class="rc-desc">Resource spend breakdown by namespace, service, and agent</div>
+        <div class="rc-meta"><span class="pill orange" style="font-size:10px;">Weekly</span><span style="color:#999;">Last run: 2d ago</span></div>
+      </div>
+      <div class="rc" tabindex="0">
+        <div class="rc-title">Security Posture Report</div>
+        <div class="rc-desc">CVE scan results, RBAC audit, secret detection findings</div>
+        <div class="rc-meta"><span class="pill green" style="font-size:10px;">On-demand</span><span style="color:#999;">Last run: 5d ago</span></div>
+      </div>
+      <div class="rc" tabindex="0">
+        <div class="rc-title">Agent Performance</div>
+        <div class="rc-desc">Agent activity metrics, success rates, resource consumption</div>
+        <div class="rc-meta"><span class="pill purple" style="font-size:10px;">Daily</span><span style="color:#999;">Last run: 1h ago</span></div>
+      </div>
+      <div class="rc" tabindex="0">
+        <div class="rc-title">FinOps Waste Report</div>
+        <div class="rc-desc">Idle resources, oversized deployments, savings opportunities</div>
+        <div class="rc-meta"><span class="pill orange" style="font-size:10px;">Weekly</span><span style="color:#999;">Last run: 3d ago</span></div>
+      </div>
+      <div class="rc" tabindex="0">
+        <div class="rc-title">Compliance Audit</div>
+        <div class="rc-desc">Cloud readiness, PSS enforcement, backup verification</div>
+        <div class="rc-meta"><span class="pill orange" style="font-size:10px;">Monthly</span><span style="color:#999;">Last run: 12d ago</span></div>
+      </div>
+    </div>
+    <div style="font-size:13px;font-weight:600;color:#1A1A1A;margin-bottom:8px;">Scheduled Reports</div>
+    <div class="scheduled-bar">
+      <div class="sch-item"><span class="sdot green"></span><div><div class="sch-name">Daily Cluster Health</div><span style="color:#999;">Every day at 08:00</span></div><span class="pill green" style="margin-left:auto;font-size:10px;">Active</span></div>
+      <div class="sch-item"><span class="sdot green"></span><div><div class="sch-name">Weekly Cost Report</div><span style="color:#999;">Every Monday at 09:00</span></div><span class="pill green" style="margin-left:auto;font-size:10px;">Active</span></div>
+      <div class="sch-item"><span class="sdot orange"></span><div><div class="sch-name">Monthly Compliance</div><span style="color:#999;">1st of month at 10:00</span></div><span class="pill orange" style="margin-left:auto;font-size:10px;">Pending</span></div>
+    </div>
+  </div>
+</div>
+</div>
+</body>
+</html>

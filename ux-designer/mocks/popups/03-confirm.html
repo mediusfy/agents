@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=1440"><title>Confirm — Rufkis</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;min-height:100vh;font-size:14px;color:#1A1A1A}
+.dialog{width:400px;background:#FFFFFF;border-radius:12px;border:1px solid #E8E8EC;box-shadow:0 8px 32px rgba(0,0,0,0.12);padding:24px 24px 20px}
+.dialog:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.icon-wrap{width:48px;height:48px;border-radius:999px;background:rgba(217,48,37,0.08);color:#D93025;display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+.dialog h3{font-size:16px;font-weight:600;color:#1A1A1A;margin-bottom:6px}
+.dialog p{font-size:13px;color:#7A7A80;line-height:1.5;margin-bottom:20px}
+.actions{display:flex;gap:8px;justify-content:flex-end}
+.btn{padding:8px 18px;border-radius:6px;border:1px solid #E2E2E5;background:#fff;color:#555;font-size:13px;font-family:'Inter',sans-serif;cursor:pointer;font-weight:500}
+.btn:hover{background:#F5F5F7;border-color:#C0C0C6}
+.btn:focus-visible{outline:2px solid #6C31FF;outline-offset:2px}
+.btn.danger{background:#D93025;color:#fff;border-color:#D93025}
+.btn.danger:hover{background:#C5221F}
+</style>
+</head>
+<body>
+<div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-desc" data-testid="confirm-dialog">
+  <div class="icon-wrap"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
+  <h3 id="confirm-title">Delete pod api-redis-1a2b3c?</h3>
+  <p id="confirm-desc">This will terminate the running container. Pod will restart if managed by a ReplicaSet.</p>
+  <div class="actions">
+    <button class="btn" data-testid="confirm-cancel">Cancel</button>
+    <button class="btn danger" data-testid="confirm-delete">Delete</button>
+  </div>
+</div>
+</body>
+</html>
