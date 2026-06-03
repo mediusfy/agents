@@ -25,7 +25,11 @@ async def search_codebase(ctx: RunContext[str], pattern: str, path: str = ".", i
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout, stderr = await proc.communicate()
+        try:
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=60.0)
+        except asyncio.TimeoutError:
+            proc.kill()
+            return ["Error: Search timed out after 60 seconds. Path might be too large."]
         if proc.returncode == 0:
             return stdout.decode().strip().splitlines()
         elif proc.returncode == 1:

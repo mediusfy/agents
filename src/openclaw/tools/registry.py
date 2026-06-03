@@ -23,7 +23,7 @@ tool_registry: dict[str, ToolDef] = {}
 
 
 def _build_span_attrs(tool_name: str, kwargs: dict) -> dict:
-    run_ctx = current_run_context.get()
+    run_ctx = current_run_context.get() or {}
     attrs = {
         "tool_name": tool_name,
         "arg_count": len(kwargs),

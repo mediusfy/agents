@@ -128,3 +128,4 @@ The MCP server (`start_mcp.py`) exposes:
 5. **The registry is lazy**: `register_all_agents()` must be called before `registry.get()` or `registry.query()`
 6. **Do not edit generated code**: `generated-app/` is pipeline output, not source
 7. **Logfire for observability**: Set `LOGFIRE_TOKEN` to enable. Traces at https://logfire-eu.pydantic.dev/drew/argus
+8. **Mandatory Peer Checks**: Before any coding task is considered complete or before moving on to other tasks, agents MUST always have their work checked by the `test_eng` (tester), `security` (security review), and `library-curator` agents.

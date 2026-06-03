@@ -86,7 +86,12 @@ async def run_agent_by_name(agent_name: str, request: str, run_on_gks: bool = Fa
                 proc = await asyncio.create_subprocess_exec(
                     *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
                 )
-                stdout, stderr = await proc.communicate()
+                try:
+                    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=300)
+                except asyncio.TimeoutError:
+                    proc.kill()
+                    return f"ERROR running on GKS: Gateway RPC timed out after 300 seconds."
+
                 if proc.returncode != 0:
                     return f"ERROR running on GKS: {stderr.decode()}\nOutput: {stdout.decode()}"
 
