@@ -1,27 +1,59 @@
+# === Python ===
 *.egg-info/
 *.pyc
-.DS_Store
-.aivory
-.antigravitycli
-.dagmem
-.claude-plugin
-.claude
-.claw-checkpoints/
-.claw-vectordb
-.claw-vectordb*/
-.dagmem/
-.env
-.idea
-.mypy_cache/
-.pycharm_plugin
-.pytest_cache/
-.tmp_*
-.venv_*
-.tmp_dagster_home_*/
-.venv/
-.vscode
+*.pyo
 __pycache__/
 build/
 dist/
+.venv/
+.venv_*/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+mypy_out.txt
+mypy2_out.txt
+*.so
+
+# === Secret/Env ===
+.env
+.env.*
+!.env.example
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === IDE ===
+.idea/
+.vscode/
+.pycharm_plugin/
+
+# === Generated / Cache ===
 generated-app/
-telemetry.jsonl
+.coverage
+.coverage.*
+coverage.out
+cache/
+archive/
+
+# === Run-time / Telemetry / Logs ===
+session_trace*.jsonl
+telemetry*.jsonl
+telemetry.archive*.jsonl
+
+# === Agent Run-time Directories ===
+.dagmem/
+.aivory/
+.claw-checkpoints/
+.claw-vectordb
+.claw-vectordb*/
+.tmp_*
+.tmp_dagster_home_*/
+.logfire/
+
+# === Agent Plugin Config (keep in repo but ignore local state) ===
+# .opencode/ and .claude/ and .claude-plugin/ are kept in version control
+# .agents/ and .antigravitycli/ are kept for local runtime state
+
+# === Temp ===
+scratch.go
