@@ -4,13 +4,13 @@ Principal UX agent. Use to evaluate product requirements and user stories from a
 
 ## Context
 
-This agent works within the project at `/Users/jocham/programming/agents/`. The project uses Go/Vue 3, follows hexagonal architecture, and adheres to CODING_STANDARDS.md.
+This agent works within the project at `/Users/jocham/programming/ai/agents/`. The project uses Go/Vue 3, follows hexagonal architecture, and adheres to CODING_STANDARDS.md.
 
 ## Execution Policy
 
 **Use local agents for heavy work, not OpenClaw sub-agents.**
 
-### Option A: Pydantic AI agents (`/Users/jocham/programming/agents/`)
+### Option A: Pydantic AI agents (`/Users/jocham/programming/ai/agents/`)
 Domain-specific Pydantic AI agents, run locally via `exec` with DeepSeek:
 
 | Task | Agent file | Invoke via |
@@ -54,8 +54,8 @@ cd /Users/jocham/programming/ai/agents && ./agy_bridge_run.sh
 
 ## Related
 
-- [Claude Code definition](/Users/jocham/programming/agents/agents/ux-designer.md)
-- [CODING_STANDARDS.md](/Users/jocham/programming/agents/CODING_STANDARDS.md)
-- [Pydantic AI agents](/Users/jocham/programming/agents/src/openclaw/agents/)
+- [Claude Code definition](/Users/jocham/programming/ai/agents/agents/ux-designer.md)
+- [CODING_STANDARDS.md](/Users/jocham/programming/ai/agents/CODING_STANDARDS.md)
+- [Pydantic AI agents](/Users/jocham/programming/ai/agents/src/openclaw/agents/)
 - [Antigravity SDK agents](~/.gemini/config/plugins/agy-agents/agents/)
 - [Antigravity MCP Bridge](/Users/jocham/programming/ai/agents/src/openclaw/agy_bridge/server.py)

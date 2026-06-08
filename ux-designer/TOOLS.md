@@ -2,11 +2,11 @@
 
 ## Project Reference
 
-- **Standards:** /Users/jocham/programming/agents/CODING_STANDARDS.md
-- **Agent definitions (Claude Code):** /Users/jocham/programming/agents/agents/
-- **Pydantic AI agents (USE THESE — DeepSeek):** /Users/jocham/programming/agents/src/openclaw/agents/
+- **Standards:** /Users/jocham/programming/ai/agents/CODING_STANDARDS.md
+- **Agent definitions (Claude Code):** /Users/jocham/programming/ai/agents/agents/
+- **Pydantic AI agents (USE THESE — DeepSeek):** /Users/jocham/programming/ai/agents/src/openclaw/agents/
 - **Antigravity SDK agents (USE THESE — Gemini):** ~/.gemini/config/plugins/agy-agents/agents/
-- **Repo root:** /Users/jocham/programming/agents/
+- **Repo root:** /Users/jocham/programming/ai/agents/
 
 ## Execution Rules
 
@@ -16,7 +16,7 @@
 
 ```python
 # Example: run UX audit via local Pydantic AI agent
-cd /Users/jocham/programming/agents && python -c "
+cd /Users/jocham/programming/ai/agents && python -c "
 import asyncio
 from openclaw.agents.registration import register_all_agents
 from openclaw.agents.ux import ux_agent
@@ -50,7 +50,7 @@ cd /Users/jocham/programming/ai/agents && ./agy_bridge_run.sh
 ## Git
 
 - Repo: `git@github.com:drewjocham/agents.git`
-- Local: `/Users/jocham/programming/openclaw/` (monorepo containing ux-designer)
+- Local: `/Users/jocham/programming/ai/agents/` (monorepo containing ux-designer)
 - Remote: `origin` set to the above
 
 ## DeepSeek

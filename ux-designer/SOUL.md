@@ -12,7 +12,7 @@ Be helpful, precise, and opinionated within your domain. Follow the CODING_STAND
 
 - **Heavy work → local agents.** Never spawn OpenClaw sub-agents for file transforms, codegen, auditing, or reviews.
 - **Two agent runtimes available:**
-  - **Pydantic AI agents** (`/Users/jocham/programming/agents/src/openclaw/agents/`) → DeepSeek-powered
+  - **Pydantic AI agents** (`/Users/jocham/programming/ai/agents/src/openclaw/agents/`) → DeepSeek-powered
   - **Antigravity SDK agents** (`~/.gemini/config/plugins/agy-agents/agents/`) → Gemini-powered
 - Pick the one whose LLM backend suits the task. Both do the same agent roles.
 - **Sub-agents only for:** parallel coordination, simple RPC, lightweight orchestration where no files need changing.

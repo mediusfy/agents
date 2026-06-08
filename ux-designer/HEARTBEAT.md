@@ -8,7 +8,7 @@
 
 ⚠️  **Do not use `sessions_spawn` for heavy work.**
    Use local agent runtimes:
-   - Pydantic AI agents: `/Users/jocham/programming/agents/src/openclaw/agents/` (DeepSeek)
+   - Pydantic AI agents: `/Users/jocham/programming/ai/agents/src/openclaw/agents/` (DeepSeek)
    - Antigravity SDK agents: `~/.gemini/config/plugins/agy-agents/agents/` (Gemini)
    Sub-agents are only for lightweight orchestration (parallel coordination, simple RPC).
 

@@ -4,98 +4,185 @@
     "openclaw-agents": {
       "type": "local",
       "enabled": true,
-      "command": ["./mcp_run.sh"]
+      "command": [
+        "/Users/jocham/programming/ai/agents/mcp_run.sh"
+      ]
     },
     "logfire": {
       "type": "local",
       "enabled": true,
-      "command": ["uvx", "logfire-mcp@latest", "--read-token", "pylf_v1_eu_y8w8M985WQk70qRl2QRl8V7dJJMYFdSvpbYcXg0wwJ88"]
+      "command": [
+        "uvx",
+        "logfire-mcp@latest",
+        "--read-token",
+        "pylf_v1_eu_y8w8M985WQk70qRl2QRl8V7dJJMYFdSvpbYcXg0wwJ88"
+      ]
     }
   },
   "agent": {
-    "backend-engineer": {
-      "description": "Lead Go backend engineer for high-concurrency, event-driven, hexagonal services. Scaffolds Go services, designs gRPC/Protobuf APIs, writes idempotent NATS/Kafka consumers, wires OpenTelemetry + Prometheus.",
+    "quality-gate": {
+      "description": "Quality gate / over-engineering detector. Use to spot-check artifacts from other agents for unnecessary complexity, reinvented wheels, premature abstractions, and bloated rewrites. Also verifies compliance with CODING_STANDARDS.md style guidelines. Returns a complexity score and pass/fail.",
       "mode": "subagent",
-      "model": "deepseek/deepseek-chat",
-      "permission": { "read": "allow", "edit": "allow", "bash": "allow", "grep": "allow", "glob": "allow" }
-    },
-    "business-analyst": {
-      "description": "Senior Business Analyst grounded in Domain-Driven Design. Turns raw product requirements into structured user stories and identifies bounded contexts.",
-      "mode": "subagent",
-      "model": "deepseek/deepseek-reasoner",
-      "permission": { "read": "allow", "edit": "allow", "grep": "allow", "glob": "allow" }
+      "model": "sonnet",
+      "permission": {
+        "read": "allow",
+        "grep": "allow",
+        "glob": "allow"
+      }
     },
     "code-reviewer": {
-      "description": "Final governance review — checks artifacts against approved blueprint, prior ADRs, and CODING_STANDARDS.md. Flags unjustified drift and style violations.",
+      "description": "Final governance review \u2014 Qualified Security Assessor and project historian. Use before milestone approval to check current artifacts against the originally approved blueprint, prior ADRs, and CODING_STANDARDS.md. Flags unjustified drift and style violations.",
       "mode": "subagent",
-      "model": "deepseek/deepseek-reasoner",
-      "permission": { "read": "allow", "grep": "allow", "glob": "allow", "bash": { "git *": "allow", "*": "ask" } }
+      "model": "opus",
+      "permission": {
+        "read": "allow",
+        "grep": "allow",
+        "glob": "allow",
+        "bash": "allow"
+      }
     },
     "cto": {
-      "description": "CTO-level architectural reviewer. Pressure-tests requirements and user stories for scalability, compliance, and tech-stack fit before implementation. Always query cross-session memory for ADRs before proposing solutions. Actively use the logfire MCP to query pydantic.dev telemetry to gauge subagent accuracy and error rates.",
+      "description": "CTO-level architectural reviewer. Use BEFORE implementation to pressure-test requirements and user stories for scalability, compliance, and tech-stack fit. Verifies proposed architecture aligns with CODING_STANDARDS.md. Returns explicit approve/reject with bottlenecks and constraints engineering must follow.",
       "mode": "subagent",
-      "model": "deepseek/deepseek-reasoner",
-      "permission": { "read": "allow" }
-    },
-    "database-engineer": {
-      "description": "Senior database engineer. Writes PostgreSQL migrations, designs normalized schemas, configures Redis/caching, writes data-seeding scripts.",
-      "mode": "subagent",
-      "model": "deepseek/deepseek-chat",
-      "permission": { "read": "allow", "edit": "allow", "bash": "allow", "grep": "allow", "glob": "allow" }
-    },
-    "devops-engineer": {
-      "description": "Principal DevOps engineer. Designs CI/CD (GitHub Actions/GitLab CI), local Docker Compose stacks, and Makefiles.",
-      "mode": "subagent",
-      "model": "deepseek/deepseek-chat",
-      "permission": { "read": "allow", "edit": "allow", "bash": "allow", "grep": "allow", "glob": "allow" }
-    },
-    "docs-writer": {
-      "description": "Technical writer and API documentation specialist. Generates OpenAPI specs, READMEs, runbooks, AGENTS.md, and API reference docs.",
-      "mode": "subagent",
-      "model": "deepseek/deepseek-chat",
-      "permission": { "read": "allow", "edit": "allow", "grep": "allow", "glob": "allow" }
-    },
-    "frontend-engineer": {
-      "description": "Lead Vue 3 frontend engineer. Builds Composition-API + TSX components, WCAG 2.1 AA compliant, testable, real-time event-driven UIs.",
-      "mode": "subagent",
-      "model": "deepseek/deepseek-chat",
-      "permission": { "read": "allow", "edit": "allow", "bash": "allow", "grep": "allow", "glob": "allow" }
-    },
-    "planner-agent": {
-      "description": "Breaks high-level goals into detailed, step-by-step plans of executable tasks. Always query cross-session memory for ADRs before proposing solutions. Use the logfire MCP to monitor pydantic.dev telemetry for task success rates.",
-      "mode": "subagent",
-      "model": "deepseek/deepseek-reasoner",
-      "permission": { "read": "allow", "edit": "allow" }
-    },
-    "quality-gate": {
-      "description": "Over-engineering detector and standards compliance checker. Spot-checks for unnecessary complexity, reinvented wheels, premature abstractions, and CODING_STANDARDS.md violations.",
-      "mode": "subagent",
-      "model": "deepseek/deepseek-reasoner",
-      "permission": { "read": "allow", "grep": "allow", "glob": "allow", "bash": { "grep": "allow", "*": "ask" } }
-    },
-    "security-engineer": {
-      "description": "Principal security engineer. Audits code/infra for OWASP Top 10, hardcoded secrets, SQL injection, XSS, SSRF, insecure deserialization, weak crypto, unsafe defaults.",
-      "mode": "subagent",
-      "model": "deepseek/deepseek-reasoner",
-      "permission": { "read": "allow", "grep": "allow", "glob": "allow", "bash": { "grep": "allow", "*": "ask" } }
-    },
-    "sre-engineer": {
-      "description": "Senior SRE for multi-cloud Kubernetes. Writes Terraform/OpenTofu + Crossplane, designs GitOps deploys, configures HPAs and NetworkPolicies, plans multi-region failover.",
-      "mode": "subagent",
-      "model": "deepseek/deepseek-chat",
-      "permission": { "read": "allow", "edit": "allow", "bash": "allow", "grep": "allow", "glob": "allow" }
+      "model": "opus",
+      "permission": {
+        "read": "allow",
+        "grep": "allow",
+        "glob": "allow",
+        "webfetch": "allow"
+      }
     },
     "test-engineer": {
-      "description": "QA automation engineer for BDD-style Playwright tests and Go table-driven unit tests with testify mocks and testcontainers integration tests.",
+      "description": "QA automation engineer for BDD-style Playwright tests. For Go backend testing: table-driven unit tests with testify mocks, integration tests with testcontainers. Use to convert Gherkin acceptance criteria into deterministic tests.",
       "mode": "subagent",
-      "model": "deepseek/deepseek-chat",
-      "permission": { "read": "allow", "edit": "allow", "bash": "allow", "grep": "allow", "glob": "allow" }
+      "model": "sonnet",
+      "permission": {
+        "read": "allow",
+        "write": "allow",
+        "edit": "allow",
+        "bash": "allow",
+        "grep": "allow",
+        "glob": "allow"
+      }
+    },
+    "sre-engineer": {
+      "description": "Senior SRE for multi-cloud Kubernetes. Use to write Terraform/OpenTofu + Crossplane, design GitOps deploys, configure HPAs and NetworkPolicies, or plan multi-region failover. Treats infra as immutable code.",
+      "mode": "subagent",
+      "model": "sonnet",
+      "permission": {
+        "read": "allow",
+        "write": "allow",
+        "edit": "allow",
+        "bash": "allow",
+        "grep": "allow",
+        "glob": "allow"
+      }
+    },
+    "database-engineer": {
+      "description": "Senior database engineer. Use to write PostgreSQL migrations, design normalized schemas with the right indexes, configure Redis/caching, or write data-seeding scripts. Focuses on safety under concurrent writes.",
+      "mode": "subagent",
+      "model": "sonnet",
+      "permission": {
+        "read": "allow",
+        "write": "allow",
+        "edit": "allow",
+        "bash": "allow",
+        "grep": "allow",
+        "glob": "allow"
+      }
     },
     "ux-designer": {
-      "description": "Principal UX agent. Evaluates product requirements and user stories from a modern UI/UX perspective — flow, accessibility, perceived control, transparency — before frontend work begins.",
+      "description": "Principal UX agent. Use to evaluate product requirements and user stories from a modern UI/UX perspective \u2014 flow, accessibility, perceived control, transparency of system actions \u2014 before frontend work begins.",
       "mode": "subagent",
-      "model": "deepseek/deepseek-reasoner",
-      "permission": { "read": "allow" }
+      "model": "sonnet",
+      "permission": {
+        "read": "allow",
+        "grep": "allow",
+        "glob": "allow",
+        "webfetch": "allow"
+      }
+    },
+    "planner-agent": {
+      "description": "A specialized agent that takes a high-level goal and breaks it down into a detailed, step-by-step plan of executable tasks.",
+      "mode": "subagent",
+      "model": "opus",
+      "permission": {
+        "[]": "allow"
+      }
+    },
+    "devops-engineer": {
+      "description": "Principal DevOps engineer. Use to design CI/CD (GitHub Actions or GitLab CI), local Docker Compose stacks, and Makefiles. Prioritizes secure, fast, reproducible builds.",
+      "mode": "subagent",
+      "model": "sonnet",
+      "permission": {
+        "read": "allow",
+        "write": "allow",
+        "edit": "allow",
+        "bash": "allow",
+        "grep": "allow",
+        "glob": "allow"
+      }
+    },
+    "business-analyst": {
+      "description": "Senior Business Analyst grounded in Domain-Driven Design. Use when turning raw product requirements or stakeholder notes into structured user stories, identifying bounded contexts, or mapping the event triggers backend/QA agents will need.",
+      "mode": "subagent",
+      "model": "sonnet",
+      "permission": {
+        "read": "allow",
+        "write": "allow",
+        "edit": "allow",
+        "grep": "allow",
+        "glob": "allow"
+      }
+    },
+    "security-engineer": {
+      "description": "Principal security engineer. Use to audit code or infra for OWASP Top 10, hardcoded secrets, SQL injection, XSS, SSRF, insecure deserialization, weak crypto, and unsafe defaults. Returns a structured report with severity-ranked findings.",
+      "mode": "subagent",
+      "model": "opus",
+      "permission": {
+        "read": "allow",
+        "grep": "allow",
+        "glob": "allow",
+        "bash": "allow"
+      }
+    },
+    "frontend-engineer": {
+      "description": "Lead Vue 3 frontend engineer. Use to build Composition-API + TSX components that are WCAG 2.1 AA compliant, fully testable (data-testid everywhere), and architected as a real-time reflection of a backend event bus.",
+      "mode": "subagent",
+      "model": "sonnet",
+      "permission": {
+        "read": "allow",
+        "write": "allow",
+        "edit": "allow",
+        "bash": "allow",
+        "grep": "allow",
+        "glob": "allow"
+      }
+    },
+    "docs-writer": {
+      "description": "Technical writer and API documentation specialist. Use to generate OpenAPI/Swagger specs, READMEs, runbooks, AGENTS.md, and API reference docs from existing code. Follows CODING_STANDARDS.md \u00a73 documentation conventions.",
+      "mode": "subagent",
+      "model": "sonnet",
+      "permission": {
+        "read": "allow",
+        "write": "allow",
+        "edit": "allow",
+        "grep": "allow",
+        "glob": "allow"
+      }
+    },
+    "backend-engineer": {
+      "description": "Lead Go backend engineer for high-concurrency, event-driven, hexagonal services. Use to scaffold Go services, design gRPC/Protobuf APIs, write idempotent NATS/Kafka consumers, or wire OpenTelemetry + Prometheus into a service.",
+      "mode": "subagent",
+      "model": "sonnet",
+      "permission": {
+        "read": "allow",
+        "write": "allow",
+        "edit": "allow",
+        "bash": "allow",
+        "grep": "allow",
+        "glob": "allow"
+      }
     }
   }
 }
