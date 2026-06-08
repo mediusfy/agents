@@ -39,3 +39,7 @@ class CheckpointError(OpenClawError):
 
 class PathTraversalError(OpenClawError):
     """Detected an attempt to write outside the allowed directory."""
+
+
+class OpenclawDependencyError(ImportError):
+    """Raised when an optional dependency required by a runtime path is missing."""

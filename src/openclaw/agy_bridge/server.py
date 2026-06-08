@@ -135,5 +135,10 @@ async def run_server_loop() -> None:
             sys.stdout.flush()
 
 
-if __name__ == "__main__":
+def main():
+    """Console-script entrypoint. Calls asyncio.run(run_server_loop())."""
     asyncio.run(run_server_loop())
+
+
+if __name__ == "__main__":
+    main()

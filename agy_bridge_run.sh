@@ -3,7 +3,15 @@ set -e
 
 cd "$(dirname "$0")"
 
-source .venv/bin/activate
+# Create venv if it doesn't exist
+if [ ! -d ".venv" ]; then
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install -e ".[dev]"
+else
+    source .venv/bin/activate
+fi
+
 export LOGFIRE_SEND_TO_LOGFIRE=if-token-present
 export PYTHONPATH=$PYTHONPATH:$(pwd)/src
 export DAGSTER_HOME=$(pwd)/.dagmem

@@ -5,19 +5,23 @@ INSERT / SELECT using pgvector's <=> (cosine distance) operator.
 
 Collection names map to pgvector tables, each containing:
   - id        TEXT PRIMARY KEY
-  -- metadata JSONB (any scalar-level metadata)
+  - metadata  JSONB (any scalar-level metadata)
   - embedding vector(384)  — all-MiniLM-L6-v2 produces 384-dim vectors
   - content   TEXT
+
+All heavy dependencies (asyncpg, numpy, sentence-transformers, langchain)
+are imported lazily — importing this module never fails.  Runtime paths
+that touch those deps raise ``OpenclawDependencyError`` with an install hint
+when the extras are missing.
 """
 
 import asyncio
+import json
 import logging
 import os
 from typing import Any
 
-import asyncpg
-import numpy as np
-
+from openclaw.exceptions import OpenclawDependencyError
 from openclaw.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -27,14 +31,52 @@ logger = logging.getLogger(__name__)
 _embeddings: Any = None
 
 
+def _require_vector_deps():
+    """Import asyncpg and numpy lazily; raise ``OpenclawDependencyError`` if either is missing."""
+    _missing = []
+
+    try:
+        import asyncpg as _  # noqa: F401
+    except ModuleNotFoundError:
+        _missing.append("asyncpg")
+
+    try:
+        import numpy as _  # noqa: F401
+    except ModuleNotFoundError:
+        _missing.append("numpy")
+
+    if _missing:
+        raise OpenclawDependencyError(
+            "vector_db requires asyncpg and numpy.  "
+            "Install with:  pip install openclaw[vector]"
+        )
+
+
 def _get_embeddings():
     """Lazy-load HuggingFace embeddings (same model as before, 384-dim)."""
     global _embeddings
     if _embeddings is None:
-        from sentence_transformers import SentenceTransformer
+        try:
+            from sentence_transformers import SentenceTransformer
+        except ModuleNotFoundError as exc:
+            raise OpenclawDependencyError(
+                "vector_db requires sentence-transformers.  "
+                "Install with:  pip install openclaw[vector]"
+            ) from exc
 
         _embeddings = SentenceTransformer("all-MiniLM-L6-v2")
     return _embeddings
+
+
+def _require_ingest_deps(exc: ModuleNotFoundError, hint: str):
+    """Re-raise *exc* as ``OpenclawDependencyError`` with an install hint."""
+    msg = f"vector_db.{hint} requires extra dependencies.  Install with:  pip install openclaw[ingest]"
+    raise OpenclawDependencyError(msg) from exc
+
+
+def _require_guard(exc: ModuleNotFoundError, hint: str):
+    """Re-raise a missing ``[ingest]`` dependency."""
+    _require_ingest_deps(exc, hint)
 
 
 # ── pgvector helpers ───────────────────────────────────────────────
@@ -44,11 +86,16 @@ _initialized_tables: set[str] = set()
 
 # Test-mode override for _get_pool — set by _set_test_pool() during testing.
 # When set, _get_pool returns this pool instead of connecting to PostgreSQL.
-_test_pool_override: asyncpg.Pool | None = None
+_test_pool_override: Any = None
 
 
-def _set_test_pool(pool: asyncpg.Pool | None):
-    """Override _get_pool for testing (bypasses real PostgreSQL)."""
+def _set_test_pool(pool: Any):
+    """Override _get_pool for testing (bypasses real PostgreSQL).
+
+    The ``pool`` parameter is typed loosely to avoid requiring an
+    ``asyncpg.Pool`` import at module scope.  Pass any pool-like object
+    that can be used as a context manager via ``.acquire()``.
+    """
     global _test_pool_override
     _test_pool_override = pool
 
@@ -65,6 +112,8 @@ async def _get_pool():
     """
     if _test_pool_override is not None:
         return _test_pool_override
+
+    import asyncpg
 
     dsn = _dsn()
     if dsn not in _connection_pools:
@@ -103,6 +152,8 @@ async def _ensure_table(collection_name: str):
 
 def _to_embedding(text: str) -> list[float]:
     """Return a 384-dim embedding vector for the given text."""
+    import numpy as np
+
     model = _get_embeddings()
     vec = model.encode(text, normalize_embeddings=True)
     if isinstance(vec, np.ndarray):
@@ -127,7 +178,9 @@ class VectorDBManager:
         metadatas: list[dict],
         ids: list[str],
     ):
+        _require_vector_deps()
         await _ensure_table(collection_name)
+        import asyncpg  # noqa: F811 — re-import fine; already lazy-loaded above
         pool = await _get_pool()
         async with pool.acquire() as conn:
             for doc_text, meta, doc_id in zip(documents, metadatas, ids, strict=True):
@@ -173,6 +226,7 @@ class VectorDBManager:
         query: str,
         n_results: int = 3,
     ) -> list[str]:
+        _require_vector_deps()
         await _ensure_table(collection_name)
         embedding = _to_embedding(query)
         embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
@@ -191,13 +245,20 @@ class VectorDBManager:
             return [row["content"] for row in rows]
 
     def search(self, collection_name: str, query: str, n_results: int = 3) -> list[str]:
-        """Synchronous convenience wrapper (runs in executor thread)."""
+        """Synchronous convenience wrapper (runs in executor thread).
+
+        If the event loop is already running (e.g., inside an MCP tool),
+        schedules the async work on that loop via
+        ``run_coroutine_threadsafe``.  Falls back to creating a fresh event
+        loop when no loop is available.
+        """
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                # We're inside an async context — create a new task
-
-                future = asyncio.run_coroutine_threadsafe(self._search(collection_name, query, n_results), loop)
+                # We're inside an async context — schedule on the same loop
+                future = asyncio.run_coroutine_threadsafe(
+                    self._search(collection_name, query, n_results), loop
+                )
                 return future.result(timeout=30)
             return loop.run_until_complete(self._search(collection_name, query, n_results))
         except RuntimeError:
@@ -209,9 +270,13 @@ class VectorDBManager:
 
     def ingest_url(self, collection_name: str, url: str) -> str:
         """Fetch a URL, split into chunks, and index into pgvector."""
-        from langchain_community.document_loaders import WebBaseLoader
-        from langchain_text_splitters import RecursiveCharacterTextSplitter
+        try:
+            from langchain_community.document_loaders import WebBaseLoader
+            from langchain_text_splitters import RecursiveCharacterTextSplitter
+        except ModuleNotFoundError as exc:
+            _require_guard(exc, "ingest_url")
 
+        _require_vector_deps()
         loader = WebBaseLoader(url)
         docs = loader.load()
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
@@ -231,9 +296,13 @@ class VectorDBManager:
 
     def ingest_pdf(self, collection_name: str, file_path: str) -> str:
         """Load a PDF, split into chunks, and index into pgvector."""
-        from langchain_community.document_loaders import PyPDFLoader
-        from langchain_text_splitters import RecursiveCharacterTextSplitter
+        try:
+            from langchain_community.document_loaders import PyPDFLoader
+            from langchain_text_splitters import RecursiveCharacterTextSplitter
+        except ModuleNotFoundError as exc:
+            _require_guard(exc, "ingest_pdf")
 
+        _require_vector_deps()
         loader = PyPDFLoader(file_path)
         docs = loader.load()
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
@@ -252,9 +321,13 @@ class VectorDBManager:
         return f"Ingested {len(splits)} chunks from PDF."
 
     async def async_ingest_url(self, collection_name: str, url: str) -> str:
-        from langchain_community.document_loaders import WebBaseLoader
-        from langchain_text_splitters import RecursiveCharacterTextSplitter
+        try:
+            from langchain_community.document_loaders import WebBaseLoader
+            from langchain_text_splitters import RecursiveCharacterTextSplitter
+        except ModuleNotFoundError as exc:
+            _require_guard(exc, "async_ingest_url")
 
+        _require_vector_deps()
         loader = WebBaseLoader(url)
         docs = loader.load()
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
@@ -268,9 +341,13 @@ class VectorDBManager:
         return f"Ingested {len(splits)} chunks from {url}"
 
     async def async_ingest_pdf(self, collection_name: str, file_path: str) -> str:
-        from langchain_community.document_loaders import PyPDFLoader
-        from langchain_text_splitters import RecursiveCharacterTextSplitter
+        try:
+            from langchain_community.document_loaders import PyPDFLoader
+            from langchain_text_splitters import RecursiveCharacterTextSplitter
+        except ModuleNotFoundError as exc:
+            _require_guard(exc, "async_ingest_pdf")
 
+        _require_vector_deps()
         loader = PyPDFLoader(file_path)
         docs = loader.load()
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
@@ -297,12 +374,11 @@ def _serialize_meta(meta: dict[str, Any] | None) -> str:
 
     Handles nested dicts by flattening them (ChromaDB required scalar metadata;
     pgvector's JSONB happily takes nested structures).
-    """
-    import json
 
+    All values are coerced to JSON-serializable types.
+    """
     if meta is None:
         return "{}"
-    # Ensure all values are JSON-serializable
     cleaned: dict[str, Any] = {}
     for k, v in meta.items():
         if isinstance(v, (str, int, float, bool)):
@@ -310,7 +386,6 @@ def _serialize_meta(meta: dict[str, Any] | None) -> str:
         elif v is None:
             cleaned[k] = None
         else:
-            # Try to json-dump complex values; fall back to string repr
             try:
                 json.dumps(v)
                 cleaned[k] = v

@@ -10,10 +10,12 @@ authors = [{name = "Drew Jocham"}]
 requires-python = ">=3.11"
 dependencies = [
     "anthropic",
+    "asyncpg>=0.29.0,<0.30.0",
     "beautifulsoup4>=4.12,<5.0",
     "certifi",
     "duckduckgo-search>=5.0.0,<7.0",
     "fastapi",
+    "yfinance>=0.2.0,<0.6",
     "google-generativeai",
     "httpx>=0.27.0,<0.29",
     "logfire",
@@ -39,6 +41,20 @@ dev = [
     "pre-commit>=3.8,<4.0",
     "types-pyyaml>=6.0",
 ]
+vector = [
+    "numpy>=1.26",
+    "pgvector>=0.3",
+    "sentence-transformers>=2.2,<4.0",
+]
+ingest = [
+    "langchain-community>=0.3,<0.4",
+    "langchain-text-splitters>=0.3,<0.4",
+    "pypdf>=4.0,<5.0",
+]
+agy = []  # reserved for future bridge-only deps
+
+[project.scripts]
+openclaw-agy = "openclaw.agy_bridge.server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

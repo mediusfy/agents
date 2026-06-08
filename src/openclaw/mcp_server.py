@@ -292,7 +292,7 @@ async def run_openclaw_pipeline(project_name: str, requirement: str) -> str:
     as a background task and returns immediately with a run_id. Poll for
     completion using check_pipeline_status.
     """
-    from openclaw.pipeline_runner import submit_pipeline_run
+    from openclaw.pipeline_jobs import submit_pipeline_run
 
     run_id = await submit_pipeline_run(project_name, requirement)
     return (
@@ -307,7 +307,7 @@ def check_pipeline_status(run_id: str) -> str:
 
     Returns current status (pending/running/completed/failed) and any result.
     """
-    from openclaw.pipeline_runner import PIPELINE_RUNS
+    from openclaw.pipeline_jobs import PIPELINE_RUNS
 
     run = PIPELINE_RUNS.get(run_id)
     if not run:
@@ -326,6 +326,27 @@ def check_pipeline_status(run_id: str) -> str:
         elapsed = run.get("elapsed_seconds", 0)
         line += f"Elapsed: {elapsed:.1f}s\n"
     return line
+
+
+@mcp.tool()
+async def cancel_pipeline_run(run_id: str) -> str:
+    """Cancel a running background pipeline run by its run_id.
+
+    Sends a cancellation request to the background task.  If the task is
+    already done (completed, failed, or already cancelled), reports its
+    current status.
+    """
+    from openclaw.pipeline_jobs import PIPELINE_RUNS
+
+    run = PIPELINE_RUNS.get(run_id)
+    if not run:
+        return f"No pipeline run found with id '{run_id}'."
+
+    task = run.get("_task")
+    if task and not task.done():
+        task.cancel()
+        return f"Cancellation sent for run '{run_id}'."
+    return f"Run '{run_id}' is already {run['status']}. No cancellation needed."
 
 
 @mcp.tool()
@@ -424,10 +445,19 @@ async def scaffold_and_build_service(service_name: str, bounded_context: str, re
         bounded_context=bounded_context,
         _level="info",
     ):
-        from main import main
+        from openclaw.pipeline.config import PipelineConfig
+        from openclaw.pipeline.orchestrator import OpenClawPipeline
 
         requirement = requirement or f"Build a {service_name} service for {bounded_context} bounded context."
-        await main(project=service_name, step="all", resume=False, auto_yes=True, requirement=requirement)
+        config = PipelineConfig(
+            project=service_name,
+            step="all",
+            resume=False,
+            auto_yes=True,
+            requirement=requirement,
+        )
+        pipeline = OpenClawPipeline(config)
+        await pipeline.execute()
         return f"Service '{service_name}' scaffolding pipeline completed. Artifacts in generated-app/{service_name}/."
 
 
