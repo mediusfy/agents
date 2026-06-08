@@ -506,7 +506,7 @@ openclaw/
 │       ├── memory_bridge.py       # Cross-runtime memory sync
 │       ├── event_broker.py        # PostgreSQL async event broker
 │       ├── existing_code_handler.py  # Existing code pipeline
-│       ├── pipeline_runner.py     # Background pipeline runner
+│       ├── pipeline_jobs.py      # Background pipeline runner
 │       ├── settings.py            # pydantic-settings configuration
 │       ├── observability.py       # Logfire setup
 │       ├── telemetry.py           # JSONL telemetry

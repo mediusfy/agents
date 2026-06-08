@@ -20,9 +20,6 @@ Architecture:
 Usage:
     # Standalone:
     python -m openclaw.agy_bridge.server
-
-    # Co-run with MCP server:
-    python src/openclaw/mcp_server.py --with-bridge
 """
 
 from __future__ import annotations

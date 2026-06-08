@@ -5,22 +5,33 @@ import logging
 from openclaw.agents.registration import register_all_agents
 from openclaw.healthcheck import assert_startup_checks
 from openclaw.observability import configure_observability
-from openclaw.pipeline.config import PipelineConfig
-from openclaw.pipeline.orchestrator import OpenClawPipeline
+from openclaw.pipeline.config import BLUEPRINTS, PipelineConfig
+from openclaw.pipeline.factory import build_default_pipeline
 from openclaw.registry import registry
-from openclaw.stages.advisory_stage import AdvisoryStage
-from openclaw.stages.ba_stage import BAStage
-from openclaw.stages.implementation_stage import ImplementationStage
-from openclaw.stages.quality_gate_stage import QualityGateStage
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
 # All valid pipeline steps — both stage names AND individual agent names
-STEP_CHOICES = ["ba", "advisory", "implementation", "backend", "frontend", "database", "test", "devops", "docs", "quality_gate", "sre", "review", "security", "all"]
+STEP_CHOICES = [
+    "ba",
+    "advisory",
+    "implementation",
+    "backend",
+    "frontend",
+    "database",
+    "test",
+    "devops",
+    "docs",
+    "quality_gate",
+    "sre",
+    "review",
+    "security",
+    "all",
+]
 
-# Available pipeline blueprints (generated from config)
-BLUEPRINT_CHOICES = list(PipelineConfig.blueprints.keys())
+# Available pipeline blueprints (sourced from the canonical catalog)
+BLUEPRINT_CHOICES = list(BLUEPRINTS.keys())
 
 
 async def main(
@@ -37,8 +48,8 @@ async def main(
     register_all_agents()
 
     logger.info(f"--- OpenClaw Pipeline: {blueprint} (Project: {project}) ---")
-    logger.info(f"Blueprint: {PipelineConfig.blueprints[blueprint]['description']}")
-    logger.info(f"Stages: {PipelineConfig.blueprints[blueprint]['stages']}")
+    logger.info(f"Blueprint: {BLUEPRINTS[blueprint]['description']}")
+    logger.info(f"Stages: {BLUEPRINTS[blueprint]['stages']}")
     logger.info(f"Registered agents: {registry.list_agents()}")
 
     config = PipelineConfig(
@@ -51,12 +62,7 @@ async def main(
         requirement=requirement,
     )
 
-    pipeline = OpenClawPipeline(config)
-    pipeline.register_stage("ba", BAStage())
-    pipeline.register_stage("advisory", AdvisoryStage())
-    pipeline.register_stage("implementation", ImplementationStage())
-    pipeline.register_stage("quality_gate", QualityGateStage())
-
+    pipeline = build_default_pipeline(config)
     await pipeline.execute()
 
 
@@ -64,7 +70,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="OpenClaw Multi-Agent Pipeline")
 
     blueprints_help = []
-    for bp_name, bp_cfg in PipelineConfig.blueprints.items():
+    for bp_name, bp_cfg in BLUEPRINTS.items():
         blueprints_help.append(f"  {bp_name}: {bp_cfg['stages']} \u2014 {bp_cfg['description']}")
 
     parser.add_argument(

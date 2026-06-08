@@ -21,22 +21,23 @@ from typing import Any
 import logfire
 
 from openclaw.pipeline.config import PipelineConfig
-from openclaw.pipeline.orchestrator import OpenClawPipeline
+from openclaw.pipeline.factory import build_default_pipeline
 
 logger = logging.getLogger(__name__)
 
 # In-memory store of pipeline runs. Keyed by run_id.
 # Each entry: { "status": str, "project": str, "result": str | None,
 #               "error": str | None, "started_at": str, "completed_at": str | None,
-#               "elapsed_seconds": float | None }
+#               "elapsed_seconds": float | None, "_task": asyncio.Task | None }
 PIPELINE_RUNS: dict[str, dict[str, Any]] = {}
 
 
 async def submit_pipeline_run(project_name: str, requirement: str) -> str:
     """Submit a pipeline run as a background asyncio task.
 
-    Creates a new asyncio task running the ``OpenClawPipeline`` directly,
-    records its status in ``PIPELINE_RUNS``, and returns the run_id immediately.
+    Creates a new asyncio task running ``OpenClawPipeline`` (assembled via
+    ``build_default_pipeline``), records its status in ``PIPELINE_RUNS``,
+    and returns the run_id immediately.
 
     The caller should poll with ``PIPELINE_RUNS[run_id]["status"]`` to check
     completion.
@@ -54,10 +55,9 @@ async def submit_pipeline_run(project_name: str, requirement: str) -> str:
         "elapsed_seconds": None,
     }
 
-    # Fire-and-forget background task
-    task = asyncio.create_task(
-        _run_pipeline_in_background(run_id, project_name, requirement)
-    )
+    # Fire-and-forget background task; stash the handle so cancel_pipeline_run
+    # can reach it.
+    task = asyncio.create_task(_run_pipeline_in_background(run_id, project_name, requirement))
     PIPELINE_RUNS[run_id]["_task"] = task
 
     return run_id
@@ -66,9 +66,9 @@ async def submit_pipeline_run(project_name: str, requirement: str) -> str:
 async def _run_pipeline_in_background(run_id: str, project_name: str, requirement: str) -> None:
     """Run the ``OpenClawPipeline`` in a background task, updating ``PIPELINE_RUNS``.
 
-    This coroutine runs as a background asyncio task.  It constructs an
-    ``OpenClawPipeline`` directly (no CLI entrypoint indirection) and
-    updates the run status on completion.
+    Constructs a fully-staged pipeline via ``build_default_pipeline`` — the
+    same factory used by the CLI in ``main.py`` — so both code paths share
+    one definition of "the standard four-stage pipeline".
     """
     start_time = time.time()
 
@@ -83,11 +83,13 @@ async def _run_pipeline_in_background(run_id: str, project_name: str, requiremen
                 auto_yes=True,
                 requirement=requirement,
             )
-            pipeline = OpenClawPipeline(config)
+            pipeline = build_default_pipeline(config)
             await pipeline.execute()
         except asyncio.CancelledError:
             PIPELINE_RUNS[run_id]["status"] = "cancelled"
             PIPELINE_RUNS[run_id]["error"] = "Task was cancelled"
+            # Re-raise so the asyncio task is marked cancelled, not completed.
+            raise
         except Exception as e:
             logger.exception("Pipeline run %s failed: %s", run_id, e)
             PIPELINE_RUNS[run_id]["status"] = "failed"
@@ -96,7 +98,7 @@ async def _run_pipeline_in_background(run_id: str, project_name: str, requiremen
             PIPELINE_RUNS[run_id]["status"] = "completed"
             PIPELINE_RUNS[run_id]["result"] = (
                 f"Pipeline completed for project '{project_name}'. "
-                f"Artifacts written to generated-app/{project_name}/."
+                "Artifacts written to generated-app/{project_name}/."
             )
         finally:
             elapsed = time.time() - start_time

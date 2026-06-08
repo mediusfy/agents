@@ -25,7 +25,7 @@ def load_entries(filepath: str = "telemetry.jsonl") -> list[dict]:
     return entries
 
 
-def show_status(entries: list[dict]):
+def show_status(entries: list[dict]):  # noqa: T201 — CLI display tool
     if not entries:
         print("No telemetry data yet.")
         return
@@ -44,17 +44,18 @@ def show_status(entries: list[dict]):
         return f"{d / 60:.0f}m ago"
 
     # ── Header ──
-    print(f"╔═══ PIPELINE TRACE ── {datetime.fromtimestamp(now).strftime('%H:%M:%S')}  ({since(start)} run) ═══╗")
-    print(f"║ Total agent runs: {len(entries):>8}         ")
+    # ── Header ──
+    print(f"╔═══ PIPELINE TRACE ── {datetime.fromtimestamp(now).strftime('%H:%M:%S')}  ({since(start)} run) ═══╗")  # noqa: T201
+    print(f"║ Total agent runs: {len(entries):>8}         ")  # noqa: T201
     total_success = sum(1 for e in entries if e["success"])
     total_pct = total_success / len(entries) * 100 if entries else 0
-    print(f"║ Overall success: {total_success}/{len(entries)} ({total_pct:.0f}%)  ")
+    print(f"║ Overall success: {total_success}/{len(entries)} ({total_pct:.0f}%)  ")  # noqa: T201
 
     # ── Last 10 min ──
     r10 = [e for e in entries if e["timestamp"] >= ten_m]
     r2 = [e for e in entries if e["timestamp"] >= two_m]
 
-    print(f"╠═══ Last 10 min: {len(r10)} runs  |  Last 2 min: {len(r2)} runs ═══╣")
+    print(f"╠═══ Last 10 min: {len(r10)} runs  |  Last 2 min: {len(r2)} runs ═══╣")  # noqa: T201
 
     if r10:
         # Agent breakdown
@@ -67,23 +68,23 @@ def show_status(entries: list[dict]):
         for e in r10:
             agent_durs[e["agent"]].append(e["duration_sec"])
 
-        print(f"║ {'Agent':<22s} {'Runs':>5s} {'OK':>4s} {'Fail':>4s} {'Avg dur':>7s}")
-        print(f"║ {'─' * 22} {'─' * 5} {'─' * 4} {'─' * 4} {'─' * 7}")
+        print(f"║ {'Agent':<22s} {'Runs':>5s} {'OK':>4s} {'Fail':>4s} {'Avg dur':>7s}")  # noqa: T201
+        print(f"║ {'─' * 22} {'─' * 5} {'─' * 4} {'─' * 4} {'─' * 7}")  # noqa: T201
         for agent, count in agent_counts.most_common(12):
             succ = count - fail_agents.get(agent, 0)
             avg = sum(agent_durs[agent]) / len(agent_durs[agent])
             fail_count = fail_agents.get(agent, 0)
-            print(f"║ {agent:<22s} {count:>5d} {succ:>4d} {fail_count:>4d} {avg:>5.0f}s")
+            print(f"║ {agent:<22s} {count:>5d} {succ:>4d} {fail_count:>4d} {avg:>5.0f}s")  # noqa: T201
 
     # ── Recent failures ──
     recent_failures = [e for e in entries if not e["success"]][-5:]
     if recent_failures:
-        print("╠═══ Recent failures ═══╣")
+        print("╠═══ Recent failures ═══╣")  # noqa: T201
         for f in recent_failures:
             dt = datetime.fromtimestamp(f["timestamp"]).strftime("%H:%M:%S")
-            print(f"║ ✗ {f['agent']:<22s} at {dt} ({f['duration_sec']:.0f}s)")
+            print(f"║ ✗ {f['agent']:<22s} at {dt} ({f['duration_sec']:.0f}s)")  # noqa: T201
 
-    print(f"╚═══ {'═' * 50} ═══╝")
+    print(f"╚═══ {'═' * 50} ═══╝")  # noqa: T201
 
 
 def main():

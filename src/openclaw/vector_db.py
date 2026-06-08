@@ -32,24 +32,13 @@ _embeddings: Any = None
 
 
 def _require_vector_deps():
-    """Import asyncpg and numpy lazily; raise ``OpenclawDependencyError`` if either is missing."""
+    """Import numpy lazily; raise ``OpenclawDependencyError`` if missing.  asyncpg is a core dep."""
     _missing = []
 
     try:
-        import asyncpg as _  # noqa: F401
-    except ModuleNotFoundError:
-        _missing.append("asyncpg")
-
-    try:
         import numpy as _  # noqa: F401
-    except ModuleNotFoundError:
-        _missing.append("numpy")
-
-    if _missing:
-        raise OpenclawDependencyError(
-            "vector_db requires asyncpg and numpy.  "
-            "Install with:  pip install openclaw[vector]"
-        )
+    except ImportError as exc:
+        raise OpenclawDependencyError("vector_db requires numpy.  Install with:  pip install openclaw[vector]") from exc
 
 
 def _get_embeddings():
@@ -58,25 +47,13 @@ def _get_embeddings():
     if _embeddings is None:
         try:
             from sentence_transformers import SentenceTransformer
-        except ModuleNotFoundError as exc:
+        except ImportError as exc:
             raise OpenclawDependencyError(
-                "vector_db requires sentence-transformers.  "
-                "Install with:  pip install openclaw[vector]"
+                "vector_db requires sentence-transformers.  Install with:  pip install openclaw[vector]"
             ) from exc
 
         _embeddings = SentenceTransformer("all-MiniLM-L6-v2")
     return _embeddings
-
-
-def _require_ingest_deps(exc: ModuleNotFoundError, hint: str):
-    """Re-raise *exc* as ``OpenclawDependencyError`` with an install hint."""
-    msg = f"vector_db.{hint} requires extra dependencies.  Install with:  pip install openclaw[ingest]"
-    raise OpenclawDependencyError(msg) from exc
-
-
-def _require_guard(exc: ModuleNotFoundError, hint: str):
-    """Re-raise a missing ``[ingest]`` dependency."""
-    _require_ingest_deps(exc, hint)
 
 
 # ── pgvector helpers ───────────────────────────────────────────────
@@ -171,6 +148,19 @@ class VectorDBManager:
     async_search, ingest_url, ingest_pdf, async_ingest_url, async_ingest_pdf.
     """
 
+    @staticmethod
+    def _run_sync(coro):
+        """Run a coroutine from synchronous code, avoiding event-loop deadlock."""
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(coro)
+        # Already in an event loop — use a fresh thread to bridge
+        import concurrent.futures
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(asyncio.run, coro).result()
+
     async def _add_documents(
         self,
         collection_name: str,
@@ -180,7 +170,6 @@ class VectorDBManager:
     ):
         _require_vector_deps()
         await _ensure_table(collection_name)
-        import asyncpg  # noqa: F811 — re-import fine; already lazy-loaded above
         pool = await _get_pool()
         async with pool.acquire() as conn:
             for doc_text, meta, doc_id in zip(documents, metadatas, ids, strict=True):
@@ -208,8 +197,8 @@ class VectorDBManager:
         metadatas: list[dict],
         ids: list[str],
     ):
-        """Synchronous convenience wrapper (runs in executor thread)."""
-        asyncio.get_event_loop().run_until_complete(self._add_documents(collection_name, documents, metadatas, ids))
+        """Synchronous convenience wrapper (avoids event-loop deadlock)."""
+        return self._run_sync(self._add_documents(collection_name, documents, metadatas, ids))
 
     async def async_add_documents(
         self,
@@ -245,25 +234,8 @@ class VectorDBManager:
             return [row["content"] for row in rows]
 
     def search(self, collection_name: str, query: str, n_results: int = 3) -> list[str]:
-        """Synchronous convenience wrapper (runs in executor thread).
-
-        If the event loop is already running (e.g., inside an MCP tool),
-        schedules the async work on that loop via
-        ``run_coroutine_threadsafe``.  Falls back to creating a fresh event
-        loop when no loop is available.
-        """
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # We're inside an async context — schedule on the same loop
-                future = asyncio.run_coroutine_threadsafe(
-                    self._search(collection_name, query, n_results), loop
-                )
-                return future.result(timeout=30)
-            return loop.run_until_complete(self._search(collection_name, query, n_results))
-        except RuntimeError:
-            # No running event loop — create one
-            return asyncio.run(self._search(collection_name, query, n_results))
+        """Synchronous convenience wrapper (avoids event-loop deadlock)."""
+        return self._run_sync(self._search(collection_name, query, n_results))
 
     async def async_search(self, collection_name: str, query: str, n_results: int = 3) -> list[str]:
         return await self._search(collection_name, query, n_results)
@@ -273,92 +245,90 @@ class VectorDBManager:
         try:
             from langchain_community.document_loaders import WebBaseLoader
             from langchain_text_splitters import RecursiveCharacterTextSplitter
-        except ModuleNotFoundError as exc:
-            _require_guard(exc, "ingest_url")
+        except ImportError as exc:
+            raise OpenclawDependencyError(
+                "vector_db.ingest_url requires extra dependencies.  Install with:  pip install openclaw[ingest]"
+            ) from exc
+        else:
+            _require_vector_deps()
+            loader = WebBaseLoader(url)
+            docs = loader.load()
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+            splits = text_splitter.split_documents(docs)
 
-        _require_vector_deps()
-        loader = WebBaseLoader(url)
-        docs = loader.load()
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-        splits = text_splitter.split_documents(docs)
+            texts = [d.page_content for d in splits]
+            metas = [{"source": url} for _ in splits]
+            ids = [f"url_{id(s)}" for s in splits]
 
-        texts = [d.page_content for d in splits]
-        metas = [{"source": url} for _ in splits]
-        ids = [f"url_{id(s)}" for s in splits]
-
-        loop = asyncio.get_event_loop()
-        try:
-            loop.run_until_complete(self._add_documents(collection_name, texts, metas, ids))
-        except RuntimeError:
-            asyncio.run(self._add_documents(collection_name, texts, metas, ids))
-
-        return f"Ingested {len(splits)} chunks from {url}"
+            self._run_sync(self._add_documents(collection_name, texts, metas, ids))
+            return f"Ingested {len(splits)} chunks from {url}"
 
     def ingest_pdf(self, collection_name: str, file_path: str) -> str:
         """Load a PDF, split into chunks, and index into pgvector."""
         try:
             from langchain_community.document_loaders import PyPDFLoader
             from langchain_text_splitters import RecursiveCharacterTextSplitter
-        except ModuleNotFoundError as exc:
-            _require_guard(exc, "ingest_pdf")
+        except ImportError as exc:
+            raise OpenclawDependencyError(
+                "vector_db.ingest_pdf requires extra dependencies.  Install with:  pip install openclaw[ingest]"
+            ) from exc
+        else:
+            _require_vector_deps()
+            loader = PyPDFLoader(file_path)
+            docs = loader.load()
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+            splits = text_splitter.split_documents(docs)
 
-        _require_vector_deps()
-        loader = PyPDFLoader(file_path)
-        docs = loader.load()
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-        splits = text_splitter.split_documents(docs)
+            texts = [d.page_content for d in splits]
+            metas = [{"source": file_path} for _ in splits]
+            ids = [f"pdf_{id(s)}" for s in splits]
 
-        texts = [d.page_content for d in splits]
-        metas = [{"source": file_path} for _ in splits]
-        ids = [f"pdf_{id(s)}" for s in splits]
-
-        loop = asyncio.get_event_loop()
-        try:
-            loop.run_until_complete(self._add_documents(collection_name, texts, metas, ids))
-        except RuntimeError:
-            asyncio.run(self._add_documents(collection_name, texts, metas, ids))
-
-        return f"Ingested {len(splits)} chunks from PDF."
+            self._run_sync(self._add_documents(collection_name, texts, metas, ids))
+            return f"Ingested {len(splits)} chunks from PDF."
 
     async def async_ingest_url(self, collection_name: str, url: str) -> str:
         try:
             from langchain_community.document_loaders import WebBaseLoader
             from langchain_text_splitters import RecursiveCharacterTextSplitter
-        except ModuleNotFoundError as exc:
-            _require_guard(exc, "async_ingest_url")
+        except ImportError as exc:
+            raise OpenclawDependencyError(
+                "vector_db.async_ingest_url requires extra dependencies.  Install with:  pip install openclaw[ingest]"
+            ) from exc
+        else:
+            _require_vector_deps()
+            loader = WebBaseLoader(url)
+            docs = loader.load()
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+            splits = text_splitter.split_documents(docs)
 
-        _require_vector_deps()
-        loader = WebBaseLoader(url)
-        docs = loader.load()
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-        splits = text_splitter.split_documents(docs)
+            texts = [d.page_content for d in splits]
+            metas = [{"source": url} for _ in splits]
+            ids = [f"url_{id(s)}" for s in splits]
 
-        texts = [d.page_content for d in splits]
-        metas = [{"source": url} for _ in splits]
-        ids = [f"url_{id(s)}" for s in splits]
-
-        await self._add_documents(collection_name, texts, metas, ids)
-        return f"Ingested {len(splits)} chunks from {url}"
+            await self._add_documents(collection_name, texts, metas, ids)
+            return f"Ingested {len(splits)} chunks from {url}"
 
     async def async_ingest_pdf(self, collection_name: str, file_path: str) -> str:
         try:
             from langchain_community.document_loaders import PyPDFLoader
             from langchain_text_splitters import RecursiveCharacterTextSplitter
-        except ModuleNotFoundError as exc:
-            _require_guard(exc, "async_ingest_pdf")
+        except ImportError as exc:
+            raise OpenclawDependencyError(
+                "vector_db.async_ingest_pdf requires extra dependencies.  Install with:  pip install openclaw[ingest]"
+            ) from exc
+        else:
+            _require_vector_deps()
+            loader = PyPDFLoader(file_path)
+            docs = loader.load()
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+            splits = text_splitter.split_documents(docs)
 
-        _require_vector_deps()
-        loader = PyPDFLoader(file_path)
-        docs = loader.load()
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-        splits = text_splitter.split_documents(docs)
+            texts = [d.page_content for d in splits]
+            metas = [{"source": file_path} for _ in splits]
+            ids = [f"pdf_{id(s)}" for s in splits]
 
-        texts = [d.page_content for d in splits]
-        metas = [{"source": file_path} for _ in splits]
-        ids = [f"pdf_{id(s)}" for s in splits]
-
-        await self._add_documents(collection_name, texts, metas, ids)
-        return f"Ingested {len(splits)} chunks from PDF."
+            await self._add_documents(collection_name, texts, metas, ids)
+            return f"Ingested {len(splits)} chunks from PDF."
 
 
 # ── Singleton ──────────────────────────────────────────────────────
