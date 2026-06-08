@@ -1,0 +1,1 @@
+../../shared/workspace/AGENTS.md
