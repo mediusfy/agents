@@ -91,8 +91,8 @@ class TestCapabilityIndex:
         with pytest.raises(AmbiguousCapabilityError) as exc_info:
             await registry.query("search", "find x")
         assert exc_info.value.owners == ["agent-a", "agent-b"]
-        assert "Multiple agents" in str(exc_info.value)
-        # A warning was logged about the collision.
+        assert "multiple agents" in str(exc_info.value)
+        # An ERROR was logged about the collision.
         assert any("multiple agents" in rec.message for rec in caplog.records)
 
     def test_owners_of_returns_list_in_registration_order(self):

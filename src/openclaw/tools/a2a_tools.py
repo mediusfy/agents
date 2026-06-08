@@ -25,10 +25,7 @@ async def discover_agent_capabilities(ctx: RunContext) -> str:
             lines.append(f"- Capability: '{cap}' (provided by {owners[0]} agent)")
         else:
             owners_str = ", ".join(owners)
-            lines.append(
-                f"- Capability: '{cap}' (AMBIGUOUS — provided by {owners_str}; "
-                f"pass owner=<agent_name>)"
-            )
+            lines.append(f"- Capability: '{cap}' (AMBIGUOUS — provided by {owners_str}; pass owner=<agent_name>)")
 
     if not lines:
         return "No agents currently registered with capabilities."

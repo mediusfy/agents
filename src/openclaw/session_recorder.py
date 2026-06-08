@@ -22,7 +22,8 @@ logger = logging.getLogger(__name__)
 # Context variable carrying current agent run info (run_id, agent_name, pipeline_stage)
 # Set by record_span context manager, read by tool wrappers for cross-communication tracing.
 current_run_context: ContextVar[dict[str, Any]] = ContextVar(
-    "current_run_context", default={}
+    "current_run_context",
+    default={},  # noqa: B039 — safe: all writers allocate a new dict before .set()
 )
 
 

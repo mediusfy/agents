@@ -136,8 +136,7 @@ class AgentRegistry:
         if owner is not None:
             if owner not in owners:
                 raise AgentNotFoundError(
-                    f"Agent '{owner}' does not provide capability '{capability}'. "
-                    f"Available owners: {owners}"
+                    f"Agent '{owner}' does not provide capability '{capability}'. Available owners: {owners}"
                 )
             return owner
         if len(owners) > 1:

@@ -238,7 +238,13 @@ def _list_capabilities() -> str:
 
 
 @mcp.tool()
-async def delegate_to_openclaw_agent(capability: str, context: str, task: str, run_on_gks: bool = False) -> str:
+async def delegate_to_openclaw_agent(
+    capability: str,
+    context: str,
+    task: str,
+    run_on_gks: bool = False,
+    owner: str | None = None,
+) -> str:
     """
     Delegate a heavy-lifting engineering task to the OpenClaw autonomous agents.
 
@@ -251,6 +257,9 @@ async def delegate_to_openclaw_agent(capability: str, context: str, task: str, r
     For modifying existing code, prefer the 'modify_existing_code' tool.
 
     If run_on_gks is True, the task is offloaded to the remote GKS OpenClaw instance.
+
+    If the capability is ambiguous (claimed by multiple agents), pass
+    owner=<agent_name> to disambiguate.
     """
     from openclaw.agents.registration import register_all_agents
     from openclaw.exceptions import AgentExecutionError, AgentNotFoundError, AmbiguousCapabilityError
@@ -271,16 +280,13 @@ async def delegate_to_openclaw_agent(capability: str, context: str, task: str, r
             prompt=full_prompt,
             span_name="mcp.delegate_to_agent",
             attributes={"capability": capability, "context_length": len(context), "task_length": len(task)},
+            owner=owner,
         )
     except AgentNotFoundError as e:
         return f"ERROR: {e}\n\nAvailable capabilities:\n{_list_capabilities()}"
     except AmbiguousCapabilityError as e:
-        return (
-            f"ERROR: {e}\n\n"
-            f"Re-call delegate_to_openclaw_agent with the capability renamed to "
-            f"one of {e.owners}, or extend the MCP tool to accept an explicit "
-            f"agent name."
-        )
+        owners_str = ", ".join(e.owners)
+        return f"ERROR: {e}\n\nRe-call delegate_to_openclaw_agent with owner=<agent_name> from: {owners_str}"
     except AgentExecutionError as e:
         return f"ERROR: {e}"
 
