@@ -10,7 +10,7 @@ authors = [{name = "Drew Jocham"}]
 requires-python = ">=3.11"
 dependencies = [
     "anthropic",
-    "asyncpg>=0.29.0,<0.30.0",
+    "asyncpg>=0.31.0,<0.32.0",
     "beautifulsoup4>=4.12,<5.0",
     "certifi",
     "duckduckgo-search>=5.0.0,<7.0",
