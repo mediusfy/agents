@@ -17,27 +17,16 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
 # All valid pipeline steps — both stage names AND individual agent names
-STEP_CHOICES = [
-    "ba",
-    "advisory",
-    "implementation",
-    "backend",
-    "frontend",
-    "database",
-    "test",
-    "devops",
-    "docs",
-    "quality_gate",
-    "sre",
-    "review",
-    "security",
-    "all",
-]
+STEP_CHOICES = ["ba", "advisory", "implementation", "backend", "frontend", "database", "test", "devops", "docs", "quality_gate", "sre", "review", "security", "all"]
+
+# Available pipeline blueprints (generated from config)
+BLUEPRINT_CHOICES = list(PipelineConfig.blueprints.keys())
 
 
 async def main(
     project: str,
     step: str = "all",
+    blueprint: str = "new_feature",
     resume: bool = False,
     auto_yes: bool = False,
     dry_run: bool = False,
@@ -47,11 +36,19 @@ async def main(
     assert_startup_checks()
     register_all_agents()
 
-    logger.info(f"--- OpenClaw Multi-Agent Ecosystem Pipeline (Project: {project}) ---")
-    logger.info(f"Step: {step} | Registered agents: {registry.list_agents()}")
+    logger.info(f"--- OpenClaw Pipeline: {blueprint} (Project: {project}) ---")
+    logger.info(f"Blueprint: {PipelineConfig.blueprints[blueprint]['description']}")
+    logger.info(f"Stages: {PipelineConfig.blueprints[blueprint]['stages']}")
+    logger.info(f"Registered agents: {registry.list_agents()}")
 
     config = PipelineConfig(
-        project=project, step=step, resume=resume, auto_yes=auto_yes, dry_run=dry_run, requirement=requirement
+        project=project,
+        step=step,
+        blueprint=blueprint,
+        resume=resume,
+        auto_yes=auto_yes,
+        dry_run=dry_run,
+        requirement=requirement,
     )
 
     pipeline = OpenClawPipeline(config)
@@ -65,6 +62,17 @@ async def main(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="OpenClaw Multi-Agent Pipeline")
+
+    blueprints_help = []
+    for bp_name, bp_cfg in PipelineConfig.blueprints.items():
+        blueprints_help.append(f"  {bp_name}: {bp_cfg['stages']} \u2014 {bp_cfg['description']}")
+
+    parser.add_argument(
+        "--blueprint",
+        choices=BLUEPRINT_CHOICES,
+        default="new_feature",
+        help="Pipeline blueprint to run:\n" + "\n".join(blueprints_help),
+    )
     parser.add_argument(
         "--step",
         choices=STEP_CHOICES,
@@ -84,6 +92,7 @@ if __name__ == "__main__":
         main(
             project=args.project,
             step=args.step,
+            blueprint=args.blueprint,
             resume=args.resume,
             auto_yes=args.yes,
             dry_run=args.dry_run,

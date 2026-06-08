@@ -10,32 +10,23 @@ authors = [{name = "Drew Jocham"}]
 requires-python = ">=3.11"
 dependencies = [
     "anthropic",
-    "asyncpg>=0.30.0,<1.0",
     "beautifulsoup4>=4.12,<5.0",
     "certifi",
     "duckduckgo-search>=5.0.0,<7.0",
     "fastapi",
     "google-generativeai",
     "httpx>=0.27.0,<0.29",
-    "langchain-community>=0.2.0,<0.4",
-    "langchain-text-splitters",
     "logfire",
     "mcp>=1.0.0",
     "openai",
-    "numpy>=1.24,<2.0",
     "pip-system-certs",
     "pydantic>=2.9.0,<3.0",
     "pydantic-ai>=1.0.0,<2.0",
     "pydantic-ai-slim[anthropic,deepseek,google,logfire,openai]>=1.61.0",
     "pydantic-settings>=2.5.0,<3.0",
-    "pypdf",
     "pyyaml>=6.0,<7.0",
-    "redis>=5.0,<6.0",
-    "sentence-transformers>=2.2.0,<3.0",
     "tenacity>=8.0.0,<9.0",
-    "tokenizers!=0.20.3",
     "uvicorn",
-    "yfinance>=0.2.0,<0.6",
 ]
 
 [project.optional-dependencies]
@@ -76,18 +67,11 @@ select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "ARG", "C4", "T20"]
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 "tests/*.py" = ["ARG001", "ARG002"]
-"src/openclaw/gates.py" = ["T201"]
-"src/openclaw/live_trace.py" = ["T201"]
 "src/openclaw/validators.py" = ["T201"]
-"src/openclaw/vector_db.py" = ["T201"]
 "src/openclaw/tools/*.py" = ["ARG001", "E501"]
 "src/openclaw/agents/*.py" = ["ARG001", "E501"]
 "src/openclaw/agents/non_technical/*.py" = ["ARG001", "E501"]
-"src/openclaw/memory_consolidator.py" = ["E501"]
 "src/openclaw/models/core.py" = ["UP042"]
-"src/openclaw/memory.py" = ["ARG002"]
-"src/openclaw/vector_db_stub.py" = ["ARG002"]
-"scripts/*.py" = ["T201", "E501"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -105,6 +89,7 @@ exclude = [
     "src/openclaw/agents/non_technical/",
     ".venv/",
     "generated-app/",
+    "archive/",
 ]
 
 # pydantic_ai's Agent type system is complex and generates false positives
