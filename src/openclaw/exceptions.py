@@ -13,6 +13,18 @@ class AgentNotFoundError(OpenClawError):
     """Requested agent is not registered in the registry."""
 
 
+class AmbiguousCapabilityError(OpenClawError):
+    """Multiple agents claim the same capability and which one to use is unclear.
+
+    Attributes:
+        owners: The list of agent names that all registered this capability.
+    """
+
+    def __init__(self, message: str, owners: list[str]):
+        super().__init__(message)
+        self.owners = owners
+
+
 class AgentExecutionError(OpenClawError):
     """An agent's LLM call or tool execution failed."""
 

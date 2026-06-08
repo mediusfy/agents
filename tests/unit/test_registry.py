@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from openclaw.exceptions import AgentExecutionError, AgentNotFoundError
+from openclaw.exceptions import AgentExecutionError, AgentNotFoundError, AmbiguousCapabilityError
 from openclaw.registry import AgentRegistry
 
 # ─── Capability Index ─────────────────────────────────────────────────────────
@@ -67,11 +67,13 @@ class TestCapabilityIndex:
             await registry.query("nonexistent", "anything")
 
     @pytest.mark.asyncio
-    async def test_first_registered_wins_for_same_capability(self, caplog):
-        """When two agents share a capability, the first registered one wins.
+    async def test_same_capability_raises_ambiguity_on_query(self, caplog):
+        """When two agents share a capability, query() raises AmbiguousCapabilityError.
 
         The second registration is permitted but logs a warning so the operator
-        can disambiguate.
+        can disambiguate.  Querying by capability now raises so the caller
+        must pick — either use ``instrumented_query(capability=...)`` with an
+        explicit ``owner``, or query a specific agent directly.
         """
         registry = AgentRegistry()
         a1 = MagicMock()
@@ -85,9 +87,11 @@ class TestCapabilityIndex:
 
         # Both owners are tracked, in registration order.
         assert registry._cap_index["search"] == ["agent-a", "agent-b"]
-        # Query resolves to the first.
-        result = await registry.query("search", "find x")
-        assert result == "first"
+        # Querying an ambiguous capability raises.
+        with pytest.raises(AmbiguousCapabilityError) as exc_info:
+            await registry.query("search", "find x")
+        assert exc_info.value.owners == ["agent-a", "agent-b"]
+        assert "Multiple agents" in str(exc_info.value)
         # A warning was logged about the collision.
         assert any("multiple agents" in rec.message for rec in caplog.records)
 

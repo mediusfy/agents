@@ -17,7 +17,7 @@ from pydantic_ai import UsageLimits
 from openclaw.agents.registration import register_all_agents
 from openclaw.context_engine import retrieve_context
 from openclaw.event_broker import Event, EventKind, event_broker
-from openclaw.exceptions import AgentExecutionError, AgentNotFoundError, AmbiguousCapabilityError
+from openclaw.exceptions import AgentExecutionError, AgentNotFoundError
 from openclaw.memory_bridge import get_bridge_status, sync_claude_to_pgvector, sync_memory_to_claude
 from openclaw.observability import configure_observability
 from openclaw.registry import registry

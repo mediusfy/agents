@@ -10,7 +10,7 @@ from typing import Any
 import logfire
 from pydantic_ai import Agent, UsageLimits
 
-from openclaw.exceptions import AgentExecutionError, AgentNotFoundError
+from openclaw.exceptions import AgentExecutionError, AgentNotFoundError, AmbiguousCapabilityError
 from openclaw.session_recorder import current_run_context
 from openclaw.telemetry import telemetry
 
@@ -123,6 +123,12 @@ class AgentRegistry:
         owners = self._cap_index.get(capability)
         if not owners:
             raise AgentNotFoundError(f"No agent found for capability '{capability}'")
+        if len(owners) > 1:
+            raise AmbiguousCapabilityError(
+                f"Multiple agents ({', '.join(owners)}) registered for capability '{capability}'. "
+                f"Use an explicit agent name instead of capability routing.",
+                owners=owners,
+            )
         agent_name = owners[0]
 
         agent, _caps, deps_factory, _post_hook = self._agents[agent_name]
