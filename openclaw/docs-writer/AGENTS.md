@@ -1,1 +1,1 @@
-../../shared/workspace/AGENTS.md
+../shared/agents/docs-writer.md
