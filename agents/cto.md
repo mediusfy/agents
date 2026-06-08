@@ -1,1 +1,1 @@
-../shared/agents/cto.md
+../../shared/agents/cto.md

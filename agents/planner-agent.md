@@ -1,1 +1,1 @@
-../shared/agents/planner-agent.md
+../../shared/agents/planner-agent.md

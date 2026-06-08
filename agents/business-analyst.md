@@ -1,1 +1,1 @@
-../shared/agents/business-analyst.md
+../../shared/agents/business-analyst.md

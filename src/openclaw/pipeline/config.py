@@ -14,6 +14,7 @@ PROJECT_ROOTS: dict[str, str] = {
 class PipelineConfig:
     project: str = "default"
     step: str = "all"
+    blueprint: str = "new_feature"
     resume: bool = False
     auto_yes: bool = False
     dry_run: bool = False
@@ -27,3 +28,29 @@ class PipelineConfig:
     def output_dir(self, base: Path = Path("./generated-app")) -> Path:
         """Artifact output directory, isolated by project name."""
         return base / self.project
+
+    @staticmethod
+    def blueprints() -> dict[str, dict[str, str | list[str]]]:
+        """Available pipeline blueprints with stage lists and descriptions.
+
+        Each blueprint defines which stages run and in what order.
+        The orchestrator uses this to build the stage registry.
+        """
+        return {
+            "new_feature": {
+                "description": "Full SDLC: BA → Advisory → Implementation → Quality Gate",
+                "stages": ["ba", "advisory", "implementation", "quality_gate"],
+            },
+            "quick_backend": {
+                "description": "Backend-only: Implementation → Review",
+                "stages": ["implementation", "quality_gate"],
+            },
+            "docs_update": {
+                "description": "Documentation: Implementation (docs agent) → Review",
+                "stages": ["implementation", "quality_gate"],
+            },
+            "security_review": {
+                "description": "Security audit: Review (security agent)",
+                "stages": ["quality_gate"],
+            },
+        }

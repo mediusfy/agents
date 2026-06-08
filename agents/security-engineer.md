@@ -1,1 +1,1 @@
-../shared/agents/security-engineer.md
+../../shared/agents/security-engineer.md

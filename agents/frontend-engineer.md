@@ -1,1 +1,1 @@
-../shared/agents/frontend-engineer.md
+../../shared/agents/frontend-engineer.md

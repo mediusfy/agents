@@ -1,1 +1,1 @@
-../shared/agents/code-reviewer.md
+../../shared/agents/code-reviewer.md

@@ -1,1 +1,1 @@
-../shared/agents/database-engineer.md
+../../shared/agents/database-engineer.md
