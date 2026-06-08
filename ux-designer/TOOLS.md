@@ -5,7 +5,7 @@
 - **Standards:** /Users/jocham/programming/agents/CODING_STANDARDS.md
 - **Agent definitions (Claude Code):** /Users/jocham/programming/agents/agents/
 - **Pydantic AI agents (USE THESE — DeepSeek):** /Users/jocham/programming/agents/src/openclaw/agents/
-- **Antigravity SDK agents (USE THESE — Gemini):** /Users/jocham/programming/agy-agents/agy_agents/
+- **Antigravity SDK agents (USE THESE — Gemini):** ~/.gemini/config/plugins/agy-agents/agents/
 - **Repo root:** /Users/jocham/programming/agents/
 
 ## Execution Rules
@@ -34,29 +34,16 @@ python main.py --project <path> --step ux
 
 ### Option B: Antigravity SDK agents (Gemini)
 
-```python
-cd /Users/jocham/programming/agy-agents && python -c "
-import asyncio
-from agy_agents.adapters import AntigravityAgentAdapter
-from agy_agents.ux import UxAgent
-
-adapter = AntigravityAgentAdapter()
-agent = UxAgent(provider=adapter)
-response, cid = await agent.run('Analyze this UI...')
-print(response)
-"
-```
-
-Or via CLI:
-```
-cd /Users/jocham/programming/agy-agents && python main.py
+Run the bridge for MCP integration:
+```bash
+cd /Users/jocham/programming/ai/agents && ./agy_bridge_run.sh
 ```
 
 ### Quick decision
 | You need this | Use this |
 |---|---|
 | DeepSeek-powered code gen, review, audit | Pydantic AI agents (`agents/src/openclaw/agents/`) |
-| Gemini-powered code gen, review, audit | Antigravity agents (`agy-agents/agy_agents/`) |
+| Gemini-powered code gen, review, audit | Antigravity agents (`~/.gemini/config/plugins/agy-agents/agents/`) |
 | Simple grep, read, write, edit | `exec/read/write/edit` directly |
 | Parallel coordination only | `sessions_spawn` (lightweight only) |
 

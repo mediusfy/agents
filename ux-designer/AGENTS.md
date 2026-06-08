@@ -21,36 +21,29 @@ Domain-specific Pydantic AI agents, run locally via `exec` with DeepSeek:
 | Frontend generation | `src/openclaw/agents/frontend.py` | `python main.py --project ... --step frontend` |
 | Planner | `src/openclaw/agents/planner_agent.py` | `python main.py --project ... --step all` |
 
-### Option B: Antigravity SDK agents (`/Users/jocham/programming/agy-agents/`) — **Gemini-backed**
+### Option B: Antigravity SDK agents (`~/.gemini/config/plugins/agy-agents/agents/`) — **Gemini-backed**
 Hexagonal agents using Google Antigravity SDK. These are Gemini-powered and follow Ports & Adapters pattern. Use for Gemini-specific work or when you need the Antigravity agent runtime:
 
 | Task | Agent file | Notes |
 |------|-----------|-------|
-| Frontend (Vue 3) | `agy_agents/frontend.py` | Uses `AntigravityAgentAdapter` → Gemini |
-| Backend (Go) | `agy_agents/backend.py` | Hexagonal architecture, gRPC, CloudEvents |
-| UX | `agy_agents/ux.py` | Same persona, different LLM backend |
-| Code review | `agy_agents/review.py` | Governance, QSA-style audits |
-| Quality gate | `agy_agents/quality_gate.py` | Over-engineering detection |
-| Security | `agy_agents/security.py` | Zero-Trust, IAM, least-privilege |
-| DevOps | `agy_agents/devops.py` | GitOps, ArgoCD, Kyverno |
-| SRE | `agy_agents/sre.py` | Self-healing, reliability |
-| Architect | `agy_agents/architect.py` | System design, multi-tenancy |
-| Library curator | `agy_agents/library_curator.py` | Deprecate custom, use OSS |
-| CTO | `agy_agents/cto.py` | Strategic oversight |
+| Frontend (Vue 3) | `frontend.json` | Uses Antigravity CLI |
+| Backend (Go) | `backend.json` | Hexagonal architecture, gRPC, CloudEvents |
+| UX | `ux.json` | Same persona, different LLM backend |
+| Code review | `review.json` | Governance, QSA-style audits |
+| Quality gate | `quality_gate.json` | Over-engineering detection |
+| Security | `security.json` | Zero-Trust, IAM, least-privilege |
+| DevOps | `devops.json` | GitOps, ArgoCD, Kyverno |
+| SRE | `sre.json` | Self-healing, reliability |
+| Architect | `architect.json` | System design, multi-tenancy |
+| Library curator | `library_curator.json` | Deprecate custom, use OSS |
+| CTO | `cto.json` | Strategic oversight |
 
 **Invocation pattern:**
-```python
-from agy_agents.adapters import AntigravityAgentAdapter
-from agy_agents.ux import UxAgent
+Invoke via Antigravity CLI using the agent definitions in the plugin directory.
 
-adapter = AntigravityAgentAdapter()
-agent = UxAgent(provider=adapter)
-response, cid = await agent.run("Analyze this UI...")
-```
-
-Or via CLI:
-```
-cd /Users/jocham/programming/agy-agents && python main.py
+Or via pipeline MCP:
+```bash
+cd /Users/jocham/programming/ai/agents && ./agy_bridge_run.sh
 ```
 
 ### When to use which
@@ -64,6 +57,5 @@ cd /Users/jocham/programming/agy-agents && python main.py
 - [Claude Code definition](/Users/jocham/programming/agents/agents/ux-designer.md)
 - [CODING_STANDARDS.md](/Users/jocham/programming/agents/CODING_STANDARDS.md)
 - [Pydantic AI agents](/Users/jocham/programming/agents/src/openclaw/agents/)
-- [Antigravity SDK agents](/Users/jocham/programming/agy-agents/agy_agents/)
-- [Antigravity SDK adapter](/Users/jocham/programming/agy-agents/agy_agents/adapters.py)
-- [Agent provider port (abstract)](/Users/jocham/programming/agy-agents/agy_agents/ports.py)
+- [Antigravity SDK agents](~/.gemini/config/plugins/agy-agents/agents/)
+- [Antigravity MCP Bridge](/Users/jocham/programming/ai/agents/src/openclaw/agy_bridge/server.py)
