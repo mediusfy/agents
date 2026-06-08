@@ -8,18 +8,18 @@ This agent works within the project at `/Users/jocham/programming/ai/agents/`. T
 
 ## Execution Policy
 
-**Use local agents for heavy work, not OpenClaw sub-agents.**
+**Use local agents for heavy work, not Hermes sub-agents.**
 
 ### Option A: Pydantic AI agents (`/Users/jocham/programming/ai/agents/`)
 Domain-specific Pydantic AI agents, run locally via `exec` with DeepSeek:
 
 | Task | Agent file | Invoke via |
 |------|-----------|------------|
-| UX audit / design review | `src/openclaw/agents/ux.py` | `python main.py --project ... --step ux` |
-| Code review | `src/openclaw/agents/review.py` | `python main.py --project ... --step review` |
-| Quality gate | `src/openclaw/agents/quality_gate.py` | `python main.py --project ... --step quality_gate` |
-| Frontend generation | `src/openclaw/agents/frontend.py` | `python main.py --project ... --step frontend` |
-| Planner | `src/openclaw/agents/planner_agent.py` | `python main.py --project ... --step all` |
+| UX audit / design review | `src/hermes/agents/ux.py` | `python main.py --project ... --step ux` |
+| Code review | `src/hermes/agents/review.py` | `python main.py --project ... --step review` |
+| Quality gate | `src/hermes/agents/quality_gate.py` | `python main.py --project ... --step quality_gate` |
+| Frontend generation | `src/hermes/agents/frontend.py` | `python main.py --project ... --step frontend` |
+| Planner | `src/hermes/agents/planner_agent.py` | `python main.py --project ... --step all` |
 
 ### Option B: Antigravity SDK agents (`~/.gemini/config/plugins/agy-agents/agents/`) — **Gemini-backed**
 Hexagonal agents using Google Antigravity SDK. These are Gemini-powered and follow Ports & Adapters pattern. Use for Gemini-specific work or when you need the Antigravity agent runtime:
@@ -50,12 +50,12 @@ cd /Users/jocham/programming/ai/agents && ./agy_bridge_run.sh
 - **Pydantic AI agents** → for DeepSeek-powered work, pipeline-style orchestration, code gen
 - **Antigravity (Gemini) agents** → for Gemini-powered work, hexagonal architecture tasks, MCP-based tool use
 - **Neither** → use `exec`/`write`/`edit` for simple file transforms or grep-level work
-- **OpenClaw sub-agents** → NEVER for heavy work. Only lightweight orchestration (parallel coordination, simple RPC)
+- **Hermes sub-agents** → NEVER for heavy work. Only lightweight orchestration (parallel coordination, simple RPC)
 
 ## Related
 
 - [Claude Code definition](/Users/jocham/programming/ai/agents/agents/ux-designer.md)
 - [CODING_STANDARDS.md](/Users/jocham/programming/ai/agents/CODING_STANDARDS.md)
-- [Pydantic AI agents](/Users/jocham/programming/ai/agents/src/openclaw/agents/)
+- [Pydantic AI agents](/Users/jocham/programming/ai/agents/src/hermes/agents/)
 - [Antigravity SDK agents](~/.gemini/config/plugins/agy-agents/agents/)
-- [Antigravity MCP Bridge](/Users/jocham/programming/ai/agents/src/openclaw/agy_bridge/server.py)
+- [Antigravity MCP Bridge](/Users/jocham/programming/ai/agents/src/hermes/agy_bridge/server.py)

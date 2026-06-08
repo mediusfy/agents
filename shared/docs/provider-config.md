@@ -12,7 +12,7 @@ symlinked into thin provider workspace directories under `programming/ai/<provid
 |----------|-------------|---------------------------|
 | **OpenCode** | `opencode.json`, `.opencode/agents/*.md`, `.opencode/package.json` | `cd programming/ai/opencode; opencode .` — symlinked workspace templates, discovers `opencode.json` at repo root as project config |
 | **Claude Code** | `.claude/rules/*.md`, `.claude/settings.local.json` | Project-level `.claude/` is auto-detected by Claude Code when run from `programming/ai/claude/` |
-| **OpenClaw** | `.claude-plugin/plugin.json`, `.agents/workflows/*.md` | OpenClaw discovers its own configs from repo root; workspaces at `docs-writer/` and `frontend-engineer/` inherit shared templates via symlinks |
+| **Hermes** | `.claude-plugin/plugin.json`, `.agents/workflows/*.md` | Hermes discovers its own configs from repo root; workspaces at `docs-writer/` and `frontend-engineer/` inherit shared templates via symlinks |
 | **Antigravity** | `.aivory/`, `.antigravitycli/` (symlink to Gemini config) | Antigravity-specific runtime configs |
 | **Hermes** | `.hermes/plans/` (future) | Hermes discovers its own plans directory |
 
@@ -39,16 +39,16 @@ No additional configuration is needed — running `claude` from within the repo 
 {
   "permissions": {
     "allow": [
-      "mcp__openclaw-agents__*",
+      "mcp__hermes-agents__*",
       "mcp__sonarqube__quality_gate_status"
     ]
   }
 }
 ```
 
-### OpenClaw (Workspace)
+### Hermes (Workspace)
 
-OpenClaw discovers its workspace configs from the agent workspace root. The shared templates
+Hermes discovers its workspace configs from the agent workspace root. The shared templates
 are symlinked from `programming/ai/shared/workspace/`. Provider-specific files like
 `GUIDELINES.md` live at the provider level alongside the symlinks.
 
@@ -79,7 +79,7 @@ to the Gemini project config at `~/.gemini/config/projects/<uuid>.json`.
 |-------------------|--------------------------------------|
 | Agent role definitions (`shared/agents/*.md`) | `.claude/` — Claude Code project rules |
 | Workspace templates (`shared/workspace/*.md`) | `.opencode/` — OpenCode agents + MCP config |
-| Coding standards (`shared/standards/*.md`) | `.agents/` — OpenClaw agent workflows |
+| Coding standards (`shared/standards/*.md`) | `.agents/` — Hermes agent workflows |
 | Provider config docs (`shared/docs/provider-config.md`) | `.claude-plugin/` — Claude plugin manifest |
 | | `opencode.json` — OpenCode project configuration |
 | | `.pre-commit-config.yaml` — Git hooks |

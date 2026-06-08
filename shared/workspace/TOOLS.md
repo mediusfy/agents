@@ -4,7 +4,7 @@
 
 - **Standards:** /Users/jocham/programming/ai/agents/CODING_STANDARDS.md
 - **Agent definitions (Claude Code):** /Users/jocham/programming/ai/agents/agents/
-- **Pydantic AI agents (USE THESE — DeepSeek):** /Users/jocham/programming/ai/agents/src/openclaw/agents/
+- **Pydantic AI agents (USE THESE — DeepSeek):** /Users/jocham/programming/ai/agents/src/hermes/agents/
 - **Antigravity SDK agents (USE THESE — Gemini):** ~/.gemini/config/plugins/agy-agents/agents/
 - **Repo root:** /Users/jocham/programming/ai/agents/
 
@@ -18,8 +18,8 @@
 # Example: run UX audit via local Pydantic AI agent
 cd /Users/jocham/programming/ai/agents && python -c "
 import asyncio
-from openclaw.agents.registration import register_all_agents
-from openclaw.agents.ux import ux_agent
+from hermes.agents.registration import register_all_agents
+from hermes.agents.ux import ux_agent
 
 register_all_agents()
 result = asyncio.run(ux_agent.run(input_text))
@@ -42,7 +42,7 @@ cd /Users/jocham/programming/ai/agents && ./agy_bridge_run.sh
 ### Quick decision
 | You need this | Use this |
 |---|---|
-| DeepSeek-powered code gen, review, audit | Pydantic AI agents (`agents/src/openclaw/agents/`) |
+| DeepSeek-powered code gen, review, audit | Pydantic AI agents (`agents/src/hermes/agents/`) |
 | Gemini-powered code gen, review, audit | Antigravity agents (`~/.gemini/config/plugins/agy-agents/agents/`) |
 | Simple grep, read, write, edit | `exec/read/write/edit` directly |
 | Parallel coordination only | `sessions_spawn` (lightweight only) |
