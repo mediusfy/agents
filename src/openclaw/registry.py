@@ -10,7 +10,11 @@ from typing import Any
 import logfire
 from pydantic_ai import Agent, UsageLimits
 
-from openclaw.exceptions import AgentExecutionError, AgentNotFoundError, AmbiguousCapabilityError
+from openclaw.exceptions import (
+    AgentExecutionError,
+    AgentNotFoundError,
+    AmbiguousCapabilityError,
+)
 from openclaw.session_recorder import current_run_context
 from openclaw.telemetry import telemetry
 
@@ -20,8 +24,9 @@ logger = logging.getLogger(__name__)
 class AgentRegistry:
     def __init__(self):
         self._agents: dict[str, tuple[Agent[Any, Any], list[str], Callable | None, Callable | None]] = {}
-        # capability -> ordered list of agent names that claim it (first-registered wins on query;
-        # multiple owners are allowed but logged so the caller can disambiguate)
+        # capability -> ordered list of agent names that claim it.
+        # Multiple owners are *allowed* but query() will refuse to pick for you;
+        # callers must pass owner=<agent_name> to disambiguate.
         self._cap_index: dict[str, list[str]] = {}
         self._initialized: set[str] = set()
 
@@ -39,11 +44,13 @@ class AgentRegistry:
         for cap in capabilities:
             owners = self._cap_index.setdefault(cap, [])
             if owners:
-                logger.warning(
-                    "Capability '%s' is now claimed by multiple agents %s; query() resolves to '%s'.",
+                # Escalated from WARNING to ERROR: overlapping capabilities are now
+                # a hard config issue because query() will refuse to guess.
+                logger.error(
+                    "Capability '%s' is now claimed by multiple agents %s; "
+                    "callers must pass owner=<agent_name> to query().",
                     cap,
                     [*owners, name],
-                    owners[0],
                 )
             owners.append(name)
         # Lazy tool wiring is keyed on agent name; clear any stale entry from a prior register/unregister cycle.
@@ -114,23 +121,48 @@ class AgentRegistry:
         for _importer, modname, _ispkg in pkgutil.iter_modules(package.__path__, prefix):
             importlib.import_module(modname)
 
-    async def query(self, capability: str, prompt: str, timeout: float | None = None, deps: dict | None = None) -> str:
-        """Query an agent by capability, returning its response as a string.
+    def _resolve_owner(self, capability: str, owner: str | None) -> str:
+        """Pick the agent that should serve a capability call.
 
-        Raises AgentNotFoundError if no agent claims the capability and
-        AgentExecutionError if the agent run fails (timeout, model error, validation, etc.).
+        - No owners registered → AgentNotFoundError.
+        - ``owner`` pinned and registered for the capability → use it.
+        - ``owner`` pinned but not registered for the capability → AgentNotFoundError.
+        - ``owner`` omitted, single owner → use it.
+        - ``owner`` omitted, multiple owners → AmbiguousCapabilityError.
         """
         owners = self._cap_index.get(capability)
         if not owners:
             raise AgentNotFoundError(f"No agent found for capability '{capability}'")
+        if owner is not None:
+            if owner not in owners:
+                raise AgentNotFoundError(
+                    f"Agent '{owner}' does not provide capability '{capability}'. "
+                    f"Available owners: {owners}"
+                )
+            return owner
         if len(owners) > 1:
-            raise AmbiguousCapabilityError(
-                f"Multiple agents ({', '.join(owners)}) registered for capability '{capability}'. "
-                f"Use an explicit agent name instead of capability routing.",
-                owners=owners,
-            )
-        agent_name = owners[0]
+            raise AmbiguousCapabilityError(capability, owners)
+        return owners[0]
 
+    async def query(
+        self,
+        capability: str,
+        prompt: str,
+        timeout: float | None = None,
+        deps: dict | None = None,
+        owner: str | None = None,
+    ) -> str:
+        """Query an agent by capability, returning its response as a string.
+
+        Pass ``owner=<agent_name>`` to pin a specific agent when a capability has
+        multiple providers; otherwise an ambiguous capability raises
+        :class:`AmbiguousCapabilityError`.
+
+        Raises :class:`AgentNotFoundError` if no agent (or no matching agent) claims
+        the capability, :class:`AmbiguousCapabilityError` on unpinned overlap, and
+        :class:`AgentExecutionError` if the agent run itself fails.
+        """
+        agent_name = self._resolve_owner(capability, owner)
         agent, _caps, deps_factory, _post_hook = self._agents[agent_name]
         try:
             resolved_deps = deps or {}
@@ -160,6 +192,7 @@ async def instrumented_query(
     attributes: dict[str, Any] | None = None,
     timeout: float | None = None,
     delegation_depth: int = 0,
+    owner: str | None = None,
 ) -> str:
     """Query an agent by capability with full Logfire + JSONL telemetry instrumentation.
 
@@ -169,9 +202,13 @@ async def instrumented_query(
     - telemetry.track() for JSONL telemetry
     - Error attribution to the right agent
     - Delegation depth propagation to prevent infinite delegation loops
+    - Optional ``owner`` pin so pipelines can target a specific agent when a
+      capability has multiple providers.
     """
-    owners = registry.owners_of(capability)
-    agent_name = owners[0] if owners else "unknown"
+    # Resolve up-front so the span attribute is the *actual* agent that will run,
+    # not the speculative owners[0]. If resolution fails, the exception surfaces
+    # before we open a span, which keeps traces honest.
+    agent_name = registry._resolve_owner(capability, owner)
     span_attrs: dict[str, Any] = {
         "capability": capability,
         "agent_name": agent_name,
@@ -182,8 +219,11 @@ async def instrumented_query(
     start = time.time()
     success = False
 
-    # Propagate delegation depth into context so the callee inherits the counter
-    ctx_data = current_run_context.get()
+    # Propagate delegation depth into context so the callee inherits the counter.
+    # Defensive `or {}` belt-and-suspenders the ContextVar default — once
+    # session_recorder.current_run_context defaults to {}, this is a no-op, but
+    # it also protects against a caller deliberately setting None.
+    ctx_data = current_run_context.get() or {}
     token = None
     if delegation_depth > 0:
         token = current_run_context.set(
@@ -195,7 +235,7 @@ async def instrumented_query(
 
     try:
         with logfire.span(span_name, **span_attrs, _level="info"):
-            result = await registry.query(capability, prompt, timeout=timeout)
+            result = await registry.query(capability, prompt, timeout=timeout, owner=owner)
             success = True
             return result
     finally:

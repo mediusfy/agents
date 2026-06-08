@@ -14,15 +14,20 @@ class AgentNotFoundError(OpenClawError):
 
 
 class AmbiguousCapabilityError(OpenClawError):
-    """Multiple agents claim the same capability and which one to use is unclear.
+    """A capability is claimed by more than one agent and the caller did not pin an owner.
 
-    Attributes:
-        owners: The list of agent names that all registered this capability.
+    Raised by ``AgentRegistry.query`` / ``instrumented_query`` when ``owner`` is
+    omitted and the capability resolves to multiple agents. The exception carries
+    the candidate owners so callers (or operators reading the trace) can pick one.
     """
 
-    def __init__(self, message: str, owners: list[str]):
-        super().__init__(message)
-        self.owners = owners
+    def __init__(self, capability: str, owners: list[str]):
+        self.capability = capability
+        self.owners = list(owners)
+        super().__init__(
+            f"Capability '{capability}' is claimed by multiple agents {self.owners}. "
+            f"Pass owner=<agent_name> to disambiguate."
+        )
 
 
 class AgentExecutionError(OpenClawError):

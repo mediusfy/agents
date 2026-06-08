@@ -1,6 +1,10 @@
 from pydantic_ai import RunContext
 
-from openclaw.exceptions import AgentExecutionError, AgentNotFoundError
+from openclaw.exceptions import (
+    AgentExecutionError,
+    AgentNotFoundError,
+    AmbiguousCapabilityError,
+)
 from openclaw.registry import instrumented_query, registry
 from openclaw.session_recorder import current_run_context
 from openclaw.tools.registry import register_tool
@@ -10,27 +14,47 @@ MAX_DELEGATION_DEPTH = 3
 
 async def discover_agent_capabilities(ctx: RunContext) -> str:
     """Lists all available capabilities that other agents can perform.
-    Use this to find out who to delegate to."""
-    caps = []
-    for name, (_agent, agent_caps, _deps_fac, _post_hook) in registry.items():
-        for cap in agent_caps:
-            caps.append(f"- Capability: '{cap}' (provided by {name} agent)")
+    Use this to find out who to delegate to.
 
-    if not caps:
+    When a capability is provided by more than one agent, all owners are listed.
+    Callers must pass owner=<agent_name> to delegate_to_agent in that case.
+    """
+    lines: list[str] = []
+    for cap, owners in registry.capabilities():
+        if len(owners) == 1:
+            lines.append(f"- Capability: '{cap}' (provided by {owners[0]} agent)")
+        else:
+            owners_str = ", ".join(owners)
+            lines.append(
+                f"- Capability: '{cap}' (AMBIGUOUS — provided by {owners_str}; "
+                f"pass owner=<agent_name>)"
+            )
+
+    if not lines:
         return "No agents currently registered with capabilities."
 
-    return "Available Agent Capabilities for Delegation:\n" + "\n".join(caps)
+    return "Available Agent Capabilities for Delegation:\n" + "\n".join(lines)
 
 
-async def delegate_to_agent(ctx: RunContext, capability: str, prompt: str, context_summary: str) -> str:
+async def delegate_to_agent(
+    ctx: RunContext,
+    capability: str,
+    prompt: str,
+    context_summary: str,
+    owner: str | None = None,
+) -> str:
     """Delegate a sub-task to another agent based on their capability.
 
     To ensure proficient token usage and accurate responses:
     - capability: Which agent capability to use (see discover_agent_capabilities)
     - prompt: The specific task/question for the target agent
     - context_summary: Provide ONLY the absolutely necessary context. Do not dump full history.
+    - owner: When a capability has multiple providers, pin the agent name here.
+      Required for ambiguous capabilities; ignored when there is only one owner.
     """
-    ctx_data = current_run_context.get()
+    # `or {}` defends against the ContextVar being unset (default is now {},
+    # but a caller could still explicitly set None outside of record_span).
+    ctx_data = current_run_context.get() or {}
     current_depth = ctx_data.get("delegation_depth", 0)
 
     if current_depth >= MAX_DELEGATION_DEPTH:
@@ -52,6 +76,7 @@ async def delegate_to_agent(ctx: RunContext, capability: str, prompt: str, conte
         "caller_pipeline_stage": ctx_data.get("pipeline_stage", ""),
         "caller_run_id": ctx_data.get("run_id", ""),
         "delegation_depth": current_depth + 1,
+        "owner_pin": owner or "",
     }
 
     try:
@@ -61,6 +86,14 @@ async def delegate_to_agent(ctx: RunContext, capability: str, prompt: str, conte
             span_name="a2a.delegate",
             attributes=attrs,
             delegation_depth=current_depth + 1,
+            owner=owner,
+        )
+    except AmbiguousCapabilityError as e:
+        # Surface the candidate owners back to the LLM so it can retry with
+        # a pinned owner instead of failing the whole run.
+        return (
+            f"ERROR: Capability '{capability}' is ambiguous. Candidates: {e.owners}. "
+            f"Retry delegate_to_agent with owner=<agent_name>."
         )
     except (AgentNotFoundError, AgentExecutionError) as e:
         return f"ERROR: {e}"
