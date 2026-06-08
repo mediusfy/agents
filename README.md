@@ -20,6 +20,80 @@ OpenClaw is a **multi-agent software development lifecycle (SDLC) ecosystem** th
 
 ---
 
+## 📁 Multi-Provider Structure
+
+This repo is the **central configuration hub** for all AI agent providers in the ecosystem.
+Provider configs live here; each provider gets a thin workspace under `programming/ai/<provider>/`
+with symlinks back to shared templates and agent definitions.
+
+### Config Layout
+
+```
+programming/ai/
+├── agents/                          ← This repo: pydantic_ai runtime + provider configs
+│   ├── src/openclaw/agents/         ← Python agent implementations
+│   ├── agents/*.md                  → symlinks → shared/agents/ (role definitions)
+│   ├── .claude/rules/*.md           → Claude Code project rules
+│   ├── .claude/settings.local.json  → Claude Code permission config
+│   ├── .claude-plugin/plugin.json   → Claude Code plugin manifest
+│   ├── opencode.json                → OpenCode project/agent config
+│   ├── .opencode/agents/*.md        → OpenCode subagent definitions
+│   ├── .agents/workflows/*.md       → OpenClaw agent workflows
+│   ├── .pre-commit-config.yaml      → Git hooks (ruff, mypy, linting)
+│   └── AGENTS.md → shared/workspace/
+│
+├── openclaw/                       ← OpenClaw workspaces (thin wrappers)
+│   ├── GUIDELINES.md                → Global agent operations guide
+│   ├── *.md                        → symlinks → shared/workspace/
+│   ├── agents/*.md                 → symlinks → shared/agents/
+│   ├── docs-writer/                 → Sub-workspace (shared templates)
+│   └── frontend-engineer/           → Sub-workspace (shared templates)
+│
+├── claude/                         ← Claude Code workspace
+│   ├── *.md                        → symlinks → shared/workspace/
+│   └── agents/*.md                 → symlinks → shared/agents/
+│
+├── opencode/                       ← OpenCode workspace
+│   ├── *.md                        → symlinks → shared/workspace/
+│   └── agents/*.md                 → symlinks → shared/agents/
+│
+├── antigravity/                    ← Antigravity workspace
+│   ├── *.md                        → symlinks → shared/workspace/
+│   └── agents/*.md                 → symlinks → shared/agents/
+│
+├── hermes/                         ← Hermes workspace
+│   ├── *.md                        → symlinks → shared/workspace/
+│   └── agents/*.md                 → symlinks → shared/agents/
+│
+├── shared/
+│   ├── agents/*.md                 → 14 canonical agent role definitions
+│   ├── workspace/*.md              → 7 workspace template files
+│   ├── standards/go-standards.md   → Go coding standards
+│   └── docs/provider-config.md     → Full provider config reference
+```
+
+### Provider Config Discovery
+
+| Provider | Config Files | Discovery Mechanism |
+|----------|-------------|-------------------|
+| **OpenCode** | `opencode.json`, `.opencode/agents/*.md` | Auto-detected from project root when running `opencode` in `programming/ai/opencode/` |
+| **Claude Code** | `.claude/rules/*.md`, `.claude/settings.local.json`, `.claude-plugin/plugin.json` | Auto-detected from `.claude/` in current working directory |
+| **OpenClaw** | `.agents/workflows/*.md` | Discovered from agent workspace root |
+| **Antigravity** | `.aivory/`, `.antigravitycli/` | CLI reads from project root |
+| **Hermes** | `.hermes/plans/` (future) | Discovered from workspace root |
+
+> **Full provider config reference**: [`shared/docs/provider-config.md`](../shared/docs/provider-config.md)
+
+### The Golden Rule
+
+**Edit agent role files in `shared/agents/`**, not in individual provider directories.
+Changes propagate automatically via symlinks to all providers.
+
+**Provider-specific configs stay in this repo** under their respective dot-directories
+(`.claude/`, `.opencode/`, `.agents/`).
+
+---
+
 ## 🏗️ Architecture
 
 ```
@@ -100,9 +174,20 @@ pip install -e ".[dev]"
 cp .env.example .env
 ```
 
-### Configuration
+### API Keys
 
-Edit `.env` with your API keys:
+API keys are managed globally in `~/.zsh/envs.zsh` — not in per-repo `.env` files.
+This repo includes `.env.example` as a reference, but actual keys come from your
+shell environment at runtime.
+
+```bash
+# ~/.zsh/envs.zsh (one source of truth for secrets)
+export DEEPSEEK_API_KEY="***"
+export ANTHROPIC_BASE_URL="https://jocham.tail...ts.net/v1"
+export OPENAI_BASE_URL="https://jocham.tail...ts.net/v1"
+export LOGFIRE_TOKEN="***"
+export OPENCLAW_AUTH_TOKEN="***"
+```
 
 ```bash
 # LLM Provider (at least one required)
@@ -364,10 +449,15 @@ pytest --cov=openclaw --cov-report=html
 
 ```
 openclaw/
-├── agents/*.md                    # Claude Code agent definitions
-├── .opencode/agents/*.md          # Opencode agent definitions
+├── agents/*.md                    → symlinks → shared/agents/ (role definitions)
+├── .opencode/agents/*.md          # OpenCode subagent definitions
+├── .opencode/package.json          # OpenCode SDK dependency
+├── opencode.json                   # OpenCode project & agent configuration
 ├── .claude-plugin/plugin.json     # Claude Code plugin manifest
-├── .claude/rules/*.md             # Claude Code rules (auto-triggered)
+├── .claude/rules/*.md             # Claude Code project rules (auto-triggered)
+├── .claude/settings.local.json    # Claude Code MCP permission config
+├── .agents/workflows/*.md         # OpenClaw multi-agent workflows
+├── .pre-commit-config.yaml        # Git hooks (ruff, mypy, linting)
 ├── src/
 │   └── openclaw/
 │       ├── agents/                # pydantic_ai agent implementations
@@ -488,11 +578,13 @@ pytest                # Test
 |----------|-------------|
 | [API Reference](docs/API_REFERENCE.md) | Complete MCP tool and CLI API reference |
 | [OpenAPI Spec](docs/openapi/openclaw-api.yaml) | OpenAPI 3.1 specification for the MCP API |
-| [CODING_STANDARDS.md](CODING_STANDARDS.md) | Go coding standards for generated code |
+| [Provider Config Reference](../shared/docs/provider-config.md) | How providers discover configs in this repo |
+| [Go Standards](CODING_STANDARDS.md) | Go coding standards for generated code |
 | [AGENTS.md](AGENTS.md) | Agent system prompts and definitions |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines |
-| Agents Directory | `agents/*.md` — Claude Code agent definitions |
-| Opencode Agents | `.opencode/agents/*.md` — Opencode agent definitions |
+| Agent Role Files | `agents/*.md` → symlinks → `shared/agents/` |
+| OpenCode Agents | `.opencode/agents/*.md` — OpenCode subagent definitions |
+| Claude Rules | `.claude/rules/*.md` — Claude Code auto-triggered rules |
 
 ---
 
@@ -501,8 +593,9 @@ pytest                # Test
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `OPENAI_API_KEY` | No* | — | OpenAI API key |
-| `ANTHROPIC_API_KEY` | No* | — | Anthropic API key |
-| `GEMINI_API_KEY` | No* | — | Google Gemini API key |
+| `ANTHROPIC_BASE_URL` | No | — | Anthropic API proxy base URL (Aperture) |
+| `OPENAI_BASE_URL` | No | — | OpenAI API proxy base URL (Aperture) |
+| `OPENCLAW_AUTH_TOKEN` | No | — | OpenClaw gateway auth token |
 | `DEEPSEEK_API_KEY` | No* | — | DeepSeek API key |
 | `LOGFIRE_TOKEN` | No | — | Logfire observability token |
 | `DATABASE_URL` | Yes | `postgresql://localhost:5432/openclaw` | PostgreSQL connection string |
