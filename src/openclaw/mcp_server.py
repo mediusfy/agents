@@ -17,7 +17,7 @@ from pydantic_ai import UsageLimits
 from openclaw.agents.registration import register_all_agents
 from openclaw.context_engine import retrieve_context
 from openclaw.event_broker import Event, EventKind, event_broker
-from openclaw.exceptions import AgentExecutionError, AgentNotFoundError
+from openclaw.exceptions import AgentExecutionError, AgentNotFoundError, AmbiguousCapabilityError
 from openclaw.memory_bridge import get_bridge_status, sync_claude_to_pgvector, sync_memory_to_claude
 from openclaw.observability import configure_observability
 from openclaw.registry import registry
@@ -253,7 +253,7 @@ async def delegate_to_openclaw_agent(capability: str, context: str, task: str, r
     If run_on_gks is True, the task is offloaded to the remote GKS OpenClaw instance.
     """
     from openclaw.agents.registration import register_all_agents
-    from openclaw.exceptions import AgentExecutionError, AgentNotFoundError
+    from openclaw.exceptions import AgentExecutionError, AgentNotFoundError, AmbiguousCapabilityError
     from openclaw.registry import instrumented_query
 
     register_all_agents()
@@ -274,6 +274,13 @@ async def delegate_to_openclaw_agent(capability: str, context: str, task: str, r
         )
     except AgentNotFoundError as e:
         return f"ERROR: {e}\n\nAvailable capabilities:\n{_list_capabilities()}"
+    except AmbiguousCapabilityError as e:
+        return (
+            f"ERROR: {e}\n\n"
+            f"Re-call delegate_to_openclaw_agent with the capability renamed to "
+            f"one of {e.owners}, or extend the MCP tool to accept an explicit "
+            f"agent name."
+        )
     except AgentExecutionError as e:
         return f"ERROR: {e}"
 
