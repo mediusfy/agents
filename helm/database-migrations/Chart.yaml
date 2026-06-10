@@ -1,6 +1,0 @@
-apiVersion: v2
-name: database-migrations
-description: OpenClaw database migration job - applies SQL migrations on deploy
-type: application
-version: 1.0.0
-appVersion: "1.0.0"

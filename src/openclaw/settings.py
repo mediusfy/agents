@@ -29,7 +29,8 @@ class Settings(BaseSettings):
 
     database_url: str | None = None
 
-    model_provider: str | None = "deepseek"
+    # Supported providers: deepseek, gemini, vertexai, openai, litellm
+    model_provider: str | None = "litellm"
 
     redis_iris_url: str | None = None
     redis_iris_store_id: str | None = None
@@ -134,6 +135,9 @@ class Settings(BaseSettings):
         """
         provider = self.model_provider
         if provider:
+            if provider == "litellm":
+                # Route everything through LiteLLM's OpenAI-compatible proxy interface
+                return f"openai:{model_name}"
             if provider == "deepseek":
                 return f"deepseek:{model_name}" if ":" not in model_name else model_name
             if provider == "gemini":

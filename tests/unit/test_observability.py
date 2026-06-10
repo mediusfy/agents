@@ -14,8 +14,9 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
-def reset_observability_state():
+def reset_observability_state(monkeypatch):
     """Each test starts with a fresh module-level state."""
+    monkeypatch.delenv("OTEL_SDK_DISABLED", raising=False)
     from openclaw import observability
 
     observability._initialized = False

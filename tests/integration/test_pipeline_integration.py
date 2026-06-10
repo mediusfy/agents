@@ -825,11 +825,14 @@ class TestMemoryBackendSelection:
     # ── pgvector test helpers ──────────────────────────────────────────────
 
     @staticmethod
-    def _create_in_memory_pool_and_set():
+    def _create_in_memory_pool_and_set(monkeypatch):
         """Create an in-memory pgvector mock for testing, and install it via _set_test_pool().
 
         Returns the mock pool so the caller can inspect stored rows.
         """
+        # Mock _to_embedding so we don't require sentence_transformers for these tests
+        monkeypatch.setattr("openclaw.vector_db._to_embedding", lambda _text: [0.1, 0.2, 0.3])
+
         # We use a simple dict-based store: table_name -> {id: {content, embedding, metadata}}
         # Embedding is mocked — all documents get a trivial vector so <=> does "some" ranking.
         stores: dict[str, dict[str, dict]] = {}
@@ -931,7 +934,7 @@ class TestMemoryBackendSelection:
     @pytest.mark.asyncio
     async def test_vectormemory_add_and_get_relevant(self, tmp_path, monkeypatch):
         """VectorMemory add_memory and get_relevant_memories work end-to-end with mocked vector_db."""
-        stores, _ = self._create_in_memory_pool_and_set()
+        stores, _ = self._create_in_memory_pool_and_set(monkeypatch)
 
         vm = VectorMemory("test_integration")
 
@@ -951,7 +954,7 @@ class TestMemoryBackendSelection:
     @pytest.mark.asyncio
     async def test_vectormemory_consolidate(self, tmp_path, monkeypatch):
         """VectorMemory.consolidate returns a formatted text block of recent memories."""
-        stores, _ = self._create_in_memory_pool_and_set()
+        stores, _ = self._create_in_memory_pool_and_set(monkeypatch)
 
         vm = VectorMemory("test_consolidate")
 
@@ -965,7 +968,7 @@ class TestMemoryBackendSelection:
     @pytest.mark.asyncio
     async def test_vectormemory_roundtrip(self, tmp_path, monkeypatch):
         """Added memories are retrievable by semantic search."""
-        stores, _ = self._create_in_memory_pool_and_set()
+        stores, _ = self._create_in_memory_pool_and_set(monkeypatch)
 
         vm = VectorMemory("test_roundtrip")
 

@@ -41,6 +41,11 @@ def configure_observability() -> None:
         return
     _initialized = True
 
+    if os.environ.get("OTEL_SDK_DISABLED", "").lower() == "true":
+        LOGFIRE_CONFIGURE_ERROR = "OTEL_SDK_DISABLED is true — telemetry disabled"
+        logger.info(LOGFIRE_CONFIGURE_ERROR)
+        return
+
     # Prefer the raw env var first (tests delete it to simulate no-creds), then
     # fall back to the settings object which loads .env at import time.
     # If the env var is empty/falsy but settings has a value, the .env is

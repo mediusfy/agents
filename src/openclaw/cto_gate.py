@@ -65,7 +65,6 @@ async def apply(state: PipelineState, project: str = "default", timeout: float =
                 if b.strip():
                     logger.warning("  • %s", b.strip())
 
-        # Check for env override
         if os.environ.get("OPENCLAW_CTO_OVERRIDE"):
             logger.warning("OPENCLAW_CTO_OVERRIDE set — bypassing gate.")
             return True
