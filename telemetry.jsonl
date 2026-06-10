@@ -6,3 +6,27 @@
 {"timestamp": 1781103703.5198941, "agent": "test_agent", "duration_sec": 5.316734313964844e-05, "success": true, "metadata": {"bridge": "agy", "prompt_length": 11}}
 {"timestamp": 1781103703.521046, "agent": "test_agent", "duration_sec": 5.1975250244140625e-05, "success": true, "metadata": {"bridge": "agy", "prompt_length": 11}}
 {"timestamp": 1781103703.6651788, "agent": "test_agent", "duration_sec": 0.0001819133758544922, "success": true, "metadata": {"agent_name": "test_agent", "request_length": 13, "context_retrieved": true}}
+{"timestamp": 1781103842.761298, "agent": "service_engineer", "duration_sec": 0.004704952239990234, "success": true, "metadata": {"codebase_path": "/tmp/test", "attempt": 0}}
+{"timestamp": 1781103842.7626119, "agent": "service_engineer", "duration_sec": 7.677078247070312e-05, "success": false, "metadata": {"codebase_path": "/tmp/test", "attempt": 0}}
+{"timestamp": 1781103842.762851, "agent": "service_engineer", "duration_sec": 4.982948303222656e-05, "success": false, "metadata": {"codebase_path": "/tmp/test", "attempt": 1}}
+{"timestamp": 1781103842.762997, "agent": "service_engineer", "duration_sec": 4.076957702636719e-05, "success": false, "metadata": {"codebase_path": "/tmp/test", "attempt": 2}}
+{"timestamp": 1781103842.763128, "agent": "service_engineer", "duration_sec": 3.910064697265625e-05, "success": false, "metadata": {"codebase_path": "/tmp/test", "attempt": 3}}
+{"timestamp": 1781103842.773736, "agent": "test_agent", "duration_sec": 5.1975250244140625e-05, "success": true, "metadata": {"bridge": "agy", "prompt_length": 11}}
+{"timestamp": 1781103842.774923, "agent": "test_agent", "duration_sec": 5.1021575927734375e-05, "success": true, "metadata": {"bridge": "agy", "prompt_length": 11}}
+{"timestamp": 1781103842.917978, "agent": "test_agent", "duration_sec": 0.00015687942504882812, "success": true, "metadata": {"agent_name": "test_agent", "request_length": 13, "context_retrieved": true}}
+{"timestamp": 1781104197.733933, "agent": "service_engineer", "duration_sec": 0.004632234573364258, "success": true, "metadata": {"codebase_path": "/tmp/test", "attempt": 0}}
+{"timestamp": 1781104197.735156, "agent": "service_engineer", "duration_sec": 5.507469177246094e-05, "success": false, "metadata": {"codebase_path": "/tmp/test", "attempt": 0}}
+{"timestamp": 1781104197.735405, "agent": "service_engineer", "duration_sec": 4.887580871582031e-05, "success": false, "metadata": {"codebase_path": "/tmp/test", "attempt": 1}}
+{"timestamp": 1781104197.7356029, "agent": "service_engineer", "duration_sec": 6.198883056640625e-05, "success": false, "metadata": {"codebase_path": "/tmp/test", "attempt": 2}}
+{"timestamp": 1781104197.735758, "agent": "service_engineer", "duration_sec": 4.506111145019531e-05, "success": false, "metadata": {"codebase_path": "/tmp/test", "attempt": 3}}
+{"timestamp": 1781104197.7458491, "agent": "test_agent", "duration_sec": 4.601478576660156e-05, "success": true, "metadata": {"bridge": "agy", "prompt_length": 11}}
+{"timestamp": 1781104197.746967, "agent": "test_agent", "duration_sec": 4.887580871582031e-05, "success": true, "metadata": {"bridge": "agy", "prompt_length": 11}}
+{"timestamp": 1781104197.8930008, "agent": "test_agent", "duration_sec": 0.00017499923706054688, "success": true, "metadata": {"agent_name": "test_agent", "request_length": 13, "context_retrieved": true}}
+{"timestamp": 1781104526.218679, "agent": "service_engineer", "duration_sec": 0.004804849624633789, "success": true, "metadata": {"codebase_path": "/tmp/test", "attempt": 0}}
+{"timestamp": 1781104526.2205162, "agent": "service_engineer", "duration_sec": 0.00010013580322265625, "success": false, "metadata": {"codebase_path": "/tmp/test", "attempt": 0}}
+{"timestamp": 1781104526.220865, "agent": "service_engineer", "duration_sec": 7.700920104980469e-05, "success": false, "metadata": {"codebase_path": "/tmp/test", "attempt": 1}}
+{"timestamp": 1781104526.221081, "agent": "service_engineer", "duration_sec": 5.507469177246094e-05, "success": false, "metadata": {"codebase_path": "/tmp/test", "attempt": 2}}
+{"timestamp": 1781104526.221296, "agent": "service_engineer", "duration_sec": 6.508827209472656e-05, "success": false, "metadata": {"codebase_path": "/tmp/test", "attempt": 3}}
+{"timestamp": 1781104526.234943, "agent": "test_agent", "duration_sec": 4.673004150390625e-05, "success": true, "metadata": {"bridge": "agy", "prompt_length": 11}}
+{"timestamp": 1781104526.236512, "agent": "test_agent", "duration_sec": 5.507469177246094e-05, "success": true, "metadata": {"bridge": "agy", "prompt_length": 11}}
+{"timestamp": 1781104526.383996, "agent": "test_agent", "duration_sec": 0.00013899803161621094, "success": true, "metadata": {"agent_name": "test_agent", "request_length": 13, "context_retrieved": true}}
