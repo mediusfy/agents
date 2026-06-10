@@ -1,0 +1,251 @@
+-- ============================================================================
+-- Queries: ENTITYMGMT-07 — User restores a soft-deleted entity to active state
+-- Bounded Context: Entity Management
+--
+-- This file documents the primary SQL query patterns used by the application
+-- layer for the restore operation.
+--
+-- Gherkin SCENARIO 1: Successful restore of soft-deleted entity
+-- Gherkin SCENARIO 2: Restore of non-deleted entity is rejected
+-- ============================================================================
+
+-- ============================================================================
+-- Query 1: Restore entity with outbox event (success path)
+-- The primary entry point for POST /api/v1/entities/{id}/restore.
+--
+-- Gherkin SCENARIO 1:
+--   Given entity "ent-001" is soft-deleted
+--     (deleted_at = "2024-01-15T10:00:00Z", status="deleted")
+--   When a POST /api/v1/entities/ent-001/restore request is sent
+--   Then deleted_at is cleared (set to NULL)
+--     And status transitions to "active"
+--     And an entitymanagement.entity.restored event is written to the outbox
+--     And HTTP 200 is returned with {"status": "restored", "entity_id": "ent-001"}
+--     And the entity is now visible in standard list queries
+--
+-- Usage:
+--   SELECT * FROM restore_entity_with_outbox(
+--     p_entity_id   := 'e0000001-0000-4000-8000-000000000001',
+--     p_restored_by := 'user-abc-123'
+--   );
+--
+-- Expected result (SCENARIO 1 — success):
+--   success              = TRUE
+--   entity_json           = {
+--       "id": "e0000001-...",
+--       "name": "Alice",
+--       "status": "active",        -- Transitions from "deleted" back to "active"
+--       "deleted_at": null,        -- Cleared (set to NULL)
+--       "previous_deleted_at": "2024-01-15T10:00:00Z",  -- Captured before clear
+--       "version": 5,              -- Bumped (3→4 on soft-delete, 4→5 on restore)
+--       ...
+--   }
+--   event_id             = <uuid>  (outbox trace ID for entitymanagement.entity.restored)
+--   previous_deleted_at  = "2024-01-15T10:00:00Z"
+--   error_code           = NULL
+--   error_message        = NULL
+--
+-- The application layer then constructs the HTTP response:
+--   {
+--     "status": "restored",
+--     "entity_id": "e0000001-..."
+--   }
+-- ============================================================================
+
+-- ============================================================================
+-- Query 2: Restore entity (not soft-deleted — CONFLICT path)
+-- When the entity is active (deleted_at is NULL), the function returns
+-- ERR_NOT_DELETED without modifying any data or emitting any event.
+--
+-- Gherkin SCENARIO 2:
+--   Given entity "ent-002" is active (deleted_at is NULL)
+--   When a restore is attempted on entity "ent-002"
+--   Then ErrNotDeleted is returned (HTTP 400)
+--     And message: "entity is not soft-deleted"
+--     And no data is modified
+--     And no entity.restored event is emitted
+--
+-- Usage:
+--   SELECT * FROM restore_entity_with_outbox(
+--     p_entity_id := 'e0000002-0000-4000-8000-000000000002'
+--   );
+--
+-- Expected result (SCENARIO 2 — rejection):
+--   success              = FALSE
+--   entity_json           = NULL
+--   event_id             = NULL  (NO event emitted)
+--   previous_deleted_at  = NULL
+--   error_code           = 'ERR_NOT_DELETED'
+--   error_message        = 'entity is not soft-deleted'
+--
+-- The application layer maps error_code to HTTP status:
+--   ERR_NOT_DELETED       → HTTP 400 Bad Request
+--   ERR_ENTITY_NOT_FOUND  → HTTP 404 Not Found
+-- ============================================================================
+
+-- ============================================================================
+-- Query 3: Validate entity is restorable (pre-check)
+-- A read-only check that can be called before the actual restore to verify
+-- the entity is soft-deleted and can be restored.
+--
+-- Useful for:
+--   - UI to show/hide restore button
+--   - Bulk restore pre-validation
+--   - Preventing unnecessary DB writes when entity isn't restorable
+--
+-- Gherkin SCENARIO 1 (entity IS soft-deleted):
+--   Usage:
+--     SELECT * FROM validate_entity_restorable('e0000001-...');
+--
+--   Expected:
+--     restorable    = TRUE
+--     entity_name   = 'Alice'
+--     entity_status = 'deleted'
+--     deleted_at    = '2024-01-15T10:00:00Z'
+--     error_code    = NULL
+--     error_message = NULL
+--
+-- Gherkin SCENARIO 2 (entity is NOT soft-deleted):
+--   Usage:
+--     SELECT * FROM validate_entity_restorable('e0000002-...');
+--
+--   Expected:
+--     restorable    = FALSE
+--     entity_name   = 'Bob'
+--     entity_status = 'active'
+--     deleted_at    = NULL
+--     error_code    = 'ERR_NOT_DELETED'
+--     error_message = 'entity is not soft-deleted'
+-- ============================================================================
+
+-- ============================================================================
+-- Query 4: Get restorable entity details (UI/preview)
+-- Retrieves a soft-deleted entity with its deletion metadata for display
+-- in the restore confirmation UI.
+--
+-- Usage:
+--   SELECT * FROM get_restorable_entity('e0000001-...');
+--
+-- Expected:
+--   entity_id        = e0000001-...
+--   name             = 'Alice'
+--   status           = 'deleted'
+--   deleted_at       = '2024-01-15T10:00:00Z'
+--   deleted_duration = 'X days ago'    (human-readable)
+-- ============================================================================
+
+-- ============================================================================
+-- Query 5: Verify entity visibility after restore (diagnostic)
+-- Confirms that a restored entity is visible in standard list queries,
+-- which validates the Gherkin requirement:
+--   "And the entity is now visible in standard list queries"
+--
+-- Usage (after calling restore_entity_with_outbox):
+--   SELECT * FROM verify_entity_visible_after_restore(
+--     p_entity_id  := 'e0000001-...',
+--     p_schema_id  := 'c0000001-...'
+--   );
+--
+-- This runs 5 checks:
+--   1. Default list_entities_by_schema includes the entity
+--   2. Default get_entity_by_id retrieves the entity
+--   3. Default count_entities_by_schema counts the entity
+--   4. Entity status is 'active' (not 'deleted')
+--   5. validate_entity_restorable now returns ERR_NOT_DELETED
+--      (because the entity is active, no longer restorable)
+-- ============================================================================
+
+-- ============================================================================
+-- Query 6: Raw restore SQL (reference implementation)
+-- For understanding, this is the core SQL that powers restore_entity():
+--
+--   UPDATE entities
+--   SET
+--       status     = 'active'::entity_status,
+--       deleted_at = NULL,
+--       version    = version + 1,
+--       updated_at = NOW()
+--   WHERE id = $1
+--     AND deleted_at IS NOT NULL    -- Safety: only restore if soft-deleted
+--   RETURNING *;
+--
+-- Parameters:
+--   $1 = entity_id
+--
+-- The WHERE deleted_at IS NOT NULL clause ensures:
+--   - SCENARIO 1: succeeds (entity is soft-deleted)
+--   - SCENARIO 2: no rows affected (entity is active, deleted_at IS NULL)
+-- ============================================================================
+
+-- ============================================================================
+-- Query 7: Create entity.restored outbox event (reference)
+--
+-- INSERT INTO outbox_events (
+--     id, event_id, aggregate_id, aggregate_type,
+--     event_type, source, subject, payload,
+--     status, retry_count, last_error, created_at
+-- ) VALUES (
+--     gen_random_uuid()::TEXT,
+--     gen_random_uuid()::TEXT,
+--     'e0000001-...'::TEXT,                   -- aggregate_id (entity_id)
+--     'entity',                               -- aggregate_type
+--     'entitymanagement.entity.restored',     -- event_type
+--     '/entity-manager',                      -- source
+--     'entity/e0000001-...',                  -- subject
+--     jsonb_build_object(                     -- payload per Gherkin spec
+--         'event_id',            '<uuid>',
+--         'entity_id',           'e0000001-...',
+--         'entity_name',         'Alice',
+--         'region',              'eu-west-1',
+--         'previous_deleted_at', '2024-01-15T10:00:00Z',
+--         'occurred_at',         NOW()
+--     ),
+--     'pending',                              -- status
+--     0,                                      -- retry_count
+--     NULL,                                   -- last_error
+--     NOW()                                   -- created_at
+-- );
+-- ============================================================================
+
+-- ============================================================================
+-- Query 8: List deleted entities available for restore
+-- Find all soft-deleted entities per schema, useful for admin UIs
+-- showing "Deleted items available for restore."
+--
+-- Usage:
+--   SELECT * FROM list_entities_by_schema(
+--     p_schema_id       := 'c0000001-...',
+--     p_status          := 'deleted',      -- Only show deleted
+--     p_include_deleted := TRUE
+--   );
+--
+-- Or directly:
+--   SELECT id, name, status, deleted_at, version
+--   FROM entities
+--   WHERE schema_id = 'c0000001-...'
+--     AND deleted_at IS NOT NULL
+--   ORDER BY deleted_at DESC;
+-- ============================================================================
+
+-- ============================================================================
+-- Query 9: Count restorable entities (admin dashboard metric)
+--
+-- SELECT
+--     COUNT(*) FILTER (WHERE deleted_at IS NOT NULL)
+--         AS restorable_count,
+--     COUNT(*) FILTER (WHERE deleted_at IS NULL)
+--         AS active_count
+-- FROM entities
+-- WHERE schema_id = 'c0000001-...';
+-- ============================================================================
+
+-- ============================================================================
+-- Query 10: Find entities deleted within a time range (for restore campaigns)
+--
+-- SELECT id, name, status, deleted_at
+-- FROM entities
+-- WHERE schema_id = 'c0000001-...'
+--   AND deleted_at IS NOT NULL
+--   AND deleted_at BETWEEN '2024-01-01' AND '2024-03-01'
+-- ORDER BY deleted_at DESC;
+-- ============================================================================

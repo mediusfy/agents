@@ -1,0 +1,8 @@
+{"timestamp": 1781103703.5062551, "agent": "service_engineer", "duration_sec": 0.0046389102935791016, "success": true, "metadata": {"codebase_path": "/tmp/test", "attempt": 0}}
+{"timestamp": 1781103703.507465, "agent": "service_engineer", "duration_sec": 9.202957153320312e-05, "success": false, "metadata": {"codebase_path": "/tmp/test", "attempt": 0}}
+{"timestamp": 1781103703.50777, "agent": "service_engineer", "duration_sec": 6.604194641113281e-05, "success": false, "metadata": {"codebase_path": "/tmp/test", "attempt": 1}}
+{"timestamp": 1781103703.507988, "agent": "service_engineer", "duration_sec": 6.413459777832031e-05, "success": false, "metadata": {"codebase_path": "/tmp/test", "attempt": 2}}
+{"timestamp": 1781103703.508238, "agent": "service_engineer", "duration_sec": 7.390975952148438e-05, "success": false, "metadata": {"codebase_path": "/tmp/test", "attempt": 3}}
+{"timestamp": 1781103703.5198941, "agent": "test_agent", "duration_sec": 5.316734313964844e-05, "success": true, "metadata": {"bridge": "agy", "prompt_length": 11}}
+{"timestamp": 1781103703.521046, "agent": "test_agent", "duration_sec": 5.1975250244140625e-05, "success": true, "metadata": {"bridge": "agy", "prompt_length": 11}}
+{"timestamp": 1781103703.6651788, "agent": "test_agent", "duration_sec": 0.0001819133758544922, "success": true, "metadata": {"agent_name": "test_agent", "request_length": 13, "context_retrieved": true}}
