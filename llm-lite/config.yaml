@@ -44,6 +44,10 @@ model_list:
     litellm_params:
       model: xai/grok-4.3
       api_key: os.environ/XAI_API_KEY
+  - model_name: qwen2.5-coder:7b
+    litellm_params:
+      model: ollama/qwen2.5-coder:7b
+      api_base: http://host.docker.internal:11434
 
 litellm_settings:
   drop_params: true

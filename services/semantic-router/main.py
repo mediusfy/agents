@@ -72,6 +72,12 @@ async def chat_completions(request: Request):
     # Forward headers (carrying auth/master keys)
     headers = {k: v for k, v in request.headers.items() if k.lower() not in ["host", "content-length"]}
 
+    # Ensure Authorization header is present
+    has_auth = any(k.lower() == "authorization" for k in headers)
+    if not has_auth:
+        auth_key = os.environ.get("LITELLM_VIRTUAL_KEY") or os.environ.get("LITELLM_MASTER_KEY") or "sk-MPQ3A_kKYzNrhTpL6tYUVg"
+        headers["Authorization"] = f"Bearer {auth_key}"
+
     # Proxy the request to the local LiteLLM gateway
     client = httpx.AsyncClient(timeout=120.0)
     
