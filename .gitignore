@@ -366,3 +366,7 @@ cython_debug/
 
 *.jsonl
 
+# AI providers
+.air
+.claude
+
