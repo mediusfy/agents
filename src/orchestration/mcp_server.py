@@ -521,7 +521,6 @@ async def check_task_status(task_id: str) -> str:
         return f"Task: {task_id}\nStatus: {status.get('status', 'unknown')}\nResult: {status.get('result', 'pending')}"
 
 
-
 @mcp.tool()
 async def wait_for_task(task_id: str, timeout_seconds: int = 300) -> str:
     """Wait synchronously for an async task to complete (up to timeout_seconds)."""

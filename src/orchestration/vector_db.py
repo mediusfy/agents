@@ -38,7 +38,9 @@ def _require_vector_deps():
     try:
         import numpy as _  # noqa: F401
     except ImportError as exc:
-        raise OrgitrationDependencyError("vector_db requires numpy.  Install with:  pip install orchestration[vector]") from exc
+        raise OrgitrationDependencyError(
+            "vector_db requires numpy.  Install with:  pip install orchestration[vector]"
+        ) from exc
 
 
 def _get_embeddings():
@@ -240,7 +242,6 @@ class VectorDBManager:
             logger.warning("Vector DB search called but vector dependencies are not installed: %s", exc)
             return ["Vector DB not available — install heavy dependencies (sentence-transformers, asyncpg, pgvector)"]
 
-
     def search(self, collection_name: str, query: str, n_results: int = 3) -> list[str]:
         """Synchronous convenience wrapper (avoids event-loop deadlock)."""
         return self._run_sync(self._search(collection_name, query, n_results))
@@ -255,7 +256,7 @@ class VectorDBManager:
             from langchain_text_splitters import RecursiveCharacterTextSplitter
         except ImportError as exc:
             raise OrgitrationDependencyError(
-                "vector_db.ingest_url requires extra dependencies.  Install with:  pip install orchestration[ingest]"
+                "vector_db.ingest_url requires extra dependencies. Install with:  pip install orchestration[ingest]"
             ) from exc
         else:
             _require_vector_deps()
@@ -278,7 +279,7 @@ class VectorDBManager:
             from langchain_text_splitters import RecursiveCharacterTextSplitter
         except ImportError as exc:
             raise OrgitrationDependencyError(
-                "vector_db.ingest_pdf requires extra dependencies.  Install with:  pip install orchestration[ingest]"
+                "vector_db.ingest_pdf requires extra dependencies. Install with:  pip install orchestration[ingest]"
             ) from exc
         else:
             _require_vector_deps()
@@ -300,7 +301,8 @@ class VectorDBManager:
             from langchain_text_splitters import RecursiveCharacterTextSplitter
         except ImportError as exc:
             raise OrgitrationDependencyError(
-                "vector_db.async_ingest_url requires extra dependencies.  Install with:  pip install orchestration[ingest]"
+                "vector_db.async_ingest_url requires extra dependencies. "
+                "Install with:  pip install orchestration[ingest]"
             ) from exc
         else:
             _require_vector_deps()
@@ -322,7 +324,8 @@ class VectorDBManager:
             from langchain_text_splitters import RecursiveCharacterTextSplitter
         except ImportError as exc:
             raise OrgitrationDependencyError(
-                "vector_db.async_ingest_pdf requires extra dependencies.  Install with:  pip install orchestration[ingest]"
+                "vector_db.async_ingest_pdf requires extra dependencies. "
+                "Install with:  pip install orchestration[ingest]"
             ) from exc
         else:
             _require_vector_deps()

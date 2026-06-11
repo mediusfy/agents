@@ -120,4 +120,3 @@ def _register_utility_agents() -> None:
         ["pricing", "analysis", "purchasing"],
         lambda: PriceAnalystDeps(),
     )
-

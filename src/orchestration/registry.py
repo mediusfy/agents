@@ -111,7 +111,6 @@ class AgentRegistry:
     def items(self):
         return self._agents.items()
 
-
     def _resolve_owner(self, capability: str, owner: str | None) -> str:
         """Pick the agent that should serve a capability call.
 

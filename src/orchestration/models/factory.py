@@ -46,15 +46,23 @@ def create_model(model_spec: str):
     provider, _, model_name = model_spec.partition(":")
     provider = provider.lower()
 
+    base_url: str | None = None
+    api_key: str | None = None
+
     import os
 
     from orchestration.settings import settings
 
     if provider == "openai" and settings.model_provider == "litellm":
         env = os.environ.get("LITELLM_ENV", "local").lower()
-        base_url = os.environ.get("LITELLM_CLOUD_URL", "https://litellm-proxy.run.app") if env == "cloud" else "http://localhost:4000"
+        if env == "cloud":
+            base_url = os.environ.get("LITELLM_CLOUD_URL", "https://litellm-proxy.run.app")
+        else:
+            base_url = "http://localhost:4000"
         base_url = f"{base_url}/v1"
-        api_key = os.environ.get("LITELLM_VIRTUAL_KEY") or os.environ.get("LITELLM_MASTER_KEY") or "sk-MPQ3A_kKYzNrhTpL6tYUVg"
+        api_key = (
+            os.environ.get("LITELLM_VIRTUAL_KEY") or os.environ.get("LITELLM_MASTER_KEY") or "sk-MPQ3A_kKYzNrhTpL6tYUVg"
+        )
     else:
         base_url = PROVIDER_BASE_URLS.get(provider)
         if not base_url:
