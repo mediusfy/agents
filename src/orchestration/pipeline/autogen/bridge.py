@@ -1,0 +1,81 @@
+import asyncio
+import logging
+from typing import Any
+
+from orchestration.models.core import FailureReport, PipelineState
+from orchestration.pipeline.autogen.groups import DebugGroupChat, DesignGroupChat, SdlcGroupChat
+from orchestration.pipeline.config import BLUEPRINTS, PipelineConfig
+from orchestration.session_recorder import recorder
+
+logger = logging.getLogger(__name__)
+
+
+_GROUP_MAP = {
+    "SdlcGroupChat": SdlcGroupChat,
+    "DesignGroupChat": DesignGroupChat,
+    "DebugGroupChat": DebugGroupChat,
+}
+
+
+async def run_autogen_pipeline(
+    state: PipelineState,
+    config: PipelineConfig,
+) -> PipelineState:
+    bp = BLUEPRINTS.get(config.blueprint, {})
+    group_class_name = bp.get("group_class", "SdlcGroupChat")
+
+    if config.dry_run:
+        logger.info("DRY RUN: AutoGen group chat skipped.")
+        state.stage = "complete"
+        return state
+
+    group_cls = _GROUP_MAP.get(group_class_name)
+    if group_cls is None:
+        msg = f"Unknown AutoGen group class: {group_class_name}"
+        logger.error(msg)
+        state.errors.append(msg)
+        state.failure_report = FailureReport(source="autogen", error_type="config", trace=msg)
+        return state
+
+    task = config.requirement or "Design and implement a standard service."
+    label = {"SdlcGroupChat": "complete", "DesignGroupChat": "advisory", "DebugGroupChat": "review"}.get(
+        group_class_name, "complete"
+    )
+
+    async with recorder.record_span(
+        run_id=state.run_id,
+        agent_name=f"autogen_{group_class_name}",
+        pipeline_stage=label,
+        prompt=task,
+    ) as rec:
+        try:
+            logger.info("Starting %s...", group_class_name)
+            _, manager = group_cls().build(task)
+            from autogen import UserProxyAgent
+
+            user = UserProxyAgent(
+                name="Orchestrator",
+                human_input_mode="NEVER",
+                code_execution_config=False,
+            )
+            result = await asyncio.to_thread(user.initiate_chat, manager, message=task)
+            rec.set_output({"group": group_class_name, "summary": str(result)[:500]})
+            _apply_group_result(state, group_class_name, result)
+            state.stage = label
+        except Exception as e:
+            logger.error("AutoGen pipeline failed: %s", e)
+            state.errors.append(f"autogen: {e}")
+            state.failure_report = FailureReport(source="autogen", error_type="runtime_error", trace=str(e))
+
+    return state
+
+
+def _apply_group_result(state: PipelineState, group_class_name: str, result: Any) -> None:
+    summary = str(result.summary if hasattr(result, "summary") else result)
+    if group_class_name == "SdlcGroupChat":
+        state.advisory_results["conversation"] = summary
+    elif group_class_name == "DesignGroupChat":
+        state.advisory_results["design_discussion"] = summary
+        state.cto_approved = True
+    elif group_class_name == "DebugGroupChat":
+        state.feedback = summary
