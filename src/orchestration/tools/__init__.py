@@ -4,6 +4,7 @@ import orchestration.tools.docs
 import orchestration.tools.frontend_tools
 import orchestration.tools.fs_tools
 import orchestration.tools.gobuild
+import orchestration.tools.langchain_bridge
 import orchestration.tools.market_tools
 import orchestration.tools.memory
 import orchestration.tools.search

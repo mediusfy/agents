@@ -9,6 +9,7 @@ Output: JSONL with one record per agent invocation.
 import contextlib
 import json
 import logging
+import os
 import time
 from collections.abc import AsyncIterator
 from contextvars import ContextVar
@@ -63,8 +64,9 @@ class AgentRunRecord:
 class SessionRecorder:
     """Thread-safe session recorder that writes structured trace records."""
 
-    def __init__(self, filepath: str = "session_trace.jsonl"):
+    def __init__(self, filepath: str = "session_trace.jsonl", max_bytes: int = 50 * 1024 * 1024):
         self.filepath = filepath
+        self.max_bytes = max_bytes
         self._current: AgentRunRecord | None = None
         self._write_lock = False
 
@@ -225,10 +227,21 @@ class SessionRecorder:
     def _write(self, data: dict[str, Any]) -> None:
         try:
             line = json.dumps(data, default=str) + "\n"
+            self._rotate_if_needed()
             with open(self.filepath, "a") as f:
                 f.write(line)
         except Exception as e:
             logger.warning(f"SessionRecorder write failed: {e}")
+
+    def _rotate_if_needed(self) -> None:
+        try:
+            if os.path.getsize(self.filepath) > self.max_bytes:
+                ts = int(time.time())
+                rotated = f"{self.filepath}.{ts}.archive"
+                os.rename(self.filepath, rotated)
+                logger.info("Rotated session trace to %s", rotated)
+        except OSError:
+            pass
 
 
 # Global singleton

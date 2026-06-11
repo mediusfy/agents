@@ -6,7 +6,7 @@ from orchestration.adapters.state_repository import LocalDiskStateRepository
 from orchestration.adapters.workspace import ArtifactStorageAdapter, WorkspaceContext
 from orchestration.checkpoint import CheckpointManager
 from orchestration.models.core import PipelineState
-from orchestration.pipeline.config import PipelineConfig
+from orchestration.pipeline.config import STAGES, PipelineConfig
 from orchestration.stages.base import StageRunner
 
 logger = logging.getLogger(__name__)
@@ -14,19 +14,19 @@ logger = logging.getLogger(__name__)
 
 # ── Step routing: single-agent names → their containing pipeline stage ─────
 _STEP_TO_STAGE = {
-    "ba": "ba",
-    "advisory": "advisory",
-    "implementation": "implementation",
-    "backend": "implementation",
-    "frontend": "implementation",
-    "database": "implementation",
-    "test": "implementation",
-    "devops": "implementation",
-    "docs": "implementation",
-    "quality_gate": "quality_gate",
-    "sre": "quality_gate",
-    "review": "quality_gate",
-    "security": "quality_gate",
+    STAGES.BA: STAGES.BA,
+    STAGES.ADVISORY: STAGES.ADVISORY,
+    STAGES.IMPLEMENTATION: STAGES.IMPLEMENTATION,
+    "backend": STAGES.IMPLEMENTATION,
+    "frontend": STAGES.IMPLEMENTATION,
+    "database": STAGES.IMPLEMENTATION,
+    "test": STAGES.IMPLEMENTATION,
+    "devops": STAGES.IMPLEMENTATION,
+    "docs": STAGES.IMPLEMENTATION,
+    STAGES.QUALITY_GATE: STAGES.QUALITY_GATE,
+    "sre": STAGES.QUALITY_GATE,
+    "review": STAGES.QUALITY_GATE,
+    "security": STAGES.QUALITY_GATE,
     "all": "all",
 }
 
@@ -45,7 +45,8 @@ class OrgitrationPipeline:
 
         self.agent_provider = PydanticAIAgentProvider()
 
-        self.state = PipelineState(run_id=f"run-{uuid.uuid4().hex[:8]}", stage="init")
+        req = config.requirement or ""
+        self.state = PipelineState(run_id=f"run-{uuid.uuid4().hex[:8]}", stage="init", requirement=req)
 
         # Stages mapping
         self.stages: dict[str, StageRunner] = {}
@@ -67,7 +68,7 @@ class OrgitrationPipeline:
             logger.error(f"Unknown step: {self.config.step}. Valid steps: {list(_STEP_TO_STAGE.keys())}")
             return
 
-        ordered_stage_names = ["ba", "advisory", "implementation", "quality_gate"]
+        ordered_stage_names = [STAGES.BA, STAGES.ADVISORY, STAGES.IMPLEMENTATION, STAGES.QUALITY_GATE]
         if stage != "all":
             ordered_stage_names = [stage]
 
@@ -85,14 +86,14 @@ class OrgitrationPipeline:
             logger.info(f"Executing stage: {stage_name}")
 
             try:
-                if stage_name == "implementation":
+                if stage_name == STAGES.IMPLEMENTATION:
                     from orchestration.settings import settings
 
                     max_retries = settings.max_retries if self.config.step == "all" else 1
 
                     for attempt in range(max_retries):
                         logger.info(f"--- Implementation Loop Attempt {attempt + 1}/{max_retries} ---")
-                        self.state = await self.stages["implementation"].run(self.state, self.config)
+                        self.state = await self.stages[STAGES.IMPLEMENTATION].run(self.state, self.config)
 
                         # Test suite failed — retry implementation
                         failure = getattr(self.state, "failure_report", None)
@@ -101,14 +102,14 @@ class OrgitrationPipeline:
                             continue
 
                         # Proceed to quality gate
-                        if "quality_gate" in self.stages:
-                            self.state = await self.stages["quality_gate"].run(self.state, self.config)
+                        if STAGES.QUALITY_GATE in self.stages:
+                            self.state = await self.stages[STAGES.QUALITY_GATE].run(self.state, self.config)
 
                         if getattr(self.state, "approved", False):
                             logger.info("Quality gate passed — breaking retry loop.")
                             break
 
-                elif stage_name == "quality_gate" and self.config.step == "all":
+                elif stage_name == STAGES.QUALITY_GATE and self.config.step == "all":
                     # Handled inside the implementation retry loop
                     continue
                 else:

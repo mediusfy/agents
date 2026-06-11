@@ -5,8 +5,8 @@ import logging
 from orchestration.agents.registration import register_all_agents
 from orchestration.healthcheck import assert_startup_checks
 from orchestration.observability import configure_observability
-from orchestration.pipeline.config import BLUEPRINTS, PipelineConfig
-from orchestration.pipeline.factory import build_default_pipeline
+from orchestration.pipeline.config import BLUEPRINTS, STAGES, Framework, PipelineConfig
+from orchestration.pipeline.factory import build_pipeline
 from orchestration.registry import registry
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -14,16 +14,16 @@ logger = logging.getLogger(__name__)
 
 # All valid pipeline steps — both stage names AND individual agent names
 STEP_CHOICES = [
-    "ba",
-    "advisory",
-    "implementation",
+    STAGES.BA,
+    STAGES.ADVISORY,
+    STAGES.IMPLEMENTATION,
     "backend",
     "frontend",
     "database",
     "test",
     "devops",
     "docs",
-    "quality_gate",
+    STAGES.QUALITY_GATE,
     "sre",
     "review",
     "security",
@@ -32,12 +32,14 @@ STEP_CHOICES = [
 
 # Available pipeline blueprints (sourced from the canonical catalog)
 BLUEPRINT_CHOICES = list(BLUEPRINTS.keys())
+FRAMEWORK_CHOICES = [f.value for f in Framework]
 
 
 async def main(
     project: str,
     step: str = "all",
     blueprint: str = "new_feature",
+    framework: str = "",
     resume: bool = False,
     auto_yes: bool = False,
     dry_run: bool = False,
@@ -47,22 +49,26 @@ async def main(
     assert_startup_checks()
     register_all_agents()
 
+    bp = BLUEPRINTS[blueprint]
+    resolved_framework = framework or bp.get("framework", "legacy")
+
     logger.info(f"--- Orgitration Pipeline: {blueprint} (Project: {project}) ---")
-    logger.info(f"Blueprint: {BLUEPRINTS[blueprint]['description']}")
-    logger.info(f"Stages: {BLUEPRINTS[blueprint]['stages']}")
+    logger.info(f"Blueprint: {bp['description']}")
+    logger.info(f"Framework: {resolved_framework}")
     logger.info(f"Registered agents: {registry.list_agents()}")
 
     config = PipelineConfig(
         project=project,
         step=step,
         blueprint=blueprint,
+        framework=resolved_framework,
         resume=resume,
         auto_yes=auto_yes,
         dry_run=dry_run,
         requirement=requirement,
     )
 
-    pipeline = build_default_pipeline(config)
+    pipeline = build_pipeline(config)
     await pipeline.execute()
 
 
@@ -86,6 +92,12 @@ if __name__ == "__main__":
         help="Pipeline step or agent name to run (routed to containing stage)",
     )
     parser.add_argument(
+        "--framework",
+        choices=FRAMEWORK_CHOICES,
+        default="",
+        help="Override framework from blueprint (langgraph | crewai | autogen | composite | legacy)",
+    )
+    parser.add_argument(
         "--project", type=str, default="default", help="Project name to isolate outputs and checkpoints"
     )
     parser.add_argument("--requirement", type=str, default=None, help="Custom requirement text")
@@ -99,6 +111,7 @@ if __name__ == "__main__":
             project=args.project,
             step=args.step,
             blueprint=args.blueprint,
+            framework=args.framework,
             resume=args.resume,
             auto_yes=args.yes,
             dry_run=args.dry_run,

@@ -56,8 +56,8 @@ def _register_sdlc_agents() -> None:
 
     registry.register("ba", ba_agent, ["ba", "requirements"])
     registry.register("cto", cto_agent, ["cto", "architecture", "advisory"])
-    registry.register("backend", backend_agent, ["backend", "implementation"])
-    registry.register("frontend", frontend_agent, ["frontend", "implementation"])
+    registry.register("backend", backend_agent, ["backend", "implementation.backend"])
+    registry.register("frontend", frontend_agent, ["frontend", "implementation.frontend"])
     registry.register("frontend_component", component_gen, ["frontend_component"])
     registry.register("database", database_agent, ["database", "db_schema", "migrations"])
     registry.register("devops", devops_agent, ["devops", "ci_cd", "deployment"])
@@ -69,9 +69,9 @@ def _register_sdlc_agents() -> None:
     registry.register("review", review_agent, ["review", "code_review"])
     registry.register("security", security_agent, ["security", "audit"])
     registry.register("ux", ux_agent, ["ux", "design"])
-    registry.register("quality_gate", quality_gate_agent, ["quality_gate", "review"])
+    registry.register("quality_gate", quality_gate_agent, ["quality_gate"])
     registry.register(
-        "service_engineer", service_engineer_agent, ["service_engineer", "existing_code", "implementation"]
+        "service_engineer", service_engineer_agent, ["service_engineer", "existing_code", "implementation.modification"]
     )
     registry.register("planner", planner_agent, ["plan", "planning"])
 
@@ -91,32 +91,32 @@ def _register_utility_agents() -> None:
     from orchestration.agents.non_technical.region_analyzer import RegionAnalyzerDeps, region_analyzer_agent
     from orchestration.agents.non_technical.weather import WeatherDeps, weather_agent
 
-    registry.register("accountant", accountant_agent, ["finance"], lambda: AccountantDeps())
+    registry.register("accountant", accountant_agent, ["finance.accounting"], lambda: AccountantDeps())
     registry.register(
         "asymmetric_reviewer",
         asymmetric_reviewer_agent,
-        ["legal", "finance"],
+        ["legal", "finance.legal"],
         lambda: AsymmetricReviewerDeps(),
     )
     registry.register("current_events", current_events_agent, ["news", "history"], lambda: CurrentEventsDeps())
-    registry.register("region_analyzer", region_analyzer_agent, ["analysis"], lambda: RegionAnalyzerDeps())
+    registry.register("region_analyzer", region_analyzer_agent, ["analysis.region"], lambda: RegionAnalyzerDeps())
     registry.register("weather", weather_agent, ["weather"], lambda: WeatherDeps())
-    registry.register("crypto_oracle", crypto_oracle_agent, ["finance", "news", "research"], lambda: CryptoOracleDeps())
+    registry.register("crypto_oracle", crypto_oracle_agent, ["finance.crypto", "news.crypto", "research"], lambda: CryptoOracleDeps())
     registry.register(
         "holiday_planner",
         holiday_planner_agent,
-        ["planning", "travel"],
+        ["planning.travel", "travel"],
         lambda: HolidayPlannerDeps(),
     )
     registry.register(
         "market_shark",
         market_shark_agent,
-        ["finance", "crypto", "stocks", "investing"],
+        ["finance.stocks", "crypto", "stocks", "investing"],
         lambda: MarketSharkDeps(),
     )
     registry.register(
         "price_analyst",
         price_analyst_agent,
-        ["pricing", "analysis", "purchasing"],
+        ["pricing", "analysis.pricing", "purchasing"],
         lambda: PriceAnalystDeps(),
     )

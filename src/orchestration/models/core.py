@@ -83,7 +83,9 @@ class SecurityReport(BaseModel):
 class PipelineState(BaseModel):
     run_id: str
     stage: str
+    requirement: str = ""
     attempt: int = 1
+    refinement_attempts: int = 0
     user_stories: list[UserStory] = Field(default_factory=list)
     advisory_results: dict[str, str] = Field(default_factory=dict)
     cto_approved: bool = Field(default=True, description="CTO gate: true when approved_to_proceed")
@@ -91,3 +93,4 @@ class PipelineState(BaseModel):
     artifacts: list[Artifact] = Field(default_factory=list)
     feedback: str | None = None
     failure_report: FailureReport | None = None
+    errors: list[str] = Field(default_factory=list)
