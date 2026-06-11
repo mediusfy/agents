@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package entitymanagement.v1;
+
+option go_package = "entity-management/api/protobuf/entitymanagement/v1;entitymanagementv1";
+
+// EntitySchemaService is the gRPC service for defining and managing entity schemas.
+service EntitySchemaService {
+  // DefineSchema creates a new or updates an existing entity schema.
+  rpc DefineSchema(DefineSchemaRequest) returns (DefineSchemaResponse);
+
+  // GetSchema retrieves a schema by its unique identifier.
+  rpc GetSchema(GetSchemaRequest) returns (GetSchemaResponse);
+
+  // ListSchemas returns all registered entity schemas.
+  rpc ListSchemas(ListSchemasRequest) returns (ListSchemasResponse);
+}
+
+// DefineSchemaRequest is the input for creating or updating an entity schema.
+message DefineSchemaRequest {
+  string name = 1;
+  repeated AttributeDefinition attributes = 2;
+}
+
+// DefineSchemaResponse returns the result of a schema definition.
+message DefineSchemaResponse {
+  string id = 1;
+  string name = 2;
+  int32 version = 3;
+}
+
+// GetSchemaRequest requests a schema by its ID.
+message GetSchemaRequest {
+  string id = 1;
+}
+
+// GetSchemaResponse returns the requested entity schema.
+message GetSchemaResponse {
+  string id = 1;
+  string name = 2;
+  int32 version = 3;
+  repeated AttributeDefinition attributes = 4;
+  string created_at = 5;
+  string updated_at = 6;
+}
+
+// ListSchemasRequest is an empty request for listing all schemas.
+message ListSchemasRequest {}
+
+// ListSchemasResponse returns all registered entity schemas.
+message ListSchemasResponse {
+  repeated GetSchemaResponse schemas = 1;
+}
+
+// AttributeDefinition describes a single field within an entity schema.
+message AttributeDefinition {
+  string name = 1;
+  string type = 2;       // "string", "int", "bool", "json", "enum"
+  bool required = 3;
+  optional Constraint constraint = 4;
+}
+
+// Constraint holds optional validation rules applied to an attribute.
+message Constraint {
+  repeated string enum_values = 1;
+  optional int32 min = 2;
+  optional int32 max = 3;
+  string pattern = 4;
+}

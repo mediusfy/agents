@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+semantic-router
+pydantic
+httpx
+transformers
+torch

@@ -1,0 +1,271 @@
+-- ============================================================================
+-- Queries: ENTITYMGMT-05 — Soft-Delete and Restore Entities
+-- Bounded Context: Entity Management
+--
+-- This file documents the primary SQL query patterns used by the application
+-- layer for soft-delete and restore operations.
+--
+-- Gherkin SCENARIO 1: Successful soft-delete (active → deleted)
+-- Gherkin SCENARIO 2: Idempotent soft-delete rejection (already deleted)
+-- Gherkin SCENARIO 3: Soft-deleted entity excluded from default listing
+-- ============================================================================
+
+-- ============================================================================
+-- Query 1: Soft-delete entity with outbox event (success path)
+-- The primary entry point for DELETE /api/v1/entities/{id}.
+--
+-- Gherkin SCENARIO 1:
+--   Given entity "ent-001" exists with status "active" and deleted_at IS NULL
+--   When DELETE /api/v1/entities/ent-001 is sent (soft-delete)
+--   Then deleted_at is set to current UTC timestamp
+--     And entity status transitions to "deleted" (terminal)
+--     And an entitymanagement.entity.soft_deleted event is written to outbox
+--     And HTTP 200 is returned with {"status": "soft_deleted", "entity_id": "ent-001"}
+--
+-- Usage:
+--   SELECT * FROM soft_delete_entity_with_outbox(
+--     p_entity_id  := 'e0000001-0000-4000-8000-000000000001',
+--     p_deleted_by := 'user-abc-123'
+--   );
+--
+-- Expected result (SCENARIO 1):
+--   success       = TRUE
+--   entity_json   = {
+--       "id": "e0000001-...",
+--       "name": "Alice",
+--       "status": "deleted",
+--       "deleted_at": "2025-06-01T12:00:00Z",
+--       "version": 4,    -- bumped from 3
+--       ...
+--   }
+--   event_id      = <uuid>  (outbox trace ID)
+--   error_code    = NULL
+--   error_message = NULL
+--
+-- The application layer then constructs the HTTP response:
+--   {
+--     "status": "soft_deleted",
+--     "entity_id": "e0000001-...",
+--     "deleted_at": "2025-06-01T12:00:00Z",
+--     "event_id": "<uuid>"
+--   }
+-- ============================================================================
+
+-- ============================================================================
+-- Query 2: Soft-delete entity (already deleted — CONFLICT path)
+-- When the entity is already soft-deleted, the function returns
+-- ERR_ALREADY_DELETED without emitting any event.
+--
+-- Gherkin SCENARIO 2:
+--   Given entity "ent-001" is already soft-deleted
+--   When a second soft-delete is attempted
+--   Then ErrAlreadyDeleted is returned
+--     And no duplicate entity.soft_deleted event is emitted
+--
+-- Usage:
+--   SELECT * FROM soft_delete_entity_with_outbox(
+--     p_entity_id := 'e0000001-0000-4000-8000-000000000001'
+--   );
+--
+-- Expected result (SCENARIO 2):
+--   success       = FALSE
+--   entity_json   = NULL
+--   event_id      = NULL  (NO event emitted)
+--   error_code    = 'ERR_ALREADY_DELETED'
+--   error_message = 'Entity Alice (e0000001-...) is already soft-deleted at 2025-05-01 12:00:00+00. No duplicate deletion is allowed.'
+--
+-- The application layer maps error_code to HTTP status:
+--   ERR_ALREADY_DELETED    → HTTP 409 Conflict
+--   ERR_ENTITY_NOT_FOUND   → HTTP 404 Not Found
+--   ERR_INVALID_STATUS_TRANSITION → HTTP 400 Bad Request
+-- ============================================================================
+
+-- ============================================================================
+-- Query 3: Restore a soft-deleted entity with outbox event
+-- Called for POST /api/v1/entities/{id}/restore.
+--
+-- Gherkin (associated restore scenario):
+--   Given entity "ent-001" is soft-deleted
+--   When a POST /entities/ent-001/restore is sent
+--   Then deleted_at is cleared (set to NULL)
+--     And status transitions back to "active"
+--     And an entitymanagement.entity.restored event is written to outbox
+--
+-- Usage:
+--   SELECT * FROM restore_entity_with_outbox(
+--     p_entity_id   := 'e0000001-0000-4000-8000-000000000001',
+--     p_restored_by := 'user-abc-123'
+--   );
+--
+-- Expected result (success):
+--   success       = TRUE
+--   entity_json   = { "id": "...", "status": "active", "deleted_at": null, ... }
+--   event_id      = <uuid>
+--   error_code    = NULL
+--   error_message = NULL
+-- ============================================================================
+
+-- ============================================================================
+-- Query 4: List entities by schema (default — excludes soft-deleted)
+-- This is the standard listing query that automatically filters out
+-- soft-deleted entities.
+--
+-- Gherkin SCENARIO 3:
+--   Given a soft-deleted entity "ent-001"
+--   When a standard GET /api/v1/entities?schema_id=X is called
+--     (without include_deleted=true)
+--   Then entity "ent-001" is not included in the results
+--
+-- Usage (default — exclude deleted):
+--   SELECT * FROM list_entities_by_schema(
+--     p_schema_id       := 'c0000001-...',
+--     p_status          := NULL,       -- All statuses
+--     p_limit           := 50,
+--     p_offset          := 0,
+--     p_include_deleted := FALSE       -- Default: excludes soft-deleted
+--   );
+--
+-- The existing list_entities_by_schema() function (from ENTITYMGMT-02)
+-- already supports the p_include_deleted parameter. The default value is
+-- FALSE, which means soft-deleted entities are automatically excluded.
+--
+-- The WHERE clause includes:
+--   AND (p_include_deleted OR e.deleted_at IS NULL)
+--
+-- When p_include_deleted = FALSE (default), this becomes:
+--   AND e.deleted_at IS NULL
+-- ============================================================================
+
+-- ============================================================================
+-- Query 5: List entities by schema (include soft-deleted)
+-- Explicit opt-in to include soft-deleted entities in listing results.
+-- Used for admin views, restore-picker, and lifecycle management.
+--
+-- Usage:
+--   SELECT * FROM list_entities_by_schema(
+--     p_schema_id       := 'c0000001-...',
+--     p_status          := 'deleted',   -- Only show deleted
+--     p_limit           := 50,
+--     p_offset          := 0,
+--     p_include_deleted := TRUE         -- Include soft-deleted
+--   );
+-- ============================================================================
+
+-- ============================================================================
+-- Query 6: Get entity by ID (with soft-delete awareness)
+-- Retrieves a specific entity by ID. Excludes soft-deleted by default,
+-- but supports include_deleted = TRUE.
+--
+-- Usage (default — hide deleted):
+--   SELECT * FROM get_entity_by_id(
+--     p_entity_id       := 'e0000001-...',
+--     p_include_deleted := FALSE
+--   );
+--   → Returns entity only if deleted_at IS NULL
+--
+-- Usage (include deleted):
+--   SELECT * FROM get_entity_by_id(
+--     p_entity_id       := 'e0000001-...',
+--     p_include_deleted := TRUE
+--   );
+--   → Returns entity even if deleted_at IS NOT NULL
+-- ============================================================================
+
+-- ============================================================================
+-- Query 7: Raw soft-delete SQL (reference implementation)
+-- For understanding, this is the core SQL that powers soft_delete_entity():
+--
+--   UPDATE entities
+--   SET
+--       status     = 'deleted'::entity_status,
+--       deleted_at = NOW(),
+--       version    = version + 1,
+--       updated_at = NOW()
+--   WHERE id = $1
+--     AND deleted_at IS NULL    -- Safety: prevent re-delete
+--   RETURNING *;
+--
+-- Parameters:
+--   $1 = entity_id
+-- ============================================================================
+
+-- ============================================================================
+-- Query 8: Raw restore SQL (reference implementation)
+-- For understanding, this is the core SQL that powers restore_entity():
+--
+--   UPDATE entities
+--   SET
+--       status     = 'active'::entity_status,
+--       deleted_at = NULL,
+--       version    = version + 1,
+--       updated_at = NOW()
+--   WHERE id = $1
+--     AND deleted_at IS NOT NULL    -- Safety: only restore if deleted
+--   RETURNING *;
+--
+-- Parameters:
+--   $1 = entity_id
+-- ============================================================================
+
+-- ============================================================================
+-- Query 9: Create entity.soft_deleted outbox event (reference)
+--
+-- INSERT INTO outbox_events (
+--     id, event_id, aggregate_id, aggregate_type,
+--     event_type, source, subject, payload,
+--     status, retry_count, last_error, created_at
+-- ) VALUES (
+--     gen_random_uuid()::TEXT,
+--     gen_random_uuid()::TEXT,
+--     'e0000001-...'::TEXT,                   -- aggregate_id (entity_id)
+--     'entity',                               -- aggregate_type
+--     'entitymanagement.entity.soft_deleted', -- event_type
+--     '/entity-manager',                      -- source
+--     'entity/e0000001-...',                  -- subject
+--     jsonb_build_object(                     -- payload
+--         'event_id',         '<uuid>',
+--         'entity_id',        'e0000001-...',
+--         'entity_name',      'Alice',
+--         'region',           'eu-west-1',
+--         'deleted_at',       NOW(),
+--         'previous_status',  'active',
+--         'occurred_at',      NOW()
+--     ),
+--     'pending',                              -- status
+--     0,                                      -- retry_count
+--     NULL,                                   -- last_error
+--     NOW()                                   -- created_at
+-- );
+-- ============================================================================
+
+-- ============================================================================
+-- Query 10: Count deleted entities (admin monitoring)
+--
+-- SELECT
+--     COUNT(*) FILTER (WHERE deleted_at IS NULL) AS active_count,
+--     COUNT(*) FILTER (WHERE deleted_at IS NOT NULL) AS deleted_count
+-- FROM entities;
+-- ============================================================================
+
+-- ============================================================================
+-- Query 11: Purge old soft-deleted entities (retention policy)
+-- Permanently deletes entities that have been soft-deleted for longer
+-- than the specified retention period.
+--
+-- Usage:
+--   -- Hard-delete entities soft-deleted more than 30 days ago
+--   DELETE FROM entities
+--   WHERE deleted_at IS NOT NULL
+--     AND deleted_at < NOW() - INTERVAL '30 days';
+-- ============================================================================
+
+-- ============================================================================
+-- Query 12: Check if an entity can be restored
+-- A quick existence check for the restore endpoint.
+--
+-- SELECT EXISTS(
+--     SELECT 1 FROM entities
+--     WHERE id = 'e0000001-...'
+--       AND deleted_at IS NOT NULL
+-- ) AS is_restorable;
+-- ============================================================================

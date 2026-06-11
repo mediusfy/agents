@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package region.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/prodanlabs/region-resolver/api/protobuf/region/v1;regionv1";
+
+// EntityService provides CRUD operations for region-resolver entities.
+service EntityService {
+  // CreateEntity creates a new entity and resolves its data residency zone.
+  rpc CreateEntity(CreateEntityRequest) returns (CreateEntityResponse);
+
+  // GetEntity retrieves an entity by its unique ID.
+  rpc GetEntity(GetEntityRequest) returns (GetEntityResponse);
+
+  // UpdateEntity updates mutable fields on an existing entity.
+  // Returns INVALID_ARGUMENT if an immutable field (e.g. data_residency_zone)
+  // is included in the update.
+  rpc UpdateEntity(UpdateEntityRequest) returns (UpdateEntityResponse);
+
+  // DeleteEntity removes an entity by its unique ID.
+  rpc DeleteEntity(DeleteEntityRequest) returns (DeleteEntityResponse);
+
+  // ListEntities returns all entities.
+  rpc ListEntities(ListEntitiesRequest) returns (ListEntitiesResponse);
+}
+
+// Entity represents a managed resource with region-aware data residency.
+message Entity {
+  string id = 1;
+  string name = 2;
+  string region = 3;
+  string data_residency_zone = 4;
+  string status = 5;
+  int32 version = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+// CreateEntityRequest is the input for creating an entity.
+message CreateEntityRequest {
+  string name = 1;
+  string region = 2;
+}
+
+// CreateEntityResponse is the output for creating an entity.
+message CreateEntityResponse {
+  Entity entity = 1;
+}
+
+// GetEntityRequest is the input for retrieving an entity.
+message GetEntityRequest {
+  string id = 1;
+}
+
+// GetEntityResponse is the output for retrieving an entity.
+message GetEntityResponse {
+  Entity entity = 1;
+}
+
+// UpdateEntityRequest is the input for updating an entity.
+message UpdateEntityRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string status = 3;
+  int32 expected_version = 4;
+}
+
+// UpdateEntityResponse is the output for updating an entity.
+message UpdateEntityResponse {
+  Entity entity = 1;
+}
+
+// DeleteEntityRequest is the input for deleting an entity.
+message DeleteEntityRequest {
+  string id = 1;
+}
+
+// DeleteEntityResponse is the output for deleting an entity.
+message DeleteEntityResponse {
+  bool success = 1;
+}
+
+// ListEntitiesRequest is the input for listing all entities.
+message ListEntitiesRequest {}
+
+// ListEntitiesResponse is the output for listing all entities.
+message ListEntitiesResponse {
+  repeated Entity entities = 1;
+}
