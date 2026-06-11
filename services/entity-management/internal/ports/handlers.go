@@ -37,14 +37,37 @@ type GRPCHandler interface {
 	RegisterService(server any) // server is *grpc.Server
 }
 
+type CreateEntityUseCase interface {
+	Execute(ctx context.Context, req application.CreateEntityRequest) (*application.CreateEntityResponse, error)
+}
+
+type ReadEntityUseCase interface {
+	Execute(ctx context.Context, entityID string) (*application.ReadEntityResponse, error)
+}
+
+type UpdateEntityUseCase interface {
+	Execute(ctx context.Context, req application.UpdateEntityRequest) (*application.UpdateEntityResponse, error)
+}
+
+type DeleteRestoreUseCase interface {
+	SoftDelete(ctx context.Context, id string) error
+	HardDelete(ctx context.Context, id string) error
+	PermanentDelete(ctx context.Context, id string) error
+	Restore(ctx context.Context, id string) error
+}
+
+type ListEntitiesUseCase interface {
+	Execute(ctx context.Context, req application.ListEntitiesRequest) (*application.ListEntitiesResponse, error)
+}
+
 // NewRouter creates a chi router with all routes registered.
 func NewRouter(
 	schemaSvc *application.SchemaService,
-	createUC *application.CreateEntityUseCase,
-	readUC *application.ReadEntityUseCase,
-	updateUC *application.UpdateEntityUseCase,
-	deleteUC *application.DeleteRestoreUseCase,
-	listUC *application.ListEntitiesUseCase,
+	createUC CreateEntityUseCase,
+	readUC ReadEntityUseCase,
+	updateUC UpdateEntityUseCase,
+	deleteUC DeleteRestoreUseCase,
+	listUC ListEntitiesUseCase,
 	logger *slog.Logger,
 ) *chi.Mux {
 	r := chi.NewRouter()
@@ -243,11 +266,11 @@ func (h *SchemaHTTPHandler) recordError(ctx context.Context, operation string) {
 
 // EntityHTTPHandler translates HTTP requests for entity operations.
 type EntityHTTPHandler struct {
-	createUC *application.CreateEntityUseCase
-	readUC   *application.ReadEntityUseCase
-	updateUC *application.UpdateEntityUseCase
-	deleteUC *application.DeleteRestoreUseCase
-	listUC   *application.ListEntitiesUseCase
+	createUC CreateEntityUseCase
+	readUC   ReadEntityUseCase
+	updateUC UpdateEntityUseCase
+	deleteUC DeleteRestoreUseCase
+	listUC   ListEntitiesUseCase
 	logger   *slog.Logger
 	tracer   trace.Tracer
 	meter    metric.Meter
@@ -255,11 +278,11 @@ type EntityHTTPHandler struct {
 
 // NewEntityHTTPHandler creates a new HTTP handler for entity operations.
 func NewEntityHTTPHandler(
-	createUC *application.CreateEntityUseCase,
-	readUC *application.ReadEntityUseCase,
-	updateUC *application.UpdateEntityUseCase,
-	deleteUC *application.DeleteRestoreUseCase,
-	listUC *application.ListEntitiesUseCase,
+	createUC CreateEntityUseCase,
+	readUC ReadEntityUseCase,
+	updateUC UpdateEntityUseCase,
+	deleteUC DeleteRestoreUseCase,
+	listUC ListEntitiesUseCase,
 	logger *slog.Logger,
 ) *EntityHTTPHandler {
 	return &EntityHTTPHandler{
@@ -391,7 +414,7 @@ func (h *EntityHTTPHandler) handleCreateEntity(w http.ResponseWriter, r *http.Re
 		Name:              result.Name,
 		Type:              result.Type,
 		Region:            result.Region,
-		DataResidencyZone: domain.ResolveZone(result.Region),
+		DataResidencyZone: string(domain.ResolveZone(result.Region)),
 		Status:            result.Status,
 		Version:           1,
 		CreatedAt:         result.CreatedAt.Format(iso8601),
@@ -663,6 +686,42 @@ func (h *EntityHTTPHandler) handleDeleteEntity(w http.ResponseWriter, r *http.Re
 		return
 	}
 	span.SetAttributes(attribute.String("entity_id", id))
+
+	permanent := r.URL.Query().Get("permanent") == "true"
+	if permanent {
+		if err := h.deleteUC.HardDelete(ctx, id); err != nil {
+			span.RecordError(err)
+			h.recordError(ctx, "delete_entity")
+
+			if errors.Is(err, domain.ErrEntityNotFound) {
+				writeJSON(ctx, w, http.StatusNotFound, ErrorResponse{
+					Code:    "NOT_FOUND",
+					Message: "entity not found",
+				})
+				return
+			}
+			if errors.Is(err, domain.ErrNotDeleted) {
+				writeJSON(ctx, w, http.StatusBadRequest, ErrorResponse{
+					Code:    "BAD_REQUEST",
+					Message: "entity is not soft-deleted",
+				})
+				return
+			}
+
+			writeJSON(ctx, w, http.StatusInternalServerError, ErrorResponse{
+				Code:    "INTERNAL_ERROR",
+				Message: unwrapErrorMessage(err),
+			})
+			return
+		}
+
+		h.recordSuccess(ctx, "delete_entity")
+		writeJSON(ctx, w, http.StatusOK, map[string]string{
+			"status":    "hard_deleted",
+			"entity_id": id,
+		})
+		return
+	}
 
 	if err := h.deleteUC.PermanentDelete(ctx, id); err != nil {
 		span.RecordError(err)

@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"entity-management/internal/domain"
@@ -150,7 +151,7 @@ func TestDefineSchema_GherkinScenarios(t *testing.T) {
 				newFakeUnitOfWork(),
 				eventPub,
 				newFakeValidator(),
-				testLogger(),
+				noopTestLogger(),
 			)
 
 			ctx := context.Background()
@@ -510,7 +511,7 @@ func TestDefineSchema_DuplicateName_NoEventEmitted(t *testing.T) {
 		newFakeUnitOfWork(),
 		eventPub,
 		newFakeValidator(),
-		testLogger(),
+		noopTestLogger(),
 	)
 
 	ctx := context.Background()
@@ -627,7 +628,7 @@ func TestDefineSchema_OutboxContainsCloudEvent(t *testing.T) {
 		newFakeUnitOfWork(),
 		newFakeEventPublisher(),
 		newFakeValidator(),
-		testLogger(),
+		noopTestLogger(),
 	)
 
 	ctx := context.Background()
@@ -663,50 +664,19 @@ func TestDefineSchema_OutboxContainsCloudEvent(t *testing.T) {
 
 	// Verify payload contains expected fields
 	payloadStr := string(oe.Payload)
-	if !contains(payloadStr, result.Schema.ID) {
+	if !strings.Contains(payloadStr, result.Schema.ID) {
 		t.Error("payload should contain schema ID")
 	}
-	if !contains(payloadStr, "Customer") {
+	if !strings.Contains(payloadStr, "Customer") {
 		t.Error("payload should contain schema name 'Customer'")
 	}
-	if !contains(payloadStr, `"version":1`) {
+	if !strings.Contains(payloadStr, `"version":1`) {
 		t.Error("payload should contain version 1")
 	}
-	if !contains(payloadStr, `"event_id"`) {
+	if !strings.Contains(payloadStr, `"event_id"`) {
 		t.Error("payload should contain event_id")
 	}
-	if !contains(payloadStr, `"occurred_at"`) {
+	if !strings.Contains(payloadStr, `"occurred_at"`) {
 		t.Error("payload should contain occurred_at")
 	}
-}
-
-// contains is a helper to check substring existence.
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && searchString(s, substr) >= 0
-}
-
-// searchString finds the first occurrence of substr in s.
-// Returns -1 if not found.
-func searchString(s, substr string) int {
-	n := len(s)
-	m := len(substr)
-	if m == 0 {
-		return 0
-	}
-	if m > n {
-		return -1
-	}
-	for i := 0; i <= n-m; i++ {
-		match := true
-		for j := 0; j < m; j++ {
-			if s[i+j] != substr[j] {
-				match = false
-				break
-			}
-		}
-		if match {
-			return i
-		}
-	}
-	return -1
 }

@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -140,65 +139,6 @@ func (f *fakeUnitOfWork) Execute(_ context.Context, fn func(uowCtx context.Conte
 	return fn(context.Background())
 }
 
-type fakeEventPublisher struct {
-	mu     sync.Mutex
-	events []domain.DomainEvent
-}
-
-func newFakeEventPublisher() *fakeEventPublisher {
-	return &fakeEventPublisher{events: make([]domain.DomainEvent, 0)}
-}
-
-func (f *fakeEventPublisher) PublishSchemaDefined(_ context.Context, event *domain.EntitySchemaDefined) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.events = append(f.events, event)
-	return nil
-}
-
-func (f *fakeEventPublisher) PublishSchemaUpdated(_ context.Context, event *domain.EntitySchemaUpdated) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.events = append(f.events, event)
-	return nil
-}
-
-func (f *fakeEventPublisher) PublishEntityCreated(_ context.Context, _ *domain.EntityCreated) error {
-	return nil
-}
-
-func (f *fakeEventPublisher) PublishEntityUpdated(_ context.Context, _ *domain.EntityUpdated) error {
-	return nil
-}
-
-func (f *fakeEventPublisher) PublishEntityDeleted(_ context.Context, _ *domain.EntityDeleted) error {
-	return nil
-}
-
-func (f *fakeEventPublisher) PublishEntityRead(_ context.Context, _ *domain.EntityRead) error {
-	return nil
-}
-
-func (f *fakeEventPublisher) PublishEntitySoftDeleted(_ context.Context, _ *domain.EntitySoftDeleted) error {
-	return nil
-}
-
-func (f *fakeEventPublisher) PublishEntityHardDeleted(_ context.Context, _ *domain.EntityHardDeleted) error {
-	return nil
-}
-
-func (f *fakeEventPublisher) PublishEntityRestored(_ context.Context, _ *domain.EntityRestored) error {
-	return nil
-}
-
-func (f *fakeEventPublisher) Events() []domain.DomainEvent {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	result := make([]domain.DomainEvent, len(f.events))
-	copy(result, f.events)
-	return result
-}
-
 type fakeValidator struct{}
 
 func newFakeValidator() *fakeValidator {
@@ -213,7 +153,7 @@ func (f *fakeValidator) CompileSchema(_ context.Context, _ *domain.EntitySchema)
 	return nil
 }
 
-func (f *fakeValidator) Invalidate(_ context.Context, _ string) {}
+func (f *fakeValidator) Invalidate(_ context.Context, _ string) error { return nil }
 
 // noopHandler implements slog.Handler by discarding all log records.
 type noopHandler struct{}
@@ -223,7 +163,7 @@ func (noopHandler) Handle(_ context.Context, _ slog.Record) error { return nil }
 func (h noopHandler) WithAttrs(_ []slog.Attr) slog.Handler        { return h }
 func (h noopHandler) WithGroup(_ string) slog.Handler             { return h }
 
-func testLogger() *slog.Logger {
+func noopTestLogger() *slog.Logger {
 	return slog.New(noopHandler{})
 }
 
@@ -288,7 +228,7 @@ func newSchemaService() *SchemaService {
 		newFakeUnitOfWork(),
 		newFakeEventPublisher(),
 		newFakeValidator(),
-		testLogger(),
+		noopTestLogger(),
 	)
 }
 
@@ -599,7 +539,7 @@ func TestDefineSchema_OutboxEventWritten(t *testing.T) {
 		newFakeUnitOfWork(),
 		eventPub,
 		newFakeValidator(),
-		testLogger(),
+		noopTestLogger(),
 	)
 
 	ctx := context.Background()
@@ -651,7 +591,7 @@ func TestDefineSchema_Duplicate_NoOutboxEvent(t *testing.T) {
 		newFakeUnitOfWork(),
 		eventPub,
 		newFakeValidator(),
-		testLogger(),
+		noopTestLogger(),
 	)
 
 	ctx := context.Background()
@@ -696,7 +636,7 @@ func TestDefineSchema_EventPublished(t *testing.T) {
 		newFakeUnitOfWork(),
 		eventPub,
 		newFakeValidator(),
-		testLogger(),
+		noopTestLogger(),
 	)
 
 	ctx := context.Background()

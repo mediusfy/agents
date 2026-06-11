@@ -143,30 +143,6 @@ func handlerTestLogger(t *testing.T) *slog.Logger {
 // No-op stubs for other use cases required by EntityHTTPHandler constructor.
 // ---------------------------------------------------------------------------
 
-type handlerNoopCreateUC struct{}
-
-func (n *handlerNoopCreateUC) Execute(_ context.Context, _ application.CreateEntityRequest) (*application.CreateEntityResponse, error) {
-	return nil, nil
-}
-
-type handlerNoopUpdateUC struct{}
-
-func (n *handlerNoopUpdateUC) Execute(_ context.Context, _ application.UpdateEntityRequest) (*application.UpdateEntityResponse, error) {
-	return nil, nil
-}
-
-type handlerNoopDeleteRestoreUC struct{}
-
-func (n *handlerNoopDeleteRestoreUC) SoftDelete(_ context.Context, _ string) error { return nil }
-func (n *handlerNoopDeleteRestoreUC) HardDelete(_ context.Context, _ string) error { return nil }
-func (n *handlerNoopDeleteRestoreUC) Restore(_ context.Context, _ string) error    { return nil }
-
-type handlerNoopListUC struct{}
-
-func (n *handlerNoopListUC) Execute(_ context.Context, _ application.ListEntitiesRequest) (*application.ListEntitiesResponse, error) {
-	return &application.ListEntitiesResponse{Entities: []*application.EntityListItem{}}, nil
-}
-
 // ---------------------------------------------------------------------------
 // Gherkin Scenario 1: Successful GET /api/v1/entities/ent-abc-123
 //
@@ -317,8 +293,6 @@ func TestHandleGetEntity_Success(t *testing.T) {
 func TestHandleGetEntity_NotFound(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
-
 	// Given an empty repository (entity "ent-nonexistent" does not exist)
 	repo := newHandlerFakeEntityRepo()
 	eventPub := newHandlerFakeEventPublisher()
@@ -384,7 +358,6 @@ func TestHandleGetEntity_NotFound(t *testing.T) {
 func TestHandleGetEntity_EmptyID(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
 	repo := newHandlerFakeEntityRepo()
 	eventPub := newHandlerFakeEventPublisher()
 	readUC := application.NewReadEntityUseCase(repo, eventPub, handlerTestLogger(t))

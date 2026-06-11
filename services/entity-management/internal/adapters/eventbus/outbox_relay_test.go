@@ -72,6 +72,8 @@ func (m *mockEventBus) Subscribe(_ context.Context, _ string, _ ports.EventHandl
 
 func (m *mockEventBus) Close() error { return nil }
 
+func (m *mockEventBus) Ping(_ context.Context) error { return nil }
+
 // publishedSubjects returns the subjects in the order they were published.
 func (m *mockEventBus) publishedSubjects() []string {
 	m.mu.Lock()
@@ -1035,15 +1037,23 @@ func (r *fakeSchemaRepoForE2E) Delete(_ context.Context, id string) error {
 	return nil
 }
 
+func newFakeSchemaRepoForE2E() *fakeSchemaRepoForE2E {
+	return &fakeSchemaRepoForE2E{schemas: make(map[string]*domain.EntitySchema)}
+}
+
 type fakeEntityRepoForE2E struct {
 	mu       sync.RWMutex
 	entities map[string]*domain.Entity
 }
 
+func newFakeEntityRepoForE2E() *fakeEntityRepoForE2E {
+	return &fakeEntityRepoForE2E{entities: make(map[string]*domain.Entity)}
+}
+
 func (r *fakeEntityRepoForE2E) Save(_ context.Context, entity *domain.Entity) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.entities[entity.ID] = entity
+	r.entities[entity.ID] = entity.Clone()
 	return nil
 }
 
@@ -1054,7 +1064,7 @@ func (r *fakeEntityRepoForE2E) FindByID(_ context.Context, id string) (*domain.E
 	if !ok {
 		return nil, domain.ErrEntityNotFound
 	}
-	return e, nil
+	return e.Clone(), nil
 }
 
 func (r *fakeEntityRepoForE2E) Update(_ context.Context, id string, op domain.UpdateOperation) (*domain.Entity, error) {
@@ -1064,10 +1074,12 @@ func (r *fakeEntityRepoForE2E) Update(_ context.Context, id string, op domain.Up
 	if !ok {
 		return nil, domain.ErrEntityNotFound
 	}
-	if err := e.ApplyUpdate(op); err != nil {
+	clone := e.Clone()
+	if err := clone.ApplyUpdate(op); err != nil {
 		return nil, err
 	}
-	return e, nil
+	r.entities[id] = clone
+	return clone.Clone(), nil
 }
 
 func (r *fakeEntityRepoForE2E) UpdateStatus(_ context.Context, id string, status domain.EntityStatus) error {
@@ -1077,11 +1089,13 @@ func (r *fakeEntityRepoForE2E) UpdateStatus(_ context.Context, id string, status
 	if !ok {
 		return domain.ErrEntityNotFound
 	}
-	if !e.Status.CanTransitionTo(status) {
+	clone := e.Clone()
+	if !clone.Status.CanTransitionTo(status) {
 		return domain.ErrInvalidStatusTransition
 	}
-	e.Status = status
-	e.Version++
+	clone.Status = status
+	clone.Version++
+	r.entities[id] = clone
 	return nil
 }
 
@@ -1091,7 +1105,7 @@ func (r *fakeEntityRepoForE2E) FindBySchemaID(_ context.Context, schemaID string
 	var result []*domain.Entity
 	for _, e := range r.entities {
 		if e.SchemaID == schemaID {
-			result = append(result, e)
+			result = append(result, e.Clone())
 		}
 	}
 	return result, nil
@@ -1111,7 +1125,7 @@ func (r *fakeEntityRepoForE2E) List(_ context.Context, filter domain.EntityFilte
 		if filter.Zone != nil && e.DataResidencyZone != *filter.Zone {
 			continue
 		}
-		result = append(result, e)
+		result = append(result, e.Clone())
 	}
 	return result, nil
 }
@@ -1126,10 +1140,12 @@ func (r *fakeEntityRepoForE2E) SoftDelete(_ context.Context, id string, deletedA
 	if e.DeletedAt != nil {
 		return domain.ErrAlreadyDeleted
 	}
-	e.DeletedAt = &deletedAt
-	e.Status = domain.EntityStatusDeleted
-	e.Version++
-	e.UpdatedAt = deletedAt
+	clone := e.Clone()
+	clone.DeletedAt = &deletedAt
+	clone.Status = domain.EntityStatusDeleted
+	clone.Version++
+	clone.UpdatedAt = deletedAt
+	r.entities[id] = clone
 	return nil
 }
 
@@ -1143,10 +1159,12 @@ func (r *fakeEntityRepoForE2E) Restore(_ context.Context, id string) error {
 	if e.DeletedAt == nil {
 		return domain.ErrNotDeleted
 	}
-	e.DeletedAt = nil
-	e.Status = domain.EntityStatusActive
-	e.Version++
-	e.UpdatedAt = time.Now()
+	clone := e.Clone()
+	clone.DeletedAt = nil
+	clone.Status = domain.EntityStatusActive
+	clone.Version++
+	clone.UpdatedAt = time.Now()
+	r.entities[id] = clone
 	return nil
 }
 

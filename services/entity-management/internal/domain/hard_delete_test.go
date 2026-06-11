@@ -19,10 +19,36 @@ func newFakeEventBus() *fakeEventBus {
 	return &fakeEventBus{}
 }
 
+func (b *fakeEventBus) PublishSchemaDefined(_ context.Context, _ *EntitySchemaDefined) error {
+	return nil
+}
+func (b *fakeEventBus) PublishSchemaUpdated(_ context.Context, _ *EntitySchemaUpdated) error {
+	return nil
+}
+func (b *fakeEventBus) PublishEntityCreated(_ context.Context, _ *EntityCreated) error { return nil }
+func (b *fakeEventBus) PublishEntityUpdated(_ context.Context, _ *EntityUpdated) error { return nil }
+func (b *fakeEventBus) PublishEntityDeleted(_ context.Context, _ *EntityDeleted) error { return nil }
+func (b *fakeEventBus) PublishEntityRead(_ context.Context, _ *EntityRead) error       { return nil }
+func (b *fakeEventBus) PublishEntitySoftDeleted(_ context.Context, _ *EntitySoftDeleted) error {
+	return nil
+}
+
 func (b *fakeEventBus) PublishEntityHardDeleted(_ context.Context, event *EntityHardDeleted) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.events = append(b.events, event)
+	return nil
+}
+
+func (b *fakeEventBus) PublishEntityRestored(_ context.Context, _ *EntityRestored) error { return nil }
+func (b *fakeEventBus) PublishEntitiesQueried(_ context.Context, _ *EntitiesQueried) error {
+	return nil
+}
+func (b *fakeEventBus) PublishInvalidCursorProvided(_ context.Context, _ *InvalidCursorProvided) error {
+	return nil
+}
+func (b *fakeEventBus) PublishAppStarted(_ context.Context, _ *AppStarted) error { return nil }
+func (b *fakeEventBus) PublishAppStartupFailed(_ context.Context, _ *AppStartupFailed) error {
 	return nil
 }
 

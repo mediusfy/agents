@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -30,6 +29,7 @@ type handlerFakeListUC struct {
 	// Configurable error triggers
 	injectCursorError bool
 	emptyResult       bool
+	eventPub          *handlerFakeEventPublisherForList
 }
 
 func newHandlerFakeListUC() *handlerFakeListUC {
@@ -102,7 +102,7 @@ func (uc *handlerFakeListUC) seedEntitiesWithDeleted(t *testing.T, schemaID stri
 	}
 }
 
-func (uc *handlerFakeListUC) Execute(_ context.Context, req application.ListEntitiesRequest) (*application.ListEntitiesResponse, error) {
+func (uc *handlerFakeListUC) Execute(ctx context.Context, req application.ListEntitiesRequest) (*application.ListEntitiesResponse, error) {
 	uc.mu.RLock()
 	defer uc.mu.RUnlock()
 
@@ -122,7 +122,12 @@ func (uc *handlerFakeListUC) Execute(_ context.Context, req application.ListEnti
 
 		// Apply multi-field filters with AND semantics
 		match := true
-		for _, f := range req.Filters {
+		for _, rawFilter := range req.Filters {
+			f, err := domain.ParseFilter(rawFilter)
+			if err != nil {
+				match = false
+				break
+			}
 			val := handlerGetFieldValue(e, f.Field)
 			switch f.Op {
 			case domain.FilterOpEqual:
@@ -205,6 +210,8 @@ func (uc *handlerFakeListUC) Execute(_ context.Context, req application.ListEnti
 		})
 	}
 
+	totalCount := len(filtered)
+	hasNextPage := len(items) > limit
 	// Generate next_cursor
 	var nextCursor string
 	if len(items) > limit {
@@ -213,10 +220,23 @@ func (uc *handlerFakeListUC) Execute(_ context.Context, req application.ListEnti
 		nextCursor = handlerEncodeCursor(last.CreatedAt, last.ID)
 	}
 
+	if uc.eventPub != nil {
+		_ = uc.eventPub.PublishEntitiesQueried(ctx, &domain.EntitiesQueried{
+			EventID:        "evt-list-test",
+			SchemaID:       req.SchemaID,
+			Limit:          limit,
+			FiltersApplied: req.Filters,
+			HasCursor:      req.Cursor != "",
+			HasNextPage:    hasNextPage,
+			TotalCount:     totalCount,
+			OccurredAt:     time.Now().UTC(),
+		})
+	}
+
 	return &application.ListEntitiesResponse{
 		Entities:   items,
 		NextCursor: nextCursor,
-		TotalCount: len(filtered),
+		TotalCount: totalCount,
 	}, nil
 }
 
@@ -379,11 +399,10 @@ func TestHandleListEntities_BasicPagination(t *testing.T) {
 	now := time.Now().UTC()
 	schemaID := "sch-customer"
 
-	// Given 100 entities exist for schema "Customer"
-	listUC := newHandlerFakeListUC()
-	listUC.seedEntities(t, schemaID, 100, now)
-
 	eventPub := newHandlerFakeEventPublisherForList()
+	listUC := newHandlerFakeListUC()
+	listUC.eventPub = eventPub
+	listUC.seedEntities(t, schemaID, 100, now)
 	handler := NewEntityHTTPHandler(
 		&handlerNoopCreateUC{},
 		&handlerNoopReadUC{},
@@ -451,7 +470,7 @@ func TestHandleListEntities_BasicPagination(t *testing.T) {
 		t.Errorf("expected cursor ID %q, got %q", lastID, decoded.ID)
 	}
 	expectedTime, _ := time.Parse(time.RFC3339Nano, lastCreatedAt)
-	if !decoded.CreatedAt.Equal(expectedTime) {
+	if !decoded.CreatedAt.Truncate(time.Millisecond).Equal(expectedTime.Truncate(time.Millisecond)) {
 		t.Errorf("expected cursor CreatedAt %v, got %v", expectedTime, decoded.CreatedAt)
 	}
 
@@ -492,10 +511,11 @@ func TestHandleListEntities_CursorPaginationAcrossPages(t *testing.T) {
 	now := time.Now().UTC()
 	schemaID := "sch-customer"
 
+	eventPub := newHandlerFakeEventPublisherForList()
 	listUC := newHandlerFakeListUC()
+	listUC.eventPub = eventPub
 	listUC.seedEntities(t, schemaID, 100, now)
 
-	eventPub := newHandlerFakeEventPublisherForList()
 	handler := NewEntityHTTPHandler(
 		&handlerNoopCreateUC{},
 		&handlerNoopReadUC{},
@@ -604,10 +624,10 @@ func TestHandleListEntities_MultiFieldFilterWithANDSemantics(t *testing.T) {
 	now := time.Now().UTC()
 	schemaID := "sch-customer"
 
-	listUC := newHandlerFakeListUC()
-	listUC.seedEntities(t, schemaID, 100, now)
-
 	eventPub := newHandlerFakeEventPublisherForList()
+	listUC := newHandlerFakeListUC()
+	listUC.eventPub = eventPub
+	listUC.seedEntities(t, schemaID, 100, now)
 	handler := NewEntityHTTPHandler(
 		&handlerNoopCreateUC{},
 		&handlerNoopReadUC{},
@@ -825,7 +845,6 @@ func TestHandleListEntities_InvalidCursorReturns400(t *testing.T) {
 	listUC.seedEntities(t, schemaID, 5, now)
 	listUC.injectCursorError = true
 
-	eventPub := newHandlerFakeEventPublisherForList()
 	handler := NewEntityHTTPHandler(
 		&handlerNoopCreateUC{},
 		&handlerNoopReadUC{},
@@ -1088,14 +1107,4 @@ func TestHandleListEntities_EmptySchema(t *testing.T) {
 	if hasNext && nextCursor != nil && nextCursor != "" {
 		t.Errorf("expected no next_cursor for empty result, got %q", nextCursor)
 	}
-}
-
-// ---------------------------------------------------------------------------
-// Helper: handlerNoopReadUC for EntityHTTPHandler construction
-// ---------------------------------------------------------------------------
-
-type handlerNoopReadUC struct{}
-
-func (n *handlerNoopReadUC) Execute(_ context.Context, _ string) (*application.ReadEntityResponse, error) {
-	return nil, nil
 }

@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"sync"
 	"testing"
@@ -52,9 +53,6 @@ func TestGherkin_CreateEntity_RegionSpan_Observability(t *testing.T) {
 	// ---- Build hermetic dependencies ----
 	schemaRepo := newFakeSchemaRepo()
 	entityRepo := newFakeEntityRepo()
-	outboxRepo := newFakeOutboxRepo()
-	eventPub := newFakeEventPublisher()
-	uow := newFakeUnitOfWork()
 
 	// Seed a schema for entity creation.
 	schemaID := "sch-customer"
@@ -216,11 +214,11 @@ func TestGherkin_ReadEntity_SpanIncludesRegion(t *testing.T) {
 	}
 
 	// Find our specific span.
-	var readSpan *trace.ReadOnlySpan
+	var readSpan trace.ReadOnlySpan
 	for i := range spans {
 		s := spans[i]
 		if s.Name() == "application.ReadEntityUseCase.Execute" {
-			readSpan = &s
+			readSpan = s
 			break
 		}
 	}
@@ -343,11 +341,11 @@ func TestGherkin_UpdateEntity_SpanIncludesRegion(t *testing.T) {
 		t.Fatal("expected at least 1 completed span, got 0")
 	}
 
-	var updateSpan *trace.ReadOnlySpan
+	var updateSpan trace.ReadOnlySpan
 	for i := range spans {
 		s := spans[i]
 		if s.Name() == "application.UpdateEntityUseCase.Execute" {
-			updateSpan = &s
+			updateSpan = s
 			break
 		}
 	}
@@ -509,4 +507,175 @@ func (f *fakeEventPublisher) PublishAppStartupFailed(_ context.Context, event *d
 	defer f.mu.Unlock()
 	f.events = append(f.events, event)
 	return nil
+}
+
+func (f *fakeEventPublisher) Events() []domain.DomainEvent {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	result := make([]domain.DomainEvent, len(f.events))
+	copy(result, f.events)
+	return result
+}
+
+func marshalEntityCreated(eventID, entityID, entityName, entityType, region string, occurredAt time.Time) []byte {
+	return []byte(fmt.Sprintf(
+		`{"event_id":"%s","entity_id":"%s","entity_name":"%s","entity_type":"%s","region":"%s","occurred_at":"%s"}`,
+		eventID, entityID, entityName, entityType, region, occurredAt.Format(time.RFC3339Nano),
+	))
+}
+
+type fakeEntityRepo struct {
+	mu       sync.RWMutex
+	entities map[string]*domain.Entity
+}
+
+func newFakeEntityRepo() *fakeEntityRepo {
+	return &fakeEntityRepo{entities: make(map[string]*domain.Entity)}
+}
+
+func (r *fakeEntityRepo) Save(_ context.Context, entity *domain.Entity) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.entities[entity.ID] = entity.Clone()
+	return nil
+}
+
+func (r *fakeEntityRepo) FindByID(_ context.Context, id string) (*domain.Entity, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	e, ok := r.entities[id]
+	if !ok {
+		return nil, domain.ErrEntityNotFound
+	}
+	return e.Clone(), nil
+}
+
+func (r *fakeEntityRepo) Update(_ context.Context, id string, op domain.UpdateOperation) (*domain.Entity, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	e, ok := r.entities[id]
+	if !ok {
+		return nil, domain.ErrEntityNotFound
+	}
+	clone := e.Clone()
+	if err := clone.ApplyUpdate(op); err != nil {
+		return nil, err
+	}
+	r.entities[id] = clone
+	return clone.Clone(), nil
+}
+
+func (r *fakeEntityRepo) UpdateStatus(_ context.Context, id string, status domain.EntityStatus) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	e, ok := r.entities[id]
+	if !ok {
+		return domain.ErrEntityNotFound
+	}
+	clone := e.Clone()
+	if !clone.Status.CanTransitionTo(status) {
+		return domain.ErrInvalidStatusTransition
+	}
+	clone.Status = status
+	clone.Version++
+	r.entities[id] = clone
+	return nil
+}
+
+func (r *fakeEntityRepo) FindBySchemaID(_ context.Context, schemaID string) ([]*domain.Entity, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var result []*domain.Entity
+	for _, e := range r.entities {
+		if e.SchemaID == schemaID {
+			result = append(result, e.Clone())
+		}
+	}
+	return result, nil
+}
+
+func (r *fakeEntityRepo) List(_ context.Context, filter domain.EntityFilter) ([]*domain.Entity, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var result []*domain.Entity
+	for _, e := range r.entities {
+		if filter.Status != nil && e.Status != *filter.Status {
+			continue
+		}
+		if filter.Region != nil && e.Region != *filter.Region {
+			continue
+		}
+		if filter.Zone != nil && e.DataResidencyZone != *filter.Zone {
+			continue
+		}
+		result = append(result, e.Clone())
+	}
+	return result, nil
+}
+
+func (r *fakeEntityRepo) SoftDelete(_ context.Context, id string, deletedAt time.Time) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	e, ok := r.entities[id]
+	if !ok {
+		return domain.ErrEntityNotFound
+	}
+	if e.DeletedAt != nil {
+		return domain.ErrAlreadyDeleted
+	}
+	clone := e.Clone()
+	clone.DeletedAt = &deletedAt
+	clone.Status = domain.EntityStatusDeleted
+	clone.Version++
+	clone.UpdatedAt = deletedAt
+	r.entities[id] = clone
+	return nil
+}
+
+func (r *fakeEntityRepo) Restore(_ context.Context, id string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	e, ok := r.entities[id]
+	if !ok {
+		return domain.ErrEntityNotFound
+	}
+	if e.DeletedAt == nil {
+		return domain.ErrNotDeleted
+	}
+	clone := e.Clone()
+	clone.DeletedAt = nil
+	clone.Status = domain.EntityStatusActive
+	clone.Version++
+	clone.UpdatedAt = time.Now()
+	r.entities[id] = clone
+	return nil
+}
+
+func (r *fakeEntityRepo) HardDelete(_ context.Context, id string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.entities[id]; !ok {
+		return domain.ErrEntityNotFound
+	}
+	delete(r.entities, id)
+	return nil
+}
+
+func (r *fakeEntityRepo) ListEntities(_ context.Context, params domain.ListEntitiesParams) (*domain.PaginatedResult, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var filtered []*domain.Entity
+	for _, e := range r.entities {
+		if e.SchemaID != params.SchemaID {
+			continue
+		}
+		if !params.IncludeDeleted && e.DeletedAt != nil {
+			continue
+		}
+		filtered = append(filtered, e)
+	}
+	return &domain.PaginatedResult{
+		Entities:   filtered,
+		TotalCount: len(filtered),
+	}, nil
 }

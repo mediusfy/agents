@@ -349,3 +349,143 @@ func NewAppStartupFailedEnvelope(event *domain.AppStartupFailed) *Envelope {
 
 // compile-time check
 var _ domain.EventPublisher = (*EventPublisherAdapter)(nil)
+
+// NewEntitySchemaDefinedEnvelope creates a CloudEvents envelope for schema defined event.
+func NewEntitySchemaDefinedEnvelope(eventID, schemaID, schemaName string, version int, occurredAt time.Time) *Envelope {
+	return &Envelope{
+		CloudEventAttributes: CloudEventAttributes{
+			SpecVersion:     "1.0",
+			Type:            "entitymanagement.schema.defined",
+			Source:          "/entity-management",
+			ID:              eventID,
+			Time:            occurredAt,
+			DataContentType: "application/json",
+			Subject:         "schema/" + schemaID,
+			Extensions: map[string]string{
+				"schema_id": schemaID,
+				"version":   fmt.Sprintf("%d", version),
+			},
+		},
+		Data: []byte(fmt.Sprintf(
+			`{"event_id":"%s","schema_id":"%s","schema_name":"%s","version":%d,"occurred_at":"%s"}`,
+			eventID, schemaID, schemaName, version, occurredAt.Format(time.RFC3339Nano),
+		)),
+	}
+}
+
+// NewEntitySchemaUpdatedEnvelope creates a CloudEvents envelope for schema updated event.
+func NewEntitySchemaUpdatedEnvelope(eventID, schemaID, schemaName string, previousVer, newVersion int, occurredAt time.Time) *Envelope {
+	return &Envelope{
+		CloudEventAttributes: CloudEventAttributes{
+			SpecVersion:     "1.0",
+			Type:            "entitymanagement.schema.updated",
+			Source:          "/entity-management",
+			ID:              eventID,
+			Time:            occurredAt,
+			DataContentType: "application/json",
+			Subject:         "schema/" + schemaID,
+			Extensions: map[string]string{
+				"schema_id":    schemaID,
+				"new_version":  fmt.Sprintf("%d", newVersion),
+				"previous_ver": fmt.Sprintf("%d", previousVer),
+			},
+		},
+		Data: []byte(fmt.Sprintf(
+			`{"event_id":"%s","schema_id":"%s","schema_name":"%s","previous_version":%d,"new_version":%d,"occurred_at":"%s"}`,
+			eventID, schemaID, schemaName, previousVer, newVersion, occurredAt.Format(time.RFC3339Nano),
+		)),
+	}
+}
+
+// NewEntityCreatedEnvelope creates a CloudEvents envelope for entity created event.
+func NewEntityCreatedEnvelope(eventID, entityID, entityName, entityType, region string, occurredAt time.Time) *Envelope {
+	return &Envelope{
+		CloudEventAttributes: CloudEventAttributes{
+			SpecVersion:     "1.0",
+			Type:            "entitymanagement.entity.created",
+			Source:          "/entity-management",
+			ID:              eventID,
+			Time:            occurredAt,
+			DataContentType: "application/json",
+			Subject:         "entity/" + entityID,
+			Extensions: map[string]string{
+				"entity_id":   entityID,
+				"entity_type": entityType,
+				"region":      region,
+			},
+		},
+		Data: []byte(fmt.Sprintf(
+			`{"event_id":"%s","entity_id":"%s","entity_name":"%s","entity_type":"%s","region":"%s","occurred_at":"%s"}`,
+			eventID, entityID, entityName, entityType, region, occurredAt.Format(time.RFC3339Nano),
+		)),
+	}
+}
+
+// NewEntitySoftDeletedEnvelope creates a CloudEvents envelope for entity soft deleted event.
+func NewEntitySoftDeletedEnvelope(eventID, entityID, entityName, region string, deletedAt time.Time, occurredAt time.Time) *Envelope {
+	return &Envelope{
+		CloudEventAttributes: CloudEventAttributes{
+			SpecVersion:     "1.0",
+			Type:            "entitymanagement.entity.soft_deleted",
+			Source:          "/entity-management",
+			ID:              eventID,
+			Time:            occurredAt,
+			DataContentType: "application/json",
+			Subject:         "entity/" + entityID,
+			Extensions: map[string]string{
+				"entity_id": entityID,
+				"region":    region,
+			},
+		},
+		Data: []byte(fmt.Sprintf(
+			`{"event_id":"%s","entity_id":"%s","entity_name":"%s","region":"%s","deleted_at":"%s","occurred_at":"%s"}`,
+			eventID, entityID, entityName, region, deletedAt.Format(time.RFC3339Nano), occurredAt.Format(time.RFC3339Nano),
+		)),
+	}
+}
+
+// NewEntityHardDeletedEnvelope creates a CloudEvents envelope for entity hard deleted event.
+func NewEntityHardDeletedEnvelope(eventID, entityID, entityName, region string, deletedAt time.Time, occurredAt time.Time) *Envelope {
+	return &Envelope{
+		CloudEventAttributes: CloudEventAttributes{
+			SpecVersion:     "1.0",
+			Type:            "entitymanagement.entity.hard_deleted",
+			Source:          "/entity-management",
+			ID:              eventID,
+			Time:            occurredAt,
+			DataContentType: "application/json",
+			Subject:         "entity/" + entityID,
+			Extensions: map[string]string{
+				"entity_id": entityID,
+				"region":    region,
+			},
+		},
+		Data: []byte(fmt.Sprintf(
+			`{"event_id":"%s","entity_id":"%s","entity_name":"%s","region":"%s","deleted_at":"%s","occurred_at":"%s"}`,
+			eventID, entityID, entityName, region, deletedAt.Format(time.RFC3339Nano), occurredAt.Format(time.RFC3339Nano),
+		)),
+	}
+}
+
+// NewEntityRestoredEnvelope creates a CloudEvents envelope for entity restored event.
+func NewEntityRestoredEnvelope(eventID, entityID, entityName, region string, occurredAt time.Time) *Envelope {
+	return &Envelope{
+		CloudEventAttributes: CloudEventAttributes{
+			SpecVersion:     "1.0",
+			Type:            "entitymanagement.entity.restored",
+			Source:          "/entity-management",
+			ID:              eventID,
+			Time:            occurredAt,
+			DataContentType: "application/json",
+			Subject:         "entity/" + entityID,
+			Extensions: map[string]string{
+				"entity_id": entityID,
+				"region":    region,
+			},
+		},
+		Data: []byte(fmt.Sprintf(
+			`{"event_id":"%s","entity_id":"%s","entity_name":"%s","region":"%s","occurred_at":"%s"}`,
+			eventID, entityID, entityName, region, occurredAt.Format(time.RFC3339Nano),
+		)),
+	}
+}

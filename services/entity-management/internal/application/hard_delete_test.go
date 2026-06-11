@@ -106,6 +106,10 @@ func (w *domainHardDeleteWrapper) RestoreEntity(ctx context.Context, id string) 
 	return nil
 }
 
+func (w *domainHardDeleteWrapper) PermanentDeleteEntity(ctx context.Context, id string) error {
+	return nil
+}
+
 // ---------------------------------------------------------------------------
 // Full integration-style: Application use case backed by real domain service
 // and fakes, covering all three Gherkin scenarios end-to-end.

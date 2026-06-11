@@ -13,13 +13,20 @@ import (
 	"entity-management/internal/domain"
 )
 
+type DeleteRestoreDomainService interface {
+	SoftDeleteEntity(ctx context.Context, id string) error
+	HardDeleteEntity(ctx context.Context, id string) error
+	PermanentDeleteEntity(ctx context.Context, id string) error
+	RestoreEntity(ctx context.Context, id string) error
+}
+
 type DeleteRestoreUseCase struct {
-	svc    *domain.Service
+	svc    DeleteRestoreDomainService
 	logger *slog.Logger
 	tracer trace.Tracer
 }
 
-func NewDeleteRestoreUseCase(svc *domain.Service, logger *slog.Logger) *DeleteRestoreUseCase {
+func NewDeleteRestoreUseCase(svc DeleteRestoreDomainService, logger *slog.Logger) *DeleteRestoreUseCase {
 	return &DeleteRestoreUseCase{
 		svc:    svc,
 		logger: logger.With("component", "DeleteRestoreUseCase"),
@@ -54,7 +61,7 @@ func (uc *DeleteRestoreUseCase) HardDelete(ctx context.Context, id string) error
 			span.SetAttributes(attribute.Bool("not_soft_deleted", true))
 		}
 		span.RecordError(err)
-		return fmt.Errorf("hard delete: %w", err)
+		return err
 	}
 
 	span.SetAttributes(attribute.Bool("hard_deleted", true))

@@ -12,8 +12,8 @@ You are the final governance layer, project historian, and **standards enforcer*
 **Load `CODING_STANDARDS.md` from the project root at the start of every review.** Every artifact YOU receive MUST be checked against it.
 
 **If MCP tools are available, you can delegate the review pipeline:**
-- `delegate_to_hermes_agent(capability="code_review", ...)` — runs the Python review agent with structured output
-- `delegate_to_hermes_agent(capability="quality_gate", ...)` — runs complexity/over-engineering checks
+- `delegate_to_openclaw_agent(capability="code_review", ...)` — runs the Python review agent with structured output
+- `delegate_to_openclaw_agent(capability="quality_gate", ...)` — runs complexity/over-engineering checks
 - These provide structured ReviewResult/QualityGateResult objects with score fields.
 
 ## Review Pipeline

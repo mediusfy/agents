@@ -3,16 +3,13 @@ package ports
 import (
 	"context"
 	"encoding/json"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 
-	"entity-management/internal/application"
 	"entity-management/internal/domain"
 )
 
@@ -45,6 +42,10 @@ func (uc *handlerFakeDeleteRestoreUC) HardDelete(_ context.Context, id string) e
 		return uc.hardDeleteErr
 	}
 	uc.hardDeletedIDs = append(uc.hardDeletedIDs, id)
+	return nil
+}
+
+func (uc *handlerFakeDeleteRestoreUC) PermanentDelete(_ context.Context, _ string) error {
 	return nil
 }
 
@@ -461,14 +462,4 @@ func TestHandleDeleteEntity_HardDelete_TableDriven(t *testing.T) {
 			}
 		})
 	}
-}
-
-// ---------------------------------------------------------------------------
-// Stub: handlerNoopReadUC needed for EntityHTTPHandler construction.
-// ---------------------------------------------------------------------------
-
-type handlerNoopReadUC struct{}
-
-func (n *handlerNoopReadUC) Execute(_ context.Context, _ string) (*application.ReadEntityResponse, error) {
-	return nil, nil
 }

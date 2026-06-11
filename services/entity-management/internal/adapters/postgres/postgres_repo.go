@@ -277,7 +277,7 @@ func (r *OutboxRepository) MarkPublished(ctx context.Context, id string) error {
 	return nil
 }
 
-func (r *OutboxRepository) MarkFailed(_ context.Context, id string, _ error) error {
+func (r *OutboxRepository) MarkFailed(ctx context.Context, id string, _ error) error {
 	_, err := r.pool.Exec(ctx,
 		`UPDATE outbox_events SET status = 'failed', retry_count = retry_count + 1 WHERE id = $1`, id)
 	if err != nil {

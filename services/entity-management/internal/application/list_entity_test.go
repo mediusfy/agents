@@ -239,7 +239,7 @@ func TestListEntities_BasicPagination(t *testing.T) {
 
 	ctx := context.Background()
 	repo := newFakePaginationRepo()
-	uc := NewListEntitiesUseCase(repo, testLogger(t))
+	uc := NewListEntitiesUseCase(repo, newFakeEventPublisher(), testLogger(t))
 
 	now := time.Now().UTC()
 	schemaID := "sch-customer"
@@ -306,7 +306,7 @@ func TestListEntities_CursorPaginationNoDuplicates(t *testing.T) {
 
 	ctx := context.Background()
 	repo := newFakePaginationRepo()
-	uc := NewListEntitiesUseCase(repo, testLogger(t))
+	uc := NewListEntitiesUseCase(repo, newFakeEventPublisher(), testLogger(t))
 
 	now := time.Now().UTC()
 	schemaID := "sch-customer"
@@ -379,7 +379,7 @@ func TestListEntities_MultiFieldFilter(t *testing.T) {
 
 	ctx := context.Background()
 	repo := newFakePaginationRepo()
-	uc := NewListEntitiesUseCase(repo, testLogger(t))
+	uc := NewListEntitiesUseCase(repo, newFakeEventPublisher(), testLogger(t))
 
 	now := time.Now().UTC()
 	schemaID := "sch-customer"
@@ -427,7 +427,7 @@ func TestListEntities_ZeroLimit(t *testing.T) {
 
 	ctx := context.Background()
 	repo := newFakePaginationRepo()
-	uc := NewListEntitiesUseCase(repo, testLogger(t))
+	uc := NewListEntitiesUseCase(repo, newFakeEventPublisher(), testLogger(t))
 
 	now := time.Now().UTC()
 	schemaID := "sch-customer"
@@ -470,7 +470,7 @@ func TestListEntities_LimitCap(t *testing.T) {
 
 	ctx := context.Background()
 	repo := newFakePaginationRepo()
-	uc := NewListEntitiesUseCase(repo, testLogger(t))
+	uc := NewListEntitiesUseCase(repo, newFakeEventPublisher(), testLogger(t))
 
 	now := time.Now().UTC()
 	schemaID := "sch-customer"
@@ -516,7 +516,7 @@ func TestListEntities_InvalidCursor(t *testing.T) {
 
 	ctx := context.Background()
 	repo := newFakePaginationRepo()
-	uc := NewListEntitiesUseCase(repo, testLogger(t))
+	uc := NewListEntitiesUseCase(repo, newFakeEventPublisher(), testLogger(t))
 
 	now := time.Now().UTC()
 	schemaID := "sch-customer"
@@ -554,7 +554,7 @@ func TestListEntities_IncludeDeleted(t *testing.T) {
 
 	ctx := context.Background()
 	repo := newFakePaginationRepo()
-	uc := NewListEntitiesUseCase(repo, testLogger(t))
+	uc := NewListEntitiesUseCase(repo, newFakeEventPublisher(), testLogger(t))
 
 	now := time.Now().UTC()
 	schemaID := "sch-customer"

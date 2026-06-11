@@ -17,7 +17,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -130,7 +129,8 @@ func buildCompositionRoot(t *testing.T, databaseURL string) *compositionRoot {
 	// ----------------------------------------------------------------
 	// 5. NATS event bus connection (with noop fallback)
 	// ----------------------------------------------------------------
-	bus, err := eventbus.NewNATSEventBus("nats://localhost:4222", logger)
+	var bus ports.EventBus
+	bus, err = eventbus.NewNATSEventBus("nats://localhost:4222", logger)
 	if err != nil {
 		t.Logf("step 5: NATS unavailable (%v), using noop fallback", err)
 		bus = eventbus.NewNoopBus(logger)
@@ -178,7 +178,7 @@ func buildCompositionRoot(t *testing.T, databaseURL string) *compositionRoot {
 	readUC := application.NewReadEntityUseCase(entityRepo, eventPub, logger)
 	updateUC := application.NewUpdateEntityUseCase(domainSvc, logger)
 	deleteUC := application.NewDeleteRestoreUseCase(domainSvc, logger)
-	listUC := application.NewListEntitiesUseCase(entityRepo, logger)
+	listUC := application.NewListEntitiesUseCase(entityRepo, eventPub, logger)
 	record(&order, &mu, "9_use_cases")
 
 	// ----------------------------------------------------------------
@@ -558,7 +558,7 @@ func TestHealthEndpoints_ConcurrentLoad(t *testing.T) {
 func TestEventBus_NoopFallback(t *testing.T) {
 	t.Parallel()
 
-	logger := slog.New(slog.NewDiscardHandler)
+	logger := discardLogger()
 
 	bus := eventbus.NewNoopBus(logger)
 	if bus == nil {
@@ -595,7 +595,7 @@ func TestEventBus_NoopFallback(t *testing.T) {
 func TestEventPublisherAdapter_CloudEventsEnvelope(t *testing.T) {
 	t.Parallel()
 
-	logger := slog.New(slog.NewDiscardHandler)
+	logger := discardLogger()
 	bus := eventbus.NewNoopBus(logger)
 	pub := ports.NewEventPublisherAdapter(bus, "test-service")
 
@@ -668,7 +668,7 @@ func TestSchemaValidator_InMemoryCache(t *testing.T) {
 	ctx := context.Background()
 	now := time.Now().UTC()
 
-	logger := slog.New(slog.NewDiscardHandler)
+	logger := discardLogger()
 
 	schemaRepo := &fakeSchemaRepoForValidator{
 		schemas: make(map[string]*domain.EntitySchema),
@@ -783,4 +783,15 @@ func TestRouter_MiddlewareChain(t *testing.T) {
 	if requestID == "" {
 		t.Log("RequestID header not set (chi may set it on the context, not the response)")
 	}
+}
+
+type discardHandler struct{}
+
+func (discardHandler) Enabled(context.Context, slog.Level) bool   { return false }
+func (discardHandler) Handle(context.Context, slog.Record) error  { return nil }
+func (h discardHandler) WithAttrs(attrs []slog.Attr) slog.Handler { return h }
+func (h discardHandler) WithGroup(name string) slog.Handler       { return h }
+
+func discardLogger() *slog.Logger {
+	return slog.New(discardHandler{})
 }

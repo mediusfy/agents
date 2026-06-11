@@ -78,7 +78,7 @@ func newFakeEntityRepo() *fakeEntityRepo {
 func (r *fakeEntityRepo) Save(_ context.Context, entity *Entity) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.entities[entity.ID] = entity
+	r.entities[entity.ID] = entity.Clone()
 	return nil
 }
 
@@ -89,7 +89,7 @@ func (r *fakeEntityRepo) FindByID(_ context.Context, id string) (*Entity, error)
 	if !ok {
 		return nil, ErrEntityNotFound
 	}
-	return e, nil
+	return e.Clone(), nil
 }
 
 func (r *fakeEntityRepo) Update(_ context.Context, id string, op UpdateOperation) (*Entity, error) {
@@ -99,10 +99,12 @@ func (r *fakeEntityRepo) Update(_ context.Context, id string, op UpdateOperation
 	if !ok {
 		return nil, ErrEntityNotFound
 	}
-	if err := e.ApplyUpdate(op); err != nil {
+	clone := e.Clone()
+	if err := clone.ApplyUpdate(op); err != nil {
 		return nil, err
 	}
-	return e, nil
+	r.entities[id] = clone
+	return clone.Clone(), nil
 }
 
 func (r *fakeEntityRepo) UpdateStatus(_ context.Context, id string, status EntityStatus) error {
@@ -112,11 +114,13 @@ func (r *fakeEntityRepo) UpdateStatus(_ context.Context, id string, status Entit
 	if !ok {
 		return ErrEntityNotFound
 	}
-	if !e.Status.CanTransitionTo(status) {
+	clone := e.Clone()
+	if !clone.Status.CanTransitionTo(status) {
 		return ErrInvalidStatusTransition
 	}
-	e.Status = status
-	e.Version++
+	clone.Status = status
+	clone.Version++
+	r.entities[id] = clone
 	return nil
 }
 
@@ -161,10 +165,12 @@ func (r *fakeEntityRepo) SoftDelete(_ context.Context, id string, deletedAt time
 	if e.DeletedAt != nil {
 		return ErrAlreadyDeleted
 	}
-	e.DeletedAt = &deletedAt
-	e.Status = EntityStatusDeleted
-	e.Version++
-	e.UpdatedAt = deletedAt
+	clone := e.Clone()
+	clone.DeletedAt = &deletedAt
+	clone.Status = EntityStatusDeleted
+	clone.Version++
+	clone.UpdatedAt = deletedAt
+	r.entities[id] = clone
 	return nil
 }
 
@@ -178,10 +184,12 @@ func (r *fakeEntityRepo) Restore(_ context.Context, id string) error {
 	if e.DeletedAt == nil {
 		return ErrNotDeleted
 	}
-	e.DeletedAt = nil
-	e.Status = EntityStatusActive
-	e.Version++
-	e.UpdatedAt = time.Now()
+	clone := e.Clone()
+	clone.DeletedAt = nil
+	clone.Status = EntityStatusActive
+	clone.Version++
+	clone.UpdatedAt = time.Now()
+	r.entities[id] = clone
 	return nil
 }
 

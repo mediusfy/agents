@@ -8,7 +8,7 @@ test-all: test-python test-go
 .PHONY: test-python
 test-python:
 	@echo "--- Running Python tests ---"
-	@$(VENV_DIR)/bin/pytest
+	@(cd agents && .venv/bin/pytest)
 
 GO_MODULES := $(shell find services -name "go.mod")
 

@@ -3,7 +3,6 @@ package eventbus
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"sync"
 	"testing"
 	"time"
@@ -54,12 +53,13 @@ func (u *recordingUnitOfWork) getOperations() []string {
 // rollbackUnitOfWork simulates a transaction that can be rolled back.
 // If fn returns an error, the transaction is considered rolled back.
 type rollbackUnitOfWork struct {
-	mu        sync.Mutex
-	committed bool // true if fn completed without error
+	mu         sync.Mutex
+	committed  bool // true if fn completed without error
+	onRollback func()
 }
 
-func newRollbackUnitOfWork() *rollbackUnitOfWork {
-	return &rollbackUnitOfWork{}
+func newRollbackUnitOfWork(onRollback func()) *rollbackUnitOfWork {
+	return &rollbackUnitOfWork{onRollback: onRollback}
 }
 
 func (u *rollbackUnitOfWork) Execute(_ context.Context, fn func(uowCtx context.Context) error) error {
@@ -68,25 +68,10 @@ func (u *rollbackUnitOfWork) Execute(_ context.Context, fn func(uowCtx context.C
 	defer u.mu.Unlock()
 	if err == nil {
 		u.committed = true
+	} else if u.onRollback != nil {
+		u.onRollback()
 	}
 	return err
-}
-
-// unitOfWorkRecorder wraps real domain repositories to track operations.
-type unitOfWorkRecorder struct {
-	domain.EntityRepository
-	domain.OutboxRepository
-	uow *recordingUnitOfWork
-}
-
-func (r *unitOfWorkRecorder) Save(ctx context.Context, entity *domain.Entity) error {
-	r.uow.record("entity.Save")
-	return r.EntityRepository.Save(ctx, entity)
-}
-
-func (r *unitOfWorkRecorder) SaveOutbox(ctx context.Context, event *domain.OutboxEvent) error {
-	r.uow.record("outbox.Save")
-	return r.OutboxRepository.Save(ctx, event)
 }
 
 // ============================================================================
@@ -110,20 +95,6 @@ func TestGherkin_UnitOfWork_CreateEntity_BothOpsInSameTransaction(t *testing.T) 
 	outboxRepo := newFakeOutboxRepoForRelay()
 	idempotency := &fakeIdempotencyForE2E{store: make(map[string]string)}
 	uow := newRecordingUnitOfWork()
-
-	// Wrap the entity and outbox repos to record their operations
-	wrappedEntityRepo := &unitOfWorkRecorder{
-		EntityRepository: entityRepo,
-		uow:              uow,
-	}
-	wrappedOutboxRepo := &unitOfWorkRecorder{
-		OutboxRepository: outboxRepo,
-		uow:              uow,
-	}
-
-	// Use real OutboxRepository on the wrapped outbox for Save method
-	// Actually, the recorder's SaveOutbox won't match the OutboxRepository interface.
-	// Let me use a different approach - just use the standard repos and track via uow.
 
 	// Seed a schema
 	_ = schemaRepo.Save(ctx, &domain.EntitySchema{
@@ -220,7 +191,11 @@ func TestGherkin_UnitOfWork_Atomicity_RollbackOnOutboxFailure(t *testing.T) {
 	}
 
 	// Use a rollback-aware UnitOfWork
-	uow := newRollbackUnitOfWork()
+	uow := newRollbackUnitOfWork(func() {
+		entityRepo.mu.Lock()
+		defer entityRepo.mu.Unlock()
+		entityRepo.entities = make(map[string]*domain.Entity)
+	})
 
 	// Seed a schema
 	_ = schemaRepo.Save(ctx, &domain.EntitySchema{

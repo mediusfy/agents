@@ -156,6 +156,30 @@ type Entity struct {
 	DeletedAt         *time.Time        `json:"deleted_at,omitempty"`
 }
 
+func (e *Entity) Clone() *Entity {
+	if e == nil {
+		return nil
+	}
+	clone := *e
+	if e.DeletedAt != nil {
+		t := *e.DeletedAt
+		clone.DeletedAt = &t
+	}
+	if e.Attributes != nil {
+		clone.Attributes = make(map[string]any, len(e.Attributes))
+		for k, v := range e.Attributes {
+			clone.Attributes[k] = v
+		}
+	}
+	if e.Metadata != nil {
+		clone.Metadata = make(map[string]any, len(e.Metadata))
+		for k, v := range e.Metadata {
+			clone.Metadata[k] = v
+		}
+	}
+	return &clone
+}
+
 // MarkDeleted transitions the entity to the deleted state.
 func (e *Entity) MarkDeleted(at time.Time) error {
 	if e.Status.IsDeleted() {

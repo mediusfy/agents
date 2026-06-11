@@ -11,7 +11,9 @@ import (
 	"fmt"
 
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/proto"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/runtime/protoimpl"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -37,7 +39,7 @@ type Entity struct {
 }
 
 // ProtoReflect implements proto.Message.
-func (x *Entity) ProtoReflect() proto.Message { return x }
+func (x *Entity) ProtoReflect() protoreflect.Message { return protoimpl.X.MessageOf(x) }
 
 // Reset implements proto.Message.
 func (x *Entity) Reset() { *x = Entity{} }
@@ -63,7 +65,7 @@ type CreateEntityRequest struct {
 }
 
 // ProtoReflect implements proto.Message.
-func (x *CreateEntityRequest) ProtoReflect() proto.Message { return x }
+func (x *CreateEntityRequest) ProtoReflect() protoreflect.Message { return protoimpl.X.MessageOf(x) }
 
 // Reset implements proto.Message.
 func (x *CreateEntityRequest) Reset() { *x = CreateEntityRequest{} }
@@ -86,7 +88,7 @@ type CreateEntityResponse struct {
 }
 
 // ProtoReflect implements proto.Message.
-func (x *CreateEntityResponse) ProtoReflect() proto.Message { return x }
+func (x *CreateEntityResponse) ProtoReflect() protoreflect.Message { return protoimpl.X.MessageOf(x) }
 
 // Reset implements proto.Message.
 func (x *CreateEntityResponse) Reset() { *x = CreateEntityResponse{} }
@@ -113,7 +115,7 @@ type GetEntityRequest struct {
 }
 
 // ProtoReflect implements proto.Message.
-func (x *GetEntityRequest) ProtoReflect() proto.Message { return x }
+func (x *GetEntityRequest) ProtoReflect() protoreflect.Message { return protoimpl.X.MessageOf(x) }
 
 // Reset implements proto.Message.
 func (x *GetEntityRequest) Reset() { *x = GetEntityRequest{} }
@@ -134,7 +136,7 @@ type GetEntityResponse struct {
 }
 
 // ProtoReflect implements proto.Message.
-func (x *GetEntityResponse) ProtoReflect() proto.Message { return x }
+func (x *GetEntityResponse) ProtoReflect() protoreflect.Message { return protoimpl.X.MessageOf(x) }
 
 // Reset implements proto.Message.
 func (x *GetEntityResponse) Reset() { *x = GetEntityResponse{} }
@@ -164,7 +166,7 @@ type UpdateEntityRequest struct {
 }
 
 // ProtoReflect implements proto.Message.
-func (x *UpdateEntityRequest) ProtoReflect() proto.Message { return x }
+func (x *UpdateEntityRequest) ProtoReflect() protoreflect.Message { return protoimpl.X.MessageOf(x) }
 
 // Reset implements proto.Message.
 func (x *UpdateEntityRequest) Reset() { *x = UpdateEntityRequest{} }
@@ -187,7 +189,7 @@ type UpdateEntityResponse struct {
 }
 
 // ProtoReflect implements proto.Message.
-func (x *UpdateEntityResponse) ProtoReflect() proto.Message { return x }
+func (x *UpdateEntityResponse) ProtoReflect() protoreflect.Message { return protoimpl.X.MessageOf(x) }
 
 // Reset implements proto.Message.
 func (x *UpdateEntityResponse) Reset() { *x = UpdateEntityResponse{} }
@@ -214,7 +216,7 @@ type DeleteEntityRequest struct {
 }
 
 // ProtoReflect implements proto.Message.
-func (x *DeleteEntityRequest) ProtoReflect() proto.Message { return x }
+func (x *DeleteEntityRequest) ProtoReflect() protoreflect.Message { return protoimpl.X.MessageOf(x) }
 
 // Reset implements proto.Message.
 func (x *DeleteEntityRequest) Reset() { *x = DeleteEntityRequest{} }
@@ -237,7 +239,7 @@ type DeleteEntityResponse struct {
 }
 
 // ProtoReflect implements proto.Message.
-func (x *DeleteEntityResponse) ProtoReflect() proto.Message { return x }
+func (x *DeleteEntityResponse) ProtoReflect() protoreflect.Message { return protoimpl.X.MessageOf(x) }
 
 // Reset implements proto.Message.
 func (x *DeleteEntityResponse) Reset() { *x = DeleteEntityResponse{} }
@@ -260,7 +262,7 @@ type ListEntitiesRequest struct {
 }
 
 // ProtoReflect implements proto.Message.
-func (x *ListEntitiesRequest) ProtoReflect() proto.Message { return x }
+func (x *ListEntitiesRequest) ProtoReflect() protoreflect.Message { return protoimpl.X.MessageOf(x) }
 
 // Reset implements proto.Message.
 func (x *ListEntitiesRequest) Reset() { *x = ListEntitiesRequest{} }
@@ -281,7 +283,7 @@ type ListEntitiesResponse struct {
 }
 
 // ProtoReflect implements proto.Message.
-func (x *ListEntitiesResponse) ProtoReflect() proto.Message { return x }
+func (x *ListEntitiesResponse) ProtoReflect() protoreflect.Message { return protoimpl.X.MessageOf(x) }
 
 // Reset implements proto.Message.
 func (x *ListEntitiesResponse) Reset() { *x = ListEntitiesResponse{} }
@@ -311,19 +313,19 @@ type EntityServiceServer interface {
 type UnimplementedEntityServiceServer struct{}
 
 func (UnimplementedEntityServiceServer) CreateEntity(_ context.Context, _ *CreateEntityRequest) (*CreateEntityResponse, error) {
-	return nil, grpc.ErrUnimplemented
+	return nil, status.Error(codes.Unimplemented, "method CreateEntity not implemented")
 }
 func (UnimplementedEntityServiceServer) GetEntity(_ context.Context, _ *GetEntityRequest) (*GetEntityResponse, error) {
-	return nil, grpc.ErrUnimplemented
+	return nil, status.Error(codes.Unimplemented, "method GetEntity not implemented")
 }
 func (UnimplementedEntityServiceServer) UpdateEntity(_ context.Context, _ *UpdateEntityRequest) (*UpdateEntityResponse, error) {
-	return nil, grpc.ErrUnimplemented
+	return nil, status.Error(codes.Unimplemented, "method UpdateEntity not implemented")
 }
 func (UnimplementedEntityServiceServer) DeleteEntity(_ context.Context, _ *DeleteEntityRequest) (*DeleteEntityResponse, error) {
-	return nil, grpc.ErrUnimplemented
+	return nil, status.Error(codes.Unimplemented, "method DeleteEntity not implemented")
 }
 func (UnimplementedEntityServiceServer) ListEntities(_ context.Context, _ *ListEntitiesRequest) (*ListEntitiesResponse, error) {
-	return nil, grpc.ErrUnimplemented
+	return nil, status.Error(codes.Unimplemented, "method ListEntities not implemented")
 }
 
 // RegisterEntityServiceServer registers the EntityServiceServer with the

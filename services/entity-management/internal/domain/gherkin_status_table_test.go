@@ -224,7 +224,7 @@ func TestGherkin_StatusTransitions_TableDriven(t *testing.T) {
 
 			// Seed an entity in the given initial state.
 			var deletedAt *time.Time
-			if tt.wantDeletedAtSet || tt.initialStatus == EntityStatusDeleted {
+			if tt.initialStatus == EntityStatusDeleted {
 				dt := frozenNow.Add(-1 * time.Hour)
 				deletedAt = &dt
 			}

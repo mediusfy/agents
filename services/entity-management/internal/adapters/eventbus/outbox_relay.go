@@ -91,7 +91,7 @@ func NATSTopicResolver() TopicResolver {
 		if s, ok := resolveSubject(eventType); ok {
 			return s
 		}
-		return eventType
+		return ""
 	}
 }
 
@@ -232,10 +232,15 @@ func (r *OutboxRelay) processEvent(ctx context.Context, event *domain.OutboxEven
 	span := trace.SpanFromContext(ctx)
 	traceID := span.SpanContext().TraceID().String()
 
+	envType := event.EventType
+	if resolvedType, ok := resolveSubject(event.EventType); ok {
+		envType = resolvedType
+	}
+
 	envelope := &ports.Envelope{
 		CloudEventAttributes: ports.CloudEventAttributes{
 			SpecVersion:     "1.0",
-			Type:            event.EventType,
+			Type:            envType,
 			Source:          "/entity-manager",
 			ID:              event.ID,
 			Time:            event.CreatedAt,

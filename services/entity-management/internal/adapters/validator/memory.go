@@ -103,10 +103,11 @@ func (v *MemoryValidator) Validate(ctx context.Context, schemaID string, attrs m
 	return nil
 }
 
-func (v *MemoryValidator) Invalidate(ctx context.Context, schemaID string) {
+func (v *MemoryValidator) Invalidate(ctx context.Context, schemaID string) error {
 	v.mu.Lock()
 	delete(v.cache, schemaID)
 	v.mu.Unlock()
+	return nil
 }
 
 func (v *MemoryValidator) getCompiled(ctx context.Context, schemaID string) (*compiledSchema, error) {

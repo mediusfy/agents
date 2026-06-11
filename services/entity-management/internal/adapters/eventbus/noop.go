@@ -26,6 +26,10 @@ func NewNoopBus(logger *slog.Logger) *NoopBus {
 }
 
 func (b *NoopBus) Publish(_ context.Context, subject string, envelope *ports.Envelope) error {
+	if envelope == nil {
+		b.logger.Debug("noop event bus: publishing nil envelope", "subject", subject)
+		return nil
+	}
 	b.logger.Debug("noop event bus: publishing event",
 		"subject", subject,
 		"event_id", envelope.ID,

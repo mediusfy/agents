@@ -11,8 +11,8 @@ package ports_test
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -24,8 +24,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/sdk/metric"
-	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
@@ -56,7 +56,7 @@ func (c *testSpanCollector) TracerProvider() *sdktrace.TracerProvider {
 	)
 }
 
-func (c *testSpanCollector) GetSpans() []sdktrace.ReadOnlySpan {
+func (c *testSpanCollector) GetSpans() tracetest.SpanStubs {
 	return c.exporter.GetSpans()
 }
 
@@ -64,63 +64,8 @@ func (c *testSpanCollector) Reset() {
 	c.exporter.Reset()
 }
 
-// testMetricCollector captures exported metric data for assertion.
-type testMetricCollector struct {
-	mu            sync.Mutex
-	exporter      *metricManualExporter
-	meterProvider *metric.MeterProvider
-}
-
-func newTestMetricCollector() *testMetricCollector {
-	exp := &metricManualExporter{
-		metrics: make(map[string][]metricdata.DataPoint),
-	}
-	mp := metric.NewMeterProvider(
-		metric.WithReader(metric.NewManualReader(exp)),
-	)
-	return &testMetricCollector{
-		exporter:      exp,
-		meterProvider: mp,
-	}
-}
-
-type metricManualExporter struct {
-	mu      sync.Mutex
-	metrics map[string][]metricdata.DataPoint
-}
-
-func (e *metricManualExporter) Temporality(kind metric.InstrumentKind) metricdata.Temporality {
-	return metricdata.CumulativeTemporality
-}
-
-func (e *metricManualExporter) Aggregation(kind metric.InstrumentKind) metric.Aggregation {
-	return metric.DefaultAggregationSelector(kind)
-}
-
-func (e *metricManualExporter) Collect(rm *metricdata.ResourceMetrics) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	for _, scope := range rm.ScopeMetrics {
-		for _, m := range scope.Metrics {
-			switch data := m.Data.(type) {
-			case metricdata.Sum[int64]:
-				for _, point := range data.DataPoints {
-					key := m.Name + "." + m.Unit
-					for _, attr := range point.Attributes.ToSlice() {
-						key += "." + string(attr.Key) + "=" + attr.Value.AsString()
-					}
-					e.metrics[key] = append(e.metrics[key], metricdata.DataPoint{
-						Attributes: point.Attributes,
-					})
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func (e *metricManualExporter) AggregationSelector() metric.AggregationSelector {
-	return metric.DefaultAggregationSelector
+func discardLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
 // observabilityHTTPHandler wraps handlers with instrumented OTel tracer and
@@ -133,17 +78,17 @@ type observabilityHTTPHandler struct {
 }
 
 func newObservabilityHTTPHandler(
-	createUC *application.CreateEntityUseCase,
-	readUC *application.ReadEntityUseCase,
-	updateUC *application.UpdateEntityUseCase,
-	deleteUC *application.DeleteRestoreUseCase,
-	listUC *application.ListEntitiesUseCase,
+	createUC ports.CreateEntityUseCase,
+	readUC ports.ReadEntityUseCase,
+	updateUC ports.UpdateEntityUseCase,
+	deleteUC ports.DeleteRestoreUseCase,
+	listUC ports.ListEntitiesUseCase,
 	logger *slog.Logger,
 	tracerProvider *sdktrace.TracerProvider,
 	meterProvider *metric.MeterProvider,
 ) *observabilityHTTPHandler {
-	_ = otel.SetTracerProvider(tracerProvider)
-	_ = otel.SetMeterProvider(meterProvider)
+	otel.SetTracerProvider(tracerProvider)
+	otel.SetMeterProvider(meterProvider)
 
 	handler := ports.NewEntityHTTPHandler(
 		createUC, readUC, updateUC, deleteUC, listUC, logger,
@@ -313,6 +258,10 @@ func (uc *observabilityFakeDeleteRestoreUC) HardDelete(ctx context.Context, id s
 	return nil
 }
 
+func (uc *observabilityFakeDeleteRestoreUC) PermanentDelete(ctx context.Context, id string) error {
+	return uc.HardDelete(ctx, id)
+}
+
 func (uc *observabilityFakeDeleteRestoreUC) Restore(ctx context.Context, id string) error {
 	uc.mu.Lock()
 	uc.callCount++
@@ -358,7 +307,7 @@ func TestObservability_SpanNamingConvention(t *testing.T) {
 	tp := spanCollector.TracerProvider()
 	defer tp.Shutdown(context.Background())
 
-	logger := slog.New(slog.NewDiscardHandler)
+	logger := discardLogger()
 
 	handler := newObservabilityHTTPHandler(
 		newObservabilityFakeCreateUC(),
@@ -442,17 +391,17 @@ func TestObservability_SpanNamingConvention(t *testing.T) {
 
 			found := false
 			for _, span := range spans {
-				if strings.Contains(span.Name(), tt.expected) {
+				if strings.Contains(span.Name, tt.expected) {
 					found = true
 					t.Logf("Found span: %s (kind=%v, status=%v)",
-						span.Name(), span.SpanKind(), span.Status())
+						span.Name, span.SpanKind, span.Status)
 					break
 				}
 			}
 			if !found {
 				var spanNames []string
 				for _, s := range spans {
-					spanNames = append(spanNames, s.Name())
+					spanNames = append(spanNames, s.Name)
 				}
 				t.Errorf("no span containing %q found. Available spans: %v", tt.expected, spanNames)
 			}
@@ -471,7 +420,7 @@ func TestObservability_TraceAttributes(t *testing.T) {
 	tp := spanCollector.TracerProvider()
 	defer tp.Shutdown(context.Background())
 
-	logger := slog.New(slog.NewDiscardHandler)
+	logger := discardLogger()
 
 	createUC := newObservabilityFakeCreateUC()
 
@@ -508,7 +457,7 @@ func TestObservability_TraceAttributes(t *testing.T) {
 	}
 
 	for _, span := range spans {
-		for _, attr := range span.Attributes() {
+		for _, attr := range span.Attributes {
 			switch string(attr.Key) {
 			case "schema_id":
 				attributeFound["schema_id"] = true
@@ -550,7 +499,7 @@ func TestObservability_ErrorRecording(t *testing.T) {
 	tp := spanCollector.TracerProvider()
 	defer tp.Shutdown(context.Background())
 
-	logger := slog.New(slog.NewDiscardHandler)
+	logger := discardLogger()
 
 	createUC := newObservabilityFakeCreateUC()
 	createUC.injectError = domain.ErrSchemaNotFound
@@ -581,20 +530,20 @@ func TestObservability_ErrorRecording(t *testing.T) {
 
 	errorRecorded := false
 	for _, span := range spans {
-		for _, ev := range span.Events() {
+		for _, ev := range span.Events {
 			if ev.Name == "exception" {
 				errorRecorded = true
 				t.Logf("Found RecordError on span %q: event=%q, attrs=%v",
-					span.Name(), ev.Name, ev.Attributes)
+					span.Name, ev.Name, ev.Attributes)
 			}
 		}
 	}
 
 	if !errorRecorded {
 		for _, span := range spans {
-			if span.Status().Code != sdktrace.StatusCodeUnset {
+			if span.Status.Code != codes.Unset {
 				t.Logf("Span %q has status code=%v, description=%q",
-					span.Name(), span.Status().Code, span.Status().Description)
+					span.Name, span.Status.Code, span.Status.Description)
 			}
 		}
 		t.Log("Note: errors may be recorded as span status or via RecordError")
@@ -612,7 +561,7 @@ func TestObservability_CreateOperationSpanAttributes(t *testing.T) {
 	tp := spanCollector.TracerProvider()
 	defer tp.Shutdown(context.Background())
 
-	logger := slog.New(slog.NewDiscardHandler)
+	logger := discardLogger()
 
 	createUC := newObservabilityFakeCreateUC()
 
@@ -646,7 +595,7 @@ func TestObservability_CreateOperationSpanAttributes(t *testing.T) {
 	spans := spanCollector.GetSpans()
 	successSpans := 0
 	for _, s := range spans {
-		if s.Status().Code == sdktrace.StatusCodeUnset || s.Status().Code == sdktrace.StatusCodeOK {
+		if s.Status.Code == codes.Unset || s.Status.Code == codes.Ok {
 			successSpans++
 		}
 	}
@@ -668,7 +617,7 @@ func TestObservability_DomainErrorInSpan(t *testing.T) {
 	tp := spanCollector.TracerProvider()
 	defer tp.Shutdown(context.Background())
 
-	logger := slog.New(slog.NewDiscardHandler)
+	logger := discardLogger()
 
 	handler := newObservabilityHTTPHandler(
 		newObservabilityFakeCreateUC(),
@@ -700,9 +649,9 @@ func TestObservability_DomainErrorInSpan(t *testing.T) {
 	spans := spanCollector.GetSpans()
 	t.Logf("Error case spans: %d", len(spans))
 	for _, s := range spans {
-		for _, ev := range s.Events() {
+		for _, ev := range s.Events {
 			if ev.Name == "exception" {
-				t.Logf("Error recorded on span %q: %v", s.Name(), ev.Attributes)
+				t.Logf("Error recorded on span %q: %v", s.Name, ev.Attributes)
 			}
 		}
 	}
@@ -719,7 +668,7 @@ func TestObservability_ConcurrentOperations(t *testing.T) {
 	tp := spanCollector.TracerProvider()
 	defer tp.Shutdown(context.Background())
 
-	logger := slog.New(slog.NewDiscardHandler)
+	logger := discardLogger()
 
 	handler := newObservabilityHTTPHandler(
 		newObservabilityFakeCreateUC(),
@@ -818,16 +767,16 @@ func TestObservability_ParentChildSpanRelationships(t *testing.T) {
 
 	var parentFound, childFound bool
 	for _, s := range spans {
-		switch s.Name() {
+		switch s.Name {
 		case "http.request":
 			parentFound = true
 		case "ports.EntityHTTPHandler.handleCreateEntity":
 			childFound = true
-			if !s.Parent().IsValid() {
+			if !s.Parent.IsValid() {
 				t.Error("child span should have a valid parent span context")
 			} else {
 				t.Logf("Child span has parent trace_id=%s span_id=%s",
-					s.Parent().TraceID(), s.Parent().SpanID())
+					s.Parent.TraceID(), s.Parent.SpanID())
 			}
 		}
 	}
@@ -851,9 +800,9 @@ func TestObservability_SchemaHandlerSpanAttributes(t *testing.T) {
 	tp := spanCollector.TracerProvider()
 	defer tp.Shutdown(context.Background())
 
-	_ = otel.SetTracerProvider(tp)
+	otel.SetTracerProvider(tp)
 
-	logger := slog.New(slog.NewDiscardHandler)
+	logger := discardLogger()
 
 	fakeSchemaRepo := &fakeSchemaRepoForObservability{
 		schemas: make(map[string]*domain.EntitySchema),
@@ -889,8 +838,8 @@ func TestObservability_SchemaHandlerSpanAttributes(t *testing.T) {
 	spans := spanCollector.GetSpans()
 	t.Logf("Schema handler spans: %d", len(spans))
 	for _, s := range spans {
-		t.Logf("  Span: %s", s.Name())
-		for _, attr := range s.Attributes() {
+		t.Logf("  Span: %s", s.Name)
+		for _, attr := range s.Attributes {
 			t.Logf("    %s = %s", attr.Key, attr.Value.AsString())
 		}
 	}
@@ -898,7 +847,7 @@ func TestObservability_SchemaHandlerSpanAttributes(t *testing.T) {
 	schemaIDFound := false
 	versionFound := false
 	for _, s := range spans {
-		for _, attr := range s.Attributes() {
+		for _, attr := range s.Attributes {
 			if attr.Key == "schema_id" {
 				schemaIDFound = true
 			}
@@ -936,7 +885,7 @@ func (r *fakeSchemaRepoForObservability) FindByID(_ context.Context, id string) 
 	defer r.mu.Unlock()
 	s, ok := r.schemas[id]
 	if !ok {
-		return nil, errors.New("not found")
+		return nil, domain.ErrSchemaNotFound
 	}
 	return s, nil
 }
@@ -948,7 +897,7 @@ func (r *fakeSchemaRepoForObservability) FindByName(_ context.Context, name stri
 			return s, nil
 		}
 	}
-	return nil, errors.New("not found")
+	return nil, domain.ErrSchemaNotFound
 }
 func (r *fakeSchemaRepoForObservability) FindAll(_ context.Context) ([]*domain.EntitySchema, error) {
 	r.mu.Lock()
