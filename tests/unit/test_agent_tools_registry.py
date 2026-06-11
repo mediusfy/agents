@@ -2,8 +2,8 @@ import re
 
 import pytest
 
-from openclaw.agents.registration import register_all_agents
-from openclaw.registry import registry
+from orchestration.agents.registration import register_all_agents
+from orchestration.registry import registry
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -51,7 +51,7 @@ def test_all_referenced_tools_exist():
 
 def test_go_version_consistency():
     """Ensures all Go agents are referencing the same version from settings."""
-    from openclaw.settings import settings
+    from orchestration.settings import settings
 
     expected_version = settings.go_version
 

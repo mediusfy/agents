@@ -21,10 +21,10 @@ PROJECT ?= default
 all: lint test
 
 mcp: $(VENV)
-	$(PYTHON) -m uvicorn openclaw.mcp_server:mcp.sse_app --host 0.0.0.0 --port 8002
+	$(PYTHON) -m uvicorn orchestration.mcp_server:mcp.sse_app --host 0.0.0.0 --port 8002
 
 mcp-stdio: $(VENV)
-	$(PYTHON) -m openclaw.mcp_server
+	$(PYTHON) -m orchestration.mcp_server
 
 run: $(VENV)
 	@echo "=== Running full agent pipeline for project: $(PROJECT) ==="
@@ -37,20 +37,20 @@ run-resume: $(VENV)
 	@echo "=== Pipeline complete. Artifacts in ./generated-app/$(PROJECT)/ ==="
 
 run-dry-run: $(VENV)
-	@echo "=== OpenClaw: Dry run (no LLM calls) for project: $(PROJECT) ==="
+	@echo "=== Orgitration: Dry run (no LLM calls) for project: $(PROJECT) ==="
 	$(PYTHON) main.py --project $(PROJECT) --dry-run --yes
 	@echo "=== Dry run complete ==="
 
 test:
 	@echo "=== Running tests ==="
-	$(PYTHON) -m pytest tests/ -v --cov=src/openclaw --cov-report=term-missing
+	$(PYTHON) -m pytest tests/ -v --cov=src/orchestration --cov-report=term-missing
 	@echo "=== Tests complete ==="
 
 lint:
 	@echo "=== Running lint ==="
 	$(PYTHON) -m ruff check src/ tests/
 	$(PYTHON) -m ruff format --check src/ tests/
-	$(PYTHON) -m mypy src/openclaw
+	$(PYTHON) -m mypy src/orchestration
 	@echo "=== Lint passed ==="
 
 # Frontend dev server (Vite), bypasses the generation pipeline
@@ -66,7 +66,7 @@ frontend-build:
 	cd $(FRONTEND_DIR) && npm ci && npm run build
 
 build:
-	$(PYTHON) -c "import openclaw; print('Build OK')"
+	$(PYTHON) -c "import orchestration; print('Build OK')"
 
 $(VENV):
 	python3 -m venv $(VENV)

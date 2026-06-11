@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
-from openclaw.gates import HumanInTheLoopGate
-from openclaw.models.core import Artifact
+from orchestration.gates import HumanInTheLoopGate
+from orchestration.models.core import Artifact
 
 
 def sample_artifacts():

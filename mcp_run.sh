@@ -22,4 +22,4 @@ export DAGSTER_HOME=$(pwd)/.dagmem
 mkdir -p "$DAGSTER_HOME"
 
 # exec replaces the shell so stdin/stdout go directly to Python (no buffering)
-exec python src/openclaw/mcp_server.py
+exec python src/orchestration/mcp_server.py

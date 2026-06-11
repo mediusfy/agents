@@ -3,14 +3,14 @@ from pathlib import Path
 
 import pytest
 
-from openclaw.adapters.state_repository import LocalDiskStateRepository
-from openclaw.checkpoint import CheckpointManager
-from openclaw.models.core import PipelineState
+from orchestration.adapters.state_repository import LocalDiskStateRepository
+from orchestration.checkpoint import CheckpointManager
+from orchestration.models.core import PipelineState
 
 
 @pytest.fixture
 def manager(tmp_path, monkeypatch):
-    monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
+    monkeypatch.setattr("orchestration.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
     repo = LocalDiskStateRepository(project_name="test_proj")
     return CheckpointManager(repository=repo, run_id="test_run")
 
@@ -53,7 +53,7 @@ class TestCheckpointClear:
         assert not manager.stage_exists("stage2")
 
     def test_clear_other_run_unaffected(self, manager, sample_state, tmp_path, monkeypatch):
-        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
+        monkeypatch.setattr("orchestration.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
         other_repo = LocalDiskStateRepository(project_name="test_proj")
         other = CheckpointManager(repository=other_repo, run_id="other_run")
         manager.save("stage1", sample_state)
@@ -64,13 +64,13 @@ class TestCheckpointClear:
 
 class TestFindLatestRun:
     def test_no_checkpoints_returns_none(self, tmp_path, monkeypatch):
-        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
+        monkeypatch.setattr("orchestration.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
         repo = LocalDiskStateRepository(project_name="empty")
         m = CheckpointManager(repository=repo)
         assert m.find_latest_run_id() is None
 
     def test_finds_latest_by_mtime(self, manager, tmp_path, monkeypatch):
-        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
+        monkeypatch.setattr("orchestration.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
         run_a = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
         run_b = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
         repo = LocalDiskStateRepository(project_name="test_proj")

@@ -1,11 +1,11 @@
 from unittest.mock import AsyncMock, patch
 
-from openclaw.agy_bridge.server import _handle_command
+from orchestration.agy_bridge.server import _handle_command
 
 
-@patch("openclaw.agy_bridge.server.registry")
-@patch("openclaw.agy_bridge.server.BridgeAgent")
-@patch("openclaw.agy_bridge.server.sync_agent_definitions", new_callable=AsyncMock)
+@patch("orchestration.agy_bridge.server.registry")
+@patch("orchestration.agy_bridge.server.BridgeAgent")
+@patch("orchestration.agy_bridge.server.sync_agent_definitions", new_callable=AsyncMock)
 async def test_sync_definitions_command(mock_sync, mock_bridge_agent, mock_registry):
     # Arrange
     mock_sync.return_value = 1

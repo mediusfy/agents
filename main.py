@@ -2,12 +2,12 @@ import argparse
 import asyncio
 import logging
 
-from openclaw.agents.registration import register_all_agents
-from openclaw.healthcheck import assert_startup_checks
-from openclaw.observability import configure_observability
-from openclaw.pipeline.config import BLUEPRINTS, PipelineConfig
-from openclaw.pipeline.factory import build_default_pipeline
-from openclaw.registry import registry
+from orchestration.agents.registration import register_all_agents
+from orchestration.healthcheck import assert_startup_checks
+from orchestration.observability import configure_observability
+from orchestration.pipeline.config import BLUEPRINTS, PipelineConfig
+from orchestration.pipeline.factory import build_default_pipeline
+from orchestration.registry import registry
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -47,7 +47,7 @@ async def main(
     assert_startup_checks()
     register_all_agents()
 
-    logger.info(f"--- OpenClaw Pipeline: {blueprint} (Project: {project}) ---")
+    logger.info(f"--- Orgitration Pipeline: {blueprint} (Project: {project}) ---")
     logger.info(f"Blueprint: {BLUEPRINTS[blueprint]['description']}")
     logger.info(f"Stages: {BLUEPRINTS[blueprint]['stages']}")
     logger.info(f"Registered agents: {registry.list_agents()}")
@@ -67,7 +67,7 @@ async def main(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="OpenClaw Multi-Agent Pipeline")
+    parser = argparse.ArgumentParser(description="Orgitration Multi-Agent Pipeline")
 
     blueprints_help = []
     for bp_name, bp_cfg in BLUEPRINTS.items():

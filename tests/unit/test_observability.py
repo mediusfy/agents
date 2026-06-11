@@ -2,7 +2,7 @@
 
 Verifies:
 - configure_observability() is idempotent (safe to call from multiple entrypoints
-  — main.py, mcp_server.py, and a child invocation via run_openclaw_pipeline).
+  — main.py, mcp_server.py, and a child invocation via run_orchestration_pipeline).
 - When no credentials are present, it sets the disabled flag instead of crashing.
 - pydantic-ai instrumentation is attempted (when the helper exists on the
   installed Logfire version).
@@ -17,7 +17,7 @@ import pytest
 def reset_observability_state(monkeypatch):
     """Each test starts with a fresh module-level state."""
     monkeypatch.delenv("OTEL_SDK_DISABLED", raising=False)
-    from openclaw import observability
+    from orchestration import observability
 
     observability._initialized = False
     observability.LOGFIRE_ENABLED = False
@@ -35,7 +35,7 @@ def _clear_logfire_env(monkeypatch):
     """
     monkeypatch.delenv("LOGFIRE_TOKEN", raising=False)
     monkeypatch.setattr("os.path.exists", lambda _: False)
-    import openclaw.observability as _obs_mod
+    import orchestration.observability as _obs_mod
 
     _obs_mod.settings.logfire_token = ""
 
@@ -43,7 +43,7 @@ def _clear_logfire_env(monkeypatch):
 def test_configure_is_a_noop_when_no_credentials(tmp_path, monkeypatch):
     _clear_logfire_env(monkeypatch)
 
-    from openclaw import observability
+    from orchestration import observability
 
     observability.configure_observability()
 
@@ -55,7 +55,7 @@ def test_configure_is_a_noop_when_no_credentials(tmp_path, monkeypatch):
 def test_configure_is_idempotent(monkeypatch):
     _clear_logfire_env(monkeypatch)
 
-    from openclaw import observability
+    from orchestration import observability
 
     observability.configure_observability()
     first_state = observability._initialized
@@ -70,8 +70,8 @@ def test_configure_calls_instrument_pydantic_ai_when_credentials_present(monkeyp
     monkeypatch.setenv("LOGFIRE_TOKEN", "fake-token")
 
     fake_logfire = MagicMock()
-    with patch("openclaw.observability.logfire", fake_logfire):
-        from openclaw import observability
+    with patch("orchestration.observability.logfire", fake_logfire):
+        from orchestration import observability
 
         observability.configure_observability()
 
@@ -89,8 +89,8 @@ def test_configure_tolerates_missing_instrument_pydantic_ai(monkeypatch):
     fake_logfire = MagicMock()
     # Make the helper raise AttributeError to simulate an older Logfire.
     fake_logfire.instrument_pydantic_ai.side_effect = AttributeError("no such attribute")
-    with patch("openclaw.observability.logfire", fake_logfire):
-        from openclaw import observability
+    with patch("orchestration.observability.logfire", fake_logfire):
+        from orchestration import observability
 
         observability.configure_observability()
 

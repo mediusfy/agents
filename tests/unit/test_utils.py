@@ -2,9 +2,9 @@
 
 import pytest
 
-from openclaw.exceptions import PathTraversalError
-from openclaw.models.core import Artifact
-from openclaw.utils import format_artifacts, safe_path_join, safe_write
+from orchestration.exceptions import PathTraversalError
+from orchestration.models.core import Artifact
+from orchestration.utils import format_artifacts, safe_path_join, safe_write
 
 
 class TestSafePathJoin:

@@ -1,4 +1,4 @@
-# OpenClaw Architecture Summary
+# Orgitration Architecture Summary
 
 ## The System Itself
 - **Type**: Single-process Python Multi-Agent SDLC system (NOT microservices)

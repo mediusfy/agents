@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "openclaw"
+name = "orchestration"
 version = "0.1.0"
 description = "Multi-Agent SDLC Ecosystem"
 authors = [{name = "Drew Jocham"}]
@@ -29,6 +29,9 @@ dependencies = [
     "pyyaml>=6.0,<7.0",
     "tenacity>=8.0.0,<9.0",
     "uvicorn",
+    "langchain>=0.3.0,<0.4.0",
+    "langchain-openai>=0.3.0,<0.4.0",
+    "langgraph>=0.2.0,<0.3.0",
 ]
 
 [project.optional-dependencies]
@@ -54,7 +57,7 @@ ingest = [
 agy = []  # reserved for future bridge-only deps
 
 [project.scripts]
-openclaw-agy = "openclaw.agy_bridge.server:main"
+orchestration-agy = "orchestration.agy_bridge.server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -83,13 +86,13 @@ select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "ARG", "C4", "T20"]
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 "tests/*.py" = ["ARG001", "ARG002"]
-"src/openclaw/validators.py" = ["T201"]
-"src/openclaw/gates.py" = ["T201"]
-"src/openclaw/live_trace.py" = ["T201"]
-"src/openclaw/tools/*.py" = ["ARG001", "E501"]
-"src/openclaw/agents/*.py" = ["ARG001", "E501"]
-"src/openclaw/agents/non_technical/*.py" = ["ARG001", "E501"]
-"src/openclaw/models/core.py" = ["UP042"]
+"src/orchestration/validators.py" = ["T201"]
+"src/orchestration/gates.py" = ["T201"]
+"src/orchestration/live_trace.py" = ["T201"]
+"src/orchestration/tools/*.py" = ["ARG001", "E501"]
+"src/orchestration/agents/*.py" = ["ARG001", "E501"]
+"src/orchestration/agents/non_technical/*.py" = ["ARG001", "E501"]
+"src/orchestration/models/core.py" = ["UP042"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -104,7 +107,7 @@ disallow_untyped_defs = false
 check_untyped_defs = false
 ignore_missing_imports = true
 exclude = [
-    "src/openclaw/agents/non_technical/",
+    "src/orchestration/agents/non_technical/",
     ".venv/",
     "generated-app/",
     "archive/",
@@ -115,7 +118,7 @@ exclude = [
 # Only agent and tool files with heavy pydantic_ai integration get broad exemptions.
 [[tool.mypy.overrides]]
 module = [
-    "openclaw.agents.*",
-    "openclaw.tools.*",
+    "orchestration.agents.*",
+    "orchestration.tools.*",
 ]
 ignore_errors = true

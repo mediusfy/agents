@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from openclaw.memory import VectorMemory
+from orchestration.memory import VectorMemory
 
 # ─── Content hashing ──────────────────────────────────────────────────────────
 
@@ -68,7 +68,7 @@ class TestVectorMemoryConsolidate:
     @pytest.mark.asyncio
     async def test_consolidate_formats_timestamp_and_content(self):
         """Each memory is formatted as '[timestamp] content'."""
-        from openclaw.memory import Memory
+        from orchestration.memory import Memory
 
         vm = VectorMemory("test_collection")
         fake_memories = [
@@ -88,7 +88,7 @@ class TestVectorMemoryConsolidate:
     @pytest.mark.asyncio
     async def test_consolidate_includes_metadata_when_present(self):
         """Metadata type and agent_name are rendered as [type by agent]."""
-        from openclaw.memory import Memory
+        from orchestration.memory import Memory
 
         vm = VectorMemory("test_collection")
         fake_memories = [
@@ -109,7 +109,7 @@ class TestVectorMemoryConsolidate:
     @pytest.mark.asyncio
     async def test_consolidate_handles_timestamps_shorter_than_19_chars(self):
         """Short timestamps (no microseconds) are used as-is."""
-        from openclaw.memory import Memory
+        from orchestration.memory import Memory
 
         vm = VectorMemory("test_collection")
         fake_memories = [
@@ -124,7 +124,7 @@ class TestVectorMemoryConsolidate:
     @pytest.mark.asyncio
     async def test_consolidate_handles_empty_metadata(self):
         """No metadata bracket when metadata is empty."""
-        from openclaw.memory import Memory
+        from orchestration.memory import Memory
 
         vm = VectorMemory("test_collection")
         fake_memories = [
@@ -162,12 +162,12 @@ class TestVectorMemoryConsolidate:
 
 class TestVectorMemoryGlobalInstance:
     def test_global_collection_name_is_activity_logs(self):
-        from openclaw.memory import long_term_memory
+        from orchestration.memory import long_term_memory
 
         assert long_term_memory.collection_name == "activity_logs"
 
     def test_global_is_vector_memory_instance(self):
-        from openclaw.memory import long_term_memory
+        from orchestration.memory import long_term_memory
 
         assert isinstance(long_term_memory, VectorMemory)
 
@@ -181,7 +181,7 @@ class TestAddMemory:
         """add_memory delegates to vector_db.async_add_documents with correct args."""
         vm = VectorMemory("test_collection")
 
-        with patch("openclaw.memory.vector_db.async_add_documents", AsyncMock()) as mock_add:
+        with patch("orchestration.memory.vector_db.async_add_documents", AsyncMock()) as mock_add:
             await vm.add_memory("hello world", metadata={"key": "val"})
 
         mock_add.assert_awaited_once()

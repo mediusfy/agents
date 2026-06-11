@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from openclaw.settings import Settings
+from orchestration.settings import Settings
 
 
 def test_settings_defaults(monkeypatch):

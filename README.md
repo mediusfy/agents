@@ -1,8 +1,8 @@
-# OpenClaw — Multi-Agent SDLC Ecosystem
+# Orgitration — Multi-Agent SDLC Ecosystem
 
 > **Version:** 0.1.0 | **Python:** 3.11+ | **License:** MIT
 
-OpenClaw is a **multi-agent software development lifecycle (SDLC) ecosystem** that orchestrates autonomous AI agents to go from raw requirements to production-ready code. It supports three agent runtime layers — Claude Code plugins, opencode agents, and pydantic_ai Python agents — all unified by a capability-based registry and exposed via a Model Context Protocol (MCP) server.
+Orgitration is a **multi-agent software development lifecycle (SDLC) ecosystem** that orchestrates autonomous AI agents to go from raw requirements to production-ready code. It supports three agent runtime layers — Claude Code plugins, opencode agents, and pydantic_ai Python agents — all unified by a capability-based registry and exposed via a Model Context Protocol (MCP) server.
 
 ---
 
@@ -14,7 +14,7 @@ OpenClaw is a **multi-agent software development lifecycle (SDLC) ecosystem** th
 - **Autonomous Remediation Loop** — Self-healing pipeline that retries with context when gates fail (up to 3 retries)
 - **Capability-Based Registry** — Query agents by capability (`backend`, `security`, `review`, etc.) instead of by name
 - **Vector-Indexed Knowledge Base** — pgvector-backed semantic search across ADRs, conventions, architecture decisions, and project context
-- **Cross-Runtime Memory Bridge** — Bidirectional sync between OpenClaw (pgvector), Claude Code (agent-memory), and Antigravity (implicit memory)
+- **Cross-Runtime Memory Bridge** — Bidirectional sync between Orgitration (pgvector), Claude Code (agent-memory), and Antigravity (implicit memory)
 - **Full Observability** — Logfire instrumentation for every LLM call, tool execution, and agent run with token usage tracking
 - **Async Event Broker** — PostgreSQL-backed persistent event broker for long-running task handoffs
 
@@ -31,18 +31,18 @@ with symlinks back to shared templates and agent definitions.
 ```
 programming/ai/
 ├── agents/                          ← This repo: pydantic_ai runtime + provider configs
-│   ├── src/openclaw/agents/         ← Python agent implementations
+│   ├── src/orchestration/agents/         ← Python agent implementations
 │   ├── agents/*.md                  → symlinks → shared/agents/ (role definitions)
 │   ├── .claude/rules/*.md           → Claude Code project rules
 │   ├── .claude/settings.local.json  → Claude Code permission config
 │   ├── .claude-plugin/plugin.json   → Claude Code plugin manifest
 │   ├── opencode.json                → OpenCode project/agent config
 │   ├── .opencode/agents/*.md        → OpenCode subagent definitions
-│   ├── .agents/workflows/*.md       → OpenClaw agent workflows
+│   ├── .agents/workflows/*.md       → Orgitration agent workflows
 │   ├── .pre-commit-config.yaml      → Git hooks (ruff, mypy, linting)
 │   └── AGENTS.md → shared/workspace/
 │
-├── openclaw/                       ← OpenClaw workspaces (thin wrappers)
+├── orchestration/                       ← Orgitration workspaces (thin wrappers)
 │   ├── GUIDELINES.md                → Global agent operations guide
 │   ├── *.md                        → symlinks → shared/workspace/
 │   ├── agents/*.md                 → symlinks → shared/agents/
@@ -78,7 +78,7 @@ programming/ai/
 |----------|-------------|-------------------|
 | **OpenCode** | `opencode.json`, `.opencode/agents/*.md` | Auto-detected from project root when running `opencode` in `programming/ai/opencode/` |
 | **Claude Code** | `.claude/rules/*.md`, `.claude/settings.local.json`, `.claude-plugin/plugin.json` | Auto-detected from `.claude/` in current working directory |
-| **OpenClaw** | `.agents/workflows/*.md` | Discovered from agent workspace root |
+| **Orgitration** | `.agents/workflows/*.md` | Discovered from agent workspace root |
 | **Antigravity** | `.aivory/`, `.antigravitycli/` | CLI reads from project root |
 | **Hermes** | `.hermes/plans/` (future) | Discovered from workspace root |
 
@@ -106,7 +106,7 @@ Changes propagate automatically via symlinks to all providers.
 │         └─────────────────┼─────────────────────┘               │
 │                           │ MCP Protocol                        │
 ├───────────────────────────┼──────────────────────────────────────┤
-│                    OpenClaw MCP Server                           │
+│                    Orgitration MCP Server                           │
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │  Agent Registry (capability-based)                       │   │
 │  │  ┌─────┐ ┌──────┐ ┌───────┐ ┌─────┐ ┌─────┐ ┌─────┐    │   │
@@ -158,7 +158,7 @@ Changes propagate automatically via symlinks to all providers.
 ```bash
 # Clone the repository
 git clone <repo-url>
-cd openclaw
+cd orchestration
 
 # Create virtual environment
 python3.11 -m venv .venv
@@ -186,7 +186,7 @@ export DEEPSEEK_API_KEY="***"
 export ANTHROPIC_BASE_URL="https://jocham.tail...ts.net/v1"
 export OPENAI_BASE_URL="https://jocham.tail...ts.net/v1"
 export LOGFIRE_TOKEN="***"
-export OPENCLAW_AUTH_TOKEN="***"
+export ORCHESTRATION_AUTH_TOKEN="***"
 ```
 
 ```bash
@@ -201,7 +201,7 @@ LOGFIRE_TOKEN="pylf_v2_eu_..."
 LOGFIRE_SEND_TO_LOGFIRE=true
 
 # Database (for pgvector knowledge base)
-DATABASE_URL="postgresql://user:pass@localhost:5432/openclaw"
+DATABASE_URL="postgresql://user:pass@localhost:5432/orchestration"
 ```
 
 ### Running the Pipeline
@@ -226,11 +226,11 @@ python main.py --resume --project my-service
 
 ```bash
 # Register the MCP server
-claude mcp add --scope user openclaw-agents -- \
-  /bin/bash /path/to/openclaw/mcp_run.sh
+claude mcp add --scope user orchestration-agents -- \
+  /bin/bash /path/to/orchestration/mcp_run.sh
 
 # Verify connection
-claude mcp get openclaw-agents
+claude mcp get orchestration-agents
 # Expected: Status: ✓ Connected
 ```
 
@@ -243,7 +243,7 @@ Add to your `opencode.json`:
   "mcpServers": {
     "agents": {
       "command": "bash",
-      "args": ["/path/to/openclaw/mcp_run.sh"],
+      "args": ["/path/to/orchestration/mcp_run.sh"],
       "enabled": true
     }
   }
@@ -302,9 +302,9 @@ All agents are exposed as MCP tools with the prefix `run_`. Full API reference i
 
 | Tool | Description |
 |------|-------------|
-| `delegate_to_openclaw_agent(capability, context, task)` | Delegate a task to any agent by capability |
-| `list_openclaw_capabilities()` | List all registered capabilities |
-| `run_openclaw_pipeline(project_name, requirement)` | Run the full SDLC pipeline as a background task |
+| `delegate_to_orchestration_agent(capability, context, task)` | Delegate a task to any agent by capability |
+| `list_orchestration_capabilities()` | List all registered capabilities |
+| `run_orchestration_pipeline(project_name, requirement)` | Run the full SDLC pipeline as a background task |
 | `check_pipeline_status(run_id)` | Poll pipeline status |
 | `plan_and_execute(goal)` | Plan and execute a high-level goal |
 | `modify_existing_code(change_description, codebase_path)` | Modify existing Go code with autonomous remediation |
@@ -440,7 +440,7 @@ pytest -m unit
 pytest -m integration
 
 # Run with coverage
-pytest --cov=openclaw --cov-report=html
+pytest --cov=orchestration --cov-report=html
 ```
 
 ---
@@ -448,7 +448,7 @@ pytest --cov=openclaw --cov-report=html
 ## 📁 Project Structure
 
 ```
-openclaw/
+orchestration/
 ├── agents/*.md                    → symlinks → shared/agents/ (role definitions)
 ├── .opencode/agents/*.md          # OpenCode subagent definitions
 ├── .opencode/package.json          # OpenCode SDK dependency
@@ -456,10 +456,10 @@ openclaw/
 ├── .claude-plugin/plugin.json     # Claude Code plugin manifest
 ├── .claude/rules/*.md             # Claude Code project rules (auto-triggered)
 ├── .claude/settings.local.json    # Claude Code MCP permission config
-├── .agents/workflows/*.md         # OpenClaw multi-agent workflows
+├── .agents/workflows/*.md         # Orgitration multi-agent workflows
 ├── .pre-commit-config.yaml        # Git hooks (ruff, mypy, linting)
 ├── src/
-│   └── openclaw/
+│   └── orchestration/
 │       ├── agents/                # pydantic_ai agent implementations
 │       │   ├── ba.py              # Business Analyst
 │       │   ├── backend.py         # Backend Engineer (Go)
@@ -492,7 +492,7 @@ openclaw/
 │       │   └── factory.py         # Model factory (multi-provider)
 │       ├── pipeline/              # Pipeline configuration
 │       │   ├── config.py          # PipelineConfig
-│       │   └── orchestrator.py    # OpenClawPipeline
+│       │   └── orchestrator.py    # OrgitrationPipeline
 │       ├── stages/                # Pipeline stages
 │       │   ├── base.py            # StageRunner base class
 │       │   ├── ba_stage.py        # BA pipeline stage
@@ -566,7 +566,7 @@ Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelin
 pip install -e ".[dev]"
 pre-commit install    # Install git hooks
 ruff check .          # Lint
-mypy src/openclaw     # Type check
+mypy src/orchestration     # Type check
 pytest                # Test
 ```
 
@@ -577,7 +577,7 @@ pytest                # Test
 | Document | Description |
 |----------|-------------|
 | [API Reference](docs/API_REFERENCE.md) | Complete MCP tool and CLI API reference |
-| [OpenAPI Spec](docs/openapi/openclaw-api.yaml) | OpenAPI 3.1 specification for the MCP API |
+| [OpenAPI Spec](docs/openapi/orchestration-api.yaml) | OpenAPI 3.1 specification for the MCP API |
 | [Provider Config Reference](../shared/docs/provider-config.md) | How providers discover configs in this repo |
 | [Go Standards](CODING_STANDARDS.md) | Go coding standards for generated code |
 | [AGENTS.md](AGENTS.md) | Agent system prompts and definitions |
@@ -595,10 +595,10 @@ pytest                # Test
 | `OPENAI_API_KEY` | No* | — | OpenAI API key |
 | `ANTHROPIC_BASE_URL` | No | — | Anthropic API proxy base URL (Aperture) |
 | `OPENAI_BASE_URL` | No | — | OpenAI API proxy base URL (Aperture) |
-| `OPENCLAW_AUTH_TOKEN` | No | — | OpenClaw gateway auth token |
+| `ORCHESTRATION_AUTH_TOKEN` | No | — | Orgitration gateway auth token |
 | `DEEPSEEK_API_KEY` | No* | — | DeepSeek API key |
 | `LOGFIRE_TOKEN` | No | — | Logfire observability token |
-| `DATABASE_URL` | Yes | `postgresql://localhost:5432/openclaw` | PostgreSQL connection string |
+| `DATABASE_URL` | Yes | `postgresql://localhost:5432/orchestration` | PostgreSQL connection string |
 | `REDIS_IRIS_URL` | No | — | Redis Iris connection URL |
 | `model_provider` | No | `deepseek` | LLM provider override |
 

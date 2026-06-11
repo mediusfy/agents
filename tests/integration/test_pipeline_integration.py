@@ -1,4 +1,4 @@
-"""Integration tests for the OpenClaw multi-agent pipeline.
+"""Integration tests for the Orgitration multi-agent pipeline.
 
 Verifies:
 - Pipeline stage data flow (BA → Advisory → Implementation)
@@ -15,19 +15,19 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from openclaw.adapters.state_repository import LocalDiskStateRepository
-from openclaw.checkpoint import CheckpointManager
-from openclaw.memory import RedisIrisMemory, VectorMemory, create_memory_backend, get_memory_backend
-from openclaw.models.core import (
+from orchestration.adapters.state_repository import LocalDiskStateRepository
+from orchestration.checkpoint import CheckpointManager
+from orchestration.memory import RedisIrisMemory, VectorMemory, create_memory_backend, get_memory_backend
+from orchestration.models.core import (
     AgentAdvice,
     Artifact,
     EventTrigger,
     PipelineState,
     UserStory,
 )
-from openclaw.registry import AgentRegistry, registry
-from openclaw.telemetry import Telemetry
-from openclaw.writer import ArtifactWriter
+from orchestration.registry import AgentRegistry, registry
+from orchestration.telemetry import Telemetry
+from orchestration.writer import ArtifactWriter
 
 
 class TestPipelineStageDataFlow:
@@ -36,11 +36,11 @@ class TestPipelineStageDataFlow:
     @pytest.mark.asyncio
     async def test_ba_stage_populates_user_stories_and_checkpoint(self, tmp_path, monkeypatch):
         """BAStage must set state.user_stories."""
-        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
+        monkeypatch.setattr("orchestration.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
 
-        from openclaw.adapters.agents import AgentProviderPort
-        from openclaw.pipeline.config import PipelineConfig
-        from openclaw.stages.ba_stage import BAStage
+        from orchestration.adapters.agents import AgentProviderPort
+        from orchestration.pipeline.config import PipelineConfig
+        from orchestration.stages.ba_stage import BAStage
 
         mock_ba_result = MagicMock()
         mock_ba_result.output = [
@@ -61,7 +61,7 @@ class TestPipelineStageDataFlow:
         config = PipelineConfig(project="test_proj", requirement="Build a payment system")
         stage = BAStage(agent_provider=mock_provider)
 
-        with patch("openclaw.stages.ba_stage.registry.get", return_value=MagicMock()):
+        with patch("orchestration.stages.ba_stage.registry.get", return_value=MagicMock()):
             result = await stage.run(state, config)
 
         assert len(result.user_stories) == 2
@@ -72,11 +72,11 @@ class TestPipelineStageDataFlow:
     @pytest.mark.asyncio
     async def test_ba_stage_returns_early_on_no_stories(self, tmp_path, monkeypatch):
         """When BA returns no stories, the pipeline should exit."""
-        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
+        monkeypatch.setattr("orchestration.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
 
-        from openclaw.adapters.agents import AgentProviderPort
-        from openclaw.pipeline.config import PipelineConfig
-        from openclaw.stages.ba_stage import BAStage
+        from orchestration.adapters.agents import AgentProviderPort
+        from orchestration.pipeline.config import PipelineConfig
+        from orchestration.stages.ba_stage import BAStage
 
         mock_result = MagicMock()
         mock_result.output = []
@@ -88,7 +88,7 @@ class TestPipelineStageDataFlow:
         config = PipelineConfig(project="test_proj", requirement="Some requirement")
         stage = BAStage(agent_provider=mock_provider)
 
-        with patch("openclaw.stages.ba_stage.registry.get", return_value=MagicMock()):
+        with patch("orchestration.stages.ba_stage.registry.get", return_value=MagicMock()):
             result = await stage.run(state, config)
 
         assert len(result.user_stories) == 0
@@ -97,11 +97,11 @@ class TestPipelineStageDataFlow:
     @pytest.mark.asyncio
     async def test_advisory_stage_merges_cto_and_ux_results(self, tmp_path, monkeypatch):
         """Advisory stage must capture both CTO and UX advice in state."""
-        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
+        monkeypatch.setattr("orchestration.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
 
-        from openclaw.adapters.agents import AgentProviderPort
-        from openclaw.pipeline.config import PipelineConfig
-        from openclaw.stages.advisory_stage import AdvisoryStage
+        from orchestration.adapters.agents import AgentProviderPort
+        from orchestration.pipeline.config import PipelineConfig
+        from orchestration.stages.advisory_stage import AdvisoryStage
 
         cto_output = MagicMock()
         cto_output.output = AgentAdvice(
@@ -139,8 +139,8 @@ class TestPipelineStageDataFlow:
 
         # Skip cto_gate for pure stage testing to avoid prompt blocking if that logic triggers.
         with (
-            patch("openclaw.cto_gate.apply", new_callable=AsyncMock) as mock_gate,
-            patch("openclaw.stages.advisory_stage.registry.get", return_value=MagicMock()),
+            patch("orchestration.cto_gate.apply", new_callable=AsyncMock) as mock_gate,
+            patch("orchestration.stages.advisory_stage.registry.get", return_value=MagicMock()),
         ):
             mock_gate.return_value = True
             result = await stage.run(state, config)
@@ -154,11 +154,11 @@ class TestPipelineStageDataFlow:
     @pytest.mark.asyncio
     async def test_advisory_stage_survives_cto_failure(self, tmp_path, monkeypatch):
         """When CTO agent fails, UX result is still preserved."""
-        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
+        monkeypatch.setattr("orchestration.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
 
-        from openclaw.adapters.agents import AgentProviderPort
-        from openclaw.pipeline.config import PipelineConfig
-        from openclaw.stages.advisory_stage import AdvisoryStage
+        from orchestration.adapters.agents import AgentProviderPort
+        from orchestration.pipeline.config import PipelineConfig
+        from orchestration.stages.advisory_stage import AdvisoryStage
 
         ux_output = MagicMock()
         ux_output.output = AgentAdvice(
@@ -188,8 +188,8 @@ class TestPipelineStageDataFlow:
         stage = AdvisoryStage(agent_provider=mock_provider)
 
         with (
-            patch("openclaw.cto_gate.apply", new_callable=AsyncMock) as mock_gate,
-            patch("openclaw.stages.advisory_stage.registry.get", return_value=MagicMock()),
+            patch("orchestration.cto_gate.apply", new_callable=AsyncMock) as mock_gate,
+            patch("orchestration.stages.advisory_stage.registry.get", return_value=MagicMock()),
         ):
             mock_gate.return_value = False
             result = await stage.run(state, config)
@@ -209,7 +209,7 @@ class TestPipelineStatePersistence:
 
     def test_empty_state_roundtrip(self, tmp_path, monkeypatch):
         """save and loads correctly."""
-        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
+        monkeypatch.setattr("orchestration.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
         manager = CheckpointManager(repository=LocalDiskStateRepository("test_proj"), run_id="roundtrip-empty")
         state = PipelineState(run_id="roundtrip-empty", stage="init")
 
@@ -227,7 +227,7 @@ class TestPipelineStatePersistence:
 
     def test_fully_populated_state_roundtrip(self, tmp_path, monkeypatch):
         """Full PipelineState with nested models round-trips without data loss."""
-        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
+        monkeypatch.setattr("orchestration.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
         manager = CheckpointManager(repository=LocalDiskStateRepository("test_proj"), run_id="roundtrip-full")
 
         state = PipelineState(
@@ -340,7 +340,7 @@ class TestPipelineStatePersistence:
 
     def test_multiple_checkpoint_stages_preserved(self, tmp_path, monkeypatch):
         """Multiple stages (ba, advisory, implementation) are all independently loadable."""
-        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
+        monkeypatch.setattr("orchestration.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
         manager = CheckpointManager(repository=LocalDiskStateRepository("test_proj"), run_id="multi-stage")
 
         ba_state = PipelineState(
@@ -393,7 +393,7 @@ class TestPipelineStatePersistence:
 
     def test_checkpoint_clear_removes_all_stages(self, tmp_path, monkeypatch):
         """clear() must remove all checkpoint files for the current run."""
-        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
+        monkeypatch.setattr("orchestration.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
         manager = CheckpointManager(repository=LocalDiskStateRepository("test_proj"), run_id="clear-test")
         state = PipelineState(run_id="clear-test", stage="init")
 
@@ -409,7 +409,7 @@ class TestPipelineStatePersistence:
 
     def test_checkpoint_does_not_affect_other_runs(self, tmp_path, monkeypatch):
         """Clearing one run's checkpoints must not affect another run."""
-        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
+        monkeypatch.setattr("orchestration.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
         run_a = CheckpointManager(repository=LocalDiskStateRepository("test_proj"), run_id="run-a")
         run_b = CheckpointManager(repository=LocalDiskStateRepository("test_proj"), run_id="run-b")
         state = PipelineState(run_id="run-a", stage="init")
@@ -424,7 +424,7 @@ class TestPipelineStatePersistence:
 
     def test_load_corrupt_checkpoint_returns_none(self, tmp_path, monkeypatch):
         """Corrupted JSON files should not crash — return None."""
-        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
+        monkeypatch.setattr("orchestration.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
         manager = CheckpointManager(repository=LocalDiskStateRepository("test_proj"), run_id="corrupt-test")
 
         filepath = Path(manager.repository._get_filepath(manager.run_id, "corrupt"))
@@ -448,13 +448,13 @@ class TestAgentRegistrationIntegration:
         registry._cap_index = {}
         # Reset the idempotency flag in registration.py so register_all_agents()
         # picks up the freshly-cleared registry instead of short-circuiting.
-        import openclaw.agents.registration as _reg
+        import orchestration.agents.registration as _reg
 
         _reg._registered = False
 
     def test_all_pipeline_agents_register(self):
         """register_all_agents must register expected SDLC agents."""
-        from openclaw.agents.registration import register_all_agents
+        from orchestration.agents.registration import register_all_agents
 
         register_all_agents()
 
@@ -483,7 +483,7 @@ class TestAgentRegistrationIntegration:
 
     def test_all_travel_finance_agents_register(self):
         """register_all_agents must register travel & finance agents."""
-        from openclaw.agents.registration import register_all_agents
+        from orchestration.agents.registration import register_all_agents
 
         register_all_agents()
 
@@ -503,7 +503,7 @@ class TestAgentRegistrationIntegration:
 
     def test_total_agent_count(self):
         """Verify the exact count of registered agents."""
-        from openclaw.agents.registration import register_all_agents
+        from orchestration.agents.registration import register_all_agents
 
         register_all_agents()
 
@@ -515,7 +515,7 @@ class TestAgentRegistrationIntegration:
         Post-fix: `_cap_index[cap]` is a list of agent names in registration
         order, not a single agent name. Use `owners_of()` to read it.
         """
-        from openclaw.agents.registration import register_all_agents
+        from orchestration.agents.registration import register_all_agents
 
         register_all_agents()
 
@@ -528,8 +528,8 @@ class TestAgentRegistrationIntegration:
 
     def test_capability_query_o1_lookup(self, tmp_path, monkeypatch):
         """query() must route to the right agent via O(1) capability lookup."""
-        monkeypatch.setattr("openclaw.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
-        from openclaw.agents.registration import register_all_agents
+        monkeypatch.setattr("orchestration.adapters.state_repository.settings.checkpoint_dir", str(tmp_path))
+        from orchestration.agents.registration import register_all_agents
 
         register_all_agents()
 
@@ -541,7 +541,7 @@ class TestAgentRegistrationIntegration:
 
     def test_list_agents_returns_all_names(self):
         """list_agents() must return all registered agent names."""
-        from openclaw.agents.registration import register_all_agents
+        from orchestration.agents.registration import register_all_agents
 
         register_all_agents()
 
@@ -556,7 +556,7 @@ class TestAgentRegistrationIntegration:
     async def test_query_unknown_capability_raises_agent_not_found(self):
         """Post-fix: query() raises AgentNotFoundError instead of returning an error string,
         so callers can't accidentally treat a missing capability as a successful result."""
-        from openclaw.exceptions import AgentNotFoundError
+        from orchestration.exceptions import AgentNotFoundError
 
         r = AgentRegistry()
         r.register("test", MagicMock(), ["known_cap"])
@@ -567,11 +567,11 @@ class TestAgentRegistrationIntegration:
     def test_register_all_agents_is_idempotent(self):
         """Second call to register_all_agents() must NOT raise on duplicate registration.
 
-        Previously, calling it twice (which delegate_to_openclaw_agent and
+        Previously, calling it twice (which delegate_to_orchestration_agent and
         modify_existing_code do on every MCP invocation) crashed on the
         first agent's `ValueError("Agent 'ba' is already registered.")`.
         """
-        from openclaw.agents.registration import register_all_agents
+        from orchestration.agents.registration import register_all_agents
 
         register_all_agents()
         first_count = len(registry.list_agents())
@@ -631,7 +631,7 @@ class TestArtifactWriterIntegration:
 
     def test_path_traversal_prevention(self, tmp_path):
         """ArtifactWriter must raise PathTraversalError when paths escape the output directory."""
-        from openclaw.exceptions import PathTraversalError
+        from orchestration.exceptions import PathTraversalError
 
         writer = ArtifactWriter(str(tmp_path))
 
@@ -722,7 +722,7 @@ class TestExistingCodePipelineIntegration:
     @pytest.mark.asyncio
     async def test_pipeline_returns_result_without_errors(self):
         """run_existing_code_pipeline with mocked agents must return a valid ExistingCodeResult."""
-        from openclaw.existing_code_handler import run_existing_code_pipeline
+        from orchestration.existing_code_handler import run_existing_code_pipeline
 
         eng_result = MagicMock()
         eng_result.output = Artifact(
@@ -751,7 +751,7 @@ class TestExistingCodePipelineIntegration:
     @pytest.mark.asyncio
     async def test_pipeline_propagates_engineer_error(self):
         """When the service engineer fails, the pipeline must return early with errors."""
-        from openclaw.existing_code_handler import run_existing_code_pipeline
+        from orchestration.existing_code_handler import run_existing_code_pipeline
 
         mock_eng = MagicMock()
         mock_eng.run = AsyncMock(side_effect=Exception("Engineer crashed"))
@@ -781,7 +781,7 @@ class TestMemoryBackendSelection:
 
     def test_default_backend_is_vectormemory(self, monkeypatch):
         """Without REDIS_IRIS_TOKEN, create_memory_backend returns VectorMemory."""
-        monkeypatch.setattr("openclaw.memory.settings.redis_iris_token", None)
+        monkeypatch.setattr("orchestration.memory.settings.redis_iris_token", None)
         backend = create_memory_backend()
         assert isinstance(backend, VectorMemory)
 
@@ -808,15 +808,15 @@ class TestMemoryBackendSelection:
 
     def test_fallback_on_redis_iris_init_failure(self, monkeypatch):
         """When Redis IRIS init fails, create_memory_backend falls back to VectorMemory."""
-        monkeypatch.setattr("openclaw.memory.settings.redis_iris_token", "fake-key")
-        with patch("openclaw.memory.RedisIrisMemory.__init__", side_effect=Exception("API unreachable")):
+        monkeypatch.setattr("orchestration.memory.settings.redis_iris_token", "fake-key")
+        with patch("orchestration.memory.RedisIrisMemory.__init__", side_effect=Exception("API unreachable")):
             backend = create_memory_backend()
             assert isinstance(backend, VectorMemory)
 
     def test_get_memory_backend_lazy_init(self, monkeypatch):
         """get_memory_backend must return the same instance on repeated calls."""
-        monkeypatch.setattr("openclaw.memory._memory_backend", None)
-        monkeypatch.setattr("openclaw.memory.settings.redis_iris_token", None)
+        monkeypatch.setattr("orchestration.memory._memory_backend", None)
+        monkeypatch.setattr("orchestration.memory.settings.redis_iris_token", None)
         first = get_memory_backend()
         second = get_memory_backend()
         assert first is second
@@ -831,7 +831,7 @@ class TestMemoryBackendSelection:
         Returns the mock pool so the caller can inspect stored rows.
         """
         # Mock _to_embedding so we don't require sentence_transformers for these tests
-        monkeypatch.setattr("openclaw.vector_db._to_embedding", lambda _text: [0.1, 0.2, 0.3])
+        monkeypatch.setattr("orchestration.vector_db._to_embedding", lambda _text: [0.1, 0.2, 0.3])
 
         # We use a simple dict-based store: table_name -> {id: {content, embedding, metadata}}
         # Embedding is mocked — all documents get a trivial vector so <=> does "some" ranking.
@@ -926,7 +926,7 @@ class TestMemoryBackendSelection:
                 pass
 
         pool = MockPool()
-        from openclaw.vector_db import _set_test_pool
+        from orchestration.vector_db import _set_test_pool
 
         _set_test_pool(pool)  # type: ignore[arg-type]
         return stores, pool
@@ -985,14 +985,14 @@ class TestMemoryBackendSelection:
 
     def test_memory_model_default_metadata_is_empty_dict(self):
         """Memory model should default metadata to empty dict, not None."""
-        from openclaw.memory import Memory
+        from orchestration.memory import Memory
 
         m = Memory(content="test")
         assert m.metadata == {}
 
     def test_memory_model_timestamp_is_set(self):
         """Memory model should auto-generate a timestamp."""
-        from openclaw.memory import Memory
+        from orchestration.memory import Memory
 
         m = Memory(content="test")
         assert m.timestamp is not None

@@ -14,7 +14,7 @@ async def test_server_ping_integration():
     proc = await asyncio.create_subprocess_exec(
         sys.executable,
         "-m",
-        "openclaw.agy_bridge.server",
+        "orchestration.agy_bridge.server",
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,

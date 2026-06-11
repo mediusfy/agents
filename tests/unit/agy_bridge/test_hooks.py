@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from openclaw.agy_bridge.bridge_agent import HookResult, Hooks
+from orchestration.agy_bridge.bridge_agent import HookResult, Hooks
 
 
 @pytest.mark.asyncio

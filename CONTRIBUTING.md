@@ -1,14 +1,14 @@
-# Contributing to OpenClaw
+# Contributing to Orgitration
 
-Thank you for your interest in contributing to the openclaw agent ecosystem! This guide will help you understand how to add new agents, tools, and run the pipeline locally.
+Thank you for your interest in contributing to the orchestration agent ecosystem! This guide will help you understand how to add new agents, tools, and run the pipeline locally.
 
 ## Project Structure
 
-OpenClaw is divided into three main layers:
+Orgitration is divided into three main layers:
 
 1. **Claude Code plugin** (`agents/*.md`, `.claude-plugin/`) - System prompts and definitions.
 2. **Opencode Agents** (`.opencode/agents/`) - Primary and subagent definitions.
-3. **Pydantic AI Agents** (`src/openclaw/agents/`) - The runtime implementation of the agents, providing structured outputs and MCP exposure.
+3. **Pydantic AI Agents** (`src/orchestration/agents/`) - The runtime implementation of the agents, providing structured outputs and MCP exposure.
 
 ## Adding a New Agent
 
@@ -16,7 +16,7 @@ To add a new agent to the ecosystem, you must update multiple layers:
 
 ### 1. Pydantic AI Implementation
 
-Create a new Python file in `src/openclaw/agents/` (e.g., `my_agent.py`):
+Create a new Python file in `src/orchestration/agents/` (e.g., `my_agent.py`):
 
 ```python
 from pydantic_ai import Agent, RunContext
@@ -34,7 +34,7 @@ def my_custom_tool(ctx: RunContext, param: str) -> str:
     return f"Processed {param}"
 ```
 
-Then, register your agent in `src/openclaw/agents/registration.py` so it is discoverable by the MCP server and pipeline runner.
+Then, register your agent in `src/orchestration/agents/registration.py` so it is discoverable by the MCP server and pipeline runner.
 
 ### 2. Claude Code Plugin Definition
 

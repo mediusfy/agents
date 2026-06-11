@@ -3,18 +3,18 @@ version: "3.9"
 services:
   pgvector:
     image: pgvector/pgvector:pg17
-    container_name: openclaw-pgvector
+    container_name: orchestration-pgvector
     restart: unless-stopped
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: openclaw
-      POSTGRES_PASSWORD: openclaw
-      POSTGRES_DB: openclaw
+      POSTGRES_USER: orchestration
+      POSTGRES_PASSWORD: orchestration
+      POSTGRES_DB: orchestration
     volumes:
       - pgvector_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U openclaw"]
+      test: ["CMD-SHELL", "pg_isready -U orchestration"]
       interval: 5s
       retries: 10
 

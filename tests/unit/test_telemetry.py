@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from openclaw.telemetry import Telemetry
+from orchestration.telemetry import Telemetry
 
 
 async def test_log_call_writes_jsonl(tmp_path):

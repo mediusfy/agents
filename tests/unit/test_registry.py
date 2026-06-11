@@ -14,8 +14,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from openclaw.exceptions import AgentExecutionError, AgentNotFoundError, AmbiguousCapabilityError
-from openclaw.registry import AgentRegistry
+from orchestration.exceptions import AgentExecutionError, AgentNotFoundError, AmbiguousCapabilityError
+from orchestration.registry import AgentRegistry
 
 # ─── Capability Index ─────────────────────────────────────────────────────────
 

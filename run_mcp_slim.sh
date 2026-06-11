@@ -1,10 +1,6 @@
 #!/bin/sh
 set -e
 
-if ! python3 -c "import sentence_transformers" 2>/dev/null; then
-  echo "Heavy ML deps not installed — using vector_db stub"
-  AGENTS_DIR=$(python3 -c "import openclaw; import os; print(os.path.dirname(openclaw.__file__))")
-  cp "$AGENTS_DIR/vector_db_stub.py" "$AGENTS_DIR/vector_db.py"
-fi
+export OTEL_SDK_DISABLED=true
 
-exec uvicorn openclaw.mcp_server:mcp.sse_app --host 0.0.0.0 --port 8002
+exec uvicorn orchestration.mcp_server:mcp.sse_app --host 0.0.0.0 --port 8002

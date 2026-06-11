@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from openclaw.models.core import (
+from orchestration.models.core import (
     AgentAdvice,
     Artifact,
     EventTrigger,
@@ -140,7 +140,7 @@ def temp_output_dir(tmp_path) -> Path:
 def temp_checkpoint_dir(tmp_path, monkeypatch) -> Path:
     ckpt_dir = tmp_path / ".claw-checkpoints"
     ckpt_dir.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setattr("openclaw.checkpoint.settings.checkpoint_dir", ckpt_dir)
+    monkeypatch.setattr("orchestration.checkpoint.settings.checkpoint_dir", ckpt_dir)
     return ckpt_dir
 
 

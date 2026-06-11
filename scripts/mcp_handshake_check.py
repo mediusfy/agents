@@ -1,4 +1,4 @@
-"""Smoke-test the openclaw MCP server by performing one initialize handshake
+"""Smoke-test the orchestration MCP server by performing one initialize handshake
 over stdio. Exits non-zero on any failure.
 
 Used by `.github/workflows/ci.yml`'s mcp-test job. Catches regressions that
@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SERVER_MODULE = REPO_ROOT / "src" / "openclaw" / "mcp_server.py"
+SERVER_MODULE = REPO_ROOT / "src" / "orchestration" / "mcp_server.py"
 TIMEOUT_S = 60
 
 
@@ -84,8 +84,8 @@ def main() -> int:
 
     result = resp.get("result", {})
     server_info = result.get("serverInfo", {})
-    if server_info.get("name") != "OpenClaw":
-        print(f"FAIL: serverInfo.name != 'OpenClaw': {server_info!r}", file=sys.stderr)
+    if server_info.get("name") != "Orgitration":
+        print(f"FAIL: serverInfo.name != 'Orgitration': {server_info!r}", file=sys.stderr)
         return 5
 
     if "tools" not in result.get("capabilities", {}):

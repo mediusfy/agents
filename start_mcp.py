@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 import uvicorn
 from starlette.middleware.cors import CORSMiddleware
 
-from openclaw.mcp_server import mcp
+from orchestration.mcp_server import mcp
 
 app = mcp.sse_app()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])

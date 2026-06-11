@@ -3,7 +3,7 @@
 The agent's file-reading tools are exposed to LLM-driven input and were
 previously unrestricted — an MCP caller could be prompt-injected into
 reading /etc/passwd or the project's .env. Post-fix, both tools refuse any
-path that escapes OPENCLAW_CODEBASE_ROOT (defaulting to CWD).
+path that escapes ORCHESTRATION_CODEBASE_ROOT (defaulting to CWD).
 """
 
 import os
@@ -11,17 +11,17 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from openclaw.agents.service_engineer import _resolve_sandboxed, list_directory, read_file
-from openclaw.exceptions import PathTraversalError
+from orchestration.agents.service_engineer import _resolve_sandboxed, list_directory, read_file
+from orchestration.exceptions import PathTraversalError
 
 
 @pytest.fixture
 def sandbox(tmp_path, monkeypatch):
-    """Point OPENCLAW_CODEBASE_ROOT at a tmp directory and populate it."""
+    """Point ORCHESTRATION_CODEBASE_ROOT at a tmp directory and populate it."""
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.go").write_text("package main\nfunc main() {}\n")
     (tmp_path / "README.md").write_text("# project\n")
-    monkeypatch.setenv("OPENCLAW_CODEBASE_ROOT", str(tmp_path))
+    monkeypatch.setenv("ORCHESTRATION_CODEBASE_ROOT", str(tmp_path))
     return tmp_path
 
 
@@ -96,7 +96,7 @@ def test_list_directory_refuses_traversal(sandbox):
 
 
 def test_sandbox_default_is_cwd_when_env_unset(tmp_path, monkeypatch):
-    monkeypatch.delenv("OPENCLAW_CODEBASE_ROOT", raising=False)
+    monkeypatch.delenv("ORCHESTRATION_CODEBASE_ROOT", raising=False)
     monkeypatch.chdir(tmp_path)
     (tmp_path / "x.txt").write_text("hi")
     # An in-CWD path resolves; an out-of-CWD path raises.

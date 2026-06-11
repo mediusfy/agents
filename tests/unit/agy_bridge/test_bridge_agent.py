@@ -2,13 +2,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from openclaw.agy_bridge.bridge_agent import BridgeAgent, Conversation
-from openclaw.exceptions import AgentNotFoundError
+from orchestration.agy_bridge.bridge_agent import BridgeAgent, Conversation
+from orchestration.exceptions import AgentNotFoundError
 
 
 @pytest.fixture
 def mock_registry():
-    with patch("openclaw.agy_bridge.bridge_agent.registry") as mock:
+    with patch("orchestration.agy_bridge.bridge_agent.registry") as mock:
         mock._agents = {"test_agent": (MagicMock(), [], MagicMock(), MagicMock())}
         mock.get.return_value = MagicMock()
         yield mock

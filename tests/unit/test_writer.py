@@ -1,8 +1,8 @@
 import pytest
 
-from openclaw.exceptions import PathTraversalError
-from openclaw.models.core import Artifact
-from openclaw.writer import ArtifactWriter
+from orchestration.exceptions import PathTraversalError
+from orchestration.models.core import Artifact
+from orchestration.writer import ArtifactWriter
 
 
 def test_writes_files(tmp_path):

@@ -22,4 +22,4 @@ EXPOSE 8080
 ENV DAGSTER_HOME=/opt/agents/.dagmem
 ENV LOGFIRE_SEND_TO_LOGFIRE=false
 
-CMD ["uvicorn", "openclaw.mcp_server:mcp.sse_app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "orchestration.mcp_server:mcp.sse_app", "--host", "0.0.0.0", "--port", "8080"]

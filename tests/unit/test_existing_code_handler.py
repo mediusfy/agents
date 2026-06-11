@@ -1,7 +1,7 @@
 """Tests for the existing code pipeline handler."""
 
-from openclaw.existing_code_handler import ExistingCodeResult, format_result_summary
-from openclaw.models.core import Artifact
+from orchestration.existing_code_handler import ExistingCodeResult, format_result_summary
+from orchestration.models.core import Artifact
 
 
 def test_result_defaults():

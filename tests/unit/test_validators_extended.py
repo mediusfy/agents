@@ -1,5 +1,5 @@
-from openclaw.models.core import Artifact
-from openclaw.validators import CodeValidator
+from orchestration.models.core import Artifact
+from orchestration.validators import CodeValidator
 
 
 def make_artifact(files: dict) -> Artifact:

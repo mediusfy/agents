@@ -2,8 +2,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from openclaw.agy_bridge.server import _handle_command
-from openclaw.exceptions import AgentNotFoundError
+from orchestration.agy_bridge.server import _handle_command
+from orchestration.exceptions import AgentNotFoundError
 
 
 @pytest.mark.asyncio
@@ -18,8 +18,8 @@ async def test_ping_command():
 
 
 @pytest.mark.asyncio
-@patch("openclaw.agy_bridge.server.registry")
-@patch("openclaw.agy_bridge.server.BridgeAgent")
+@patch("orchestration.agy_bridge.server.registry")
+@patch("orchestration.agy_bridge.server.BridgeAgent")
 async def test_list_agents_command(mock_bridge_agent, mock_registry):
     """Tests the 'list-agents' command handler."""
     # Arrange
@@ -46,7 +46,7 @@ async def test_list_agents_command(mock_bridge_agent, mock_registry):
 @pytest.mark.asyncio
 async def test_get_agent_command_not_found():
     """Tests the 'get-agent' command for a non-existent agent."""
-    with patch("openclaw.agy_bridge.server.BridgeAgent.from_registry", side_effect=AgentNotFoundError):
+    with patch("orchestration.agy_bridge.server.BridgeAgent.from_registry", side_effect=AgentNotFoundError):
         cmd = {"command": "get-agent", "agent_name": "unknown"}
         response = await _handle_command(cmd)
         assert "error" in response
@@ -63,7 +63,7 @@ async def test_unknown_command():
 
 
 @pytest.mark.asyncio
-@patch("openclaw.agy_bridge.server.sync_agent_definitions", new_callable=AsyncMock)
+@patch("orchestration.agy_bridge.server.sync_agent_definitions", new_callable=AsyncMock)
 async def test_sync_definitions_command(mock_sync):
     """Tests the 'sync-definitions' command."""
     # Arrange

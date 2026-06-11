@@ -1,10 +1,10 @@
-# OpenClaw API Reference
+# Orgitration API Reference
 
 > **Version:** 0.1.0  
 > **Last Updated:** 2025  
 > **Service:** Multi-Agent SDLC Ecosystem
 
-OpenClaw exposes capabilities through two primary API surfaces:
+Orgitration exposes capabilities through two primary API surfaces:
 
 1. **MCP (Model Context Protocol) Server** — exposes agents and orchestration tools as callable tools for AI hosts (Claude Code, Antigravity, etc.)
 2. **CLI Pipeline** — command-line entry point for running the full SDLC pipeline
@@ -185,8 +185,8 @@ Invokes the **Price Analyst Agent** to analyze and compare pricing.
 
 ### Orchestration Tools
 
-#### `delegate_to_openclaw_agent(capability: str, context: str, task: str, run_on_gks: bool = False) -> str`
-Delegate a heavy-lifting engineering task to an OpenClaw autonomous agent.
+#### `delegate_to_orchestration_agent(capability: str, context: str, task: str, run_on_gks: bool = False) -> str`
+Delegate a heavy-lifting engineering task to an Orgitration autonomous agent.
 
 **Parameters:**
 | Parameter | Type | Description |
@@ -194,7 +194,7 @@ Delegate a heavy-lifting engineering task to an OpenClaw autonomous agent.
 | `capability` | `str` | Agent capability string (e.g., `backend`, `frontend`, `security`, `review`) |
 | `context` | `str` | Context from the IDE/caller |
 | `task` | `str` | The specific task for the target agent |
-| `run_on_gks` | `bool` | If `True`, offload to the remote GKS OpenClaw instance |
+| `run_on_gks` | `bool` | If `True`, offload to the remote GKS Orgitration instance |
 
 **Returns:** Agent's response string.
 
@@ -204,13 +204,13 @@ Delegate a heavy-lifting engineering task to an OpenClaw autonomous agent.
 3. If `run_on_gks`, the task is forwarded to the remote gateway
 4. Otherwise, `instrumented_query()` runs the agent with Logfire telemetry
 
-#### `list_openclaw_capabilities() -> str`
+#### `list_orchestration_capabilities() -> str`
 List all currently registered agent capabilities with their primary owning agent.
 
 **Returns:** Formatted string listing all capabilities.
 
-#### `run_openclaw_pipeline(project_name: str, requirement: str) -> str`
-Run the entire multi-agent OpenClaw pipeline end-to-end.
+#### `run_orchestration_pipeline(project_name: str, requirement: str) -> str`
+Run the entire multi-agent Orgitration pipeline end-to-end.
 
 **Parameters:**
 | Parameter | Type | Description |
@@ -234,7 +234,7 @@ Check the status of a background pipeline run.
 **Parameters:**
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `run_id` | `str` | The run ID returned by `run_openclaw_pipeline` |
+| `run_id` | `str` | The run ID returned by `run_orchestration_pipeline` |
 
 **Returns:** Status string (pending/running/completed/failed) with optional result and error.
 
@@ -276,7 +276,7 @@ service_engineer → [parallel: quality_gate + code_reviewer] → auto-remediati
 **Returns:** Formatted summary including changed files, test files, quality gate score, review status, and any errors.
 
 #### `scaffold_and_build_service(service_name: str, bounded_context: str, requirement: str = "") -> str`
-Scaffold and build a new backend service from scratch using the full OpenClaw pipeline.
+Scaffold and build a new backend service from scratch using the full Orgitration pipeline.
 
 **Parameters:**
 | Parameter | Type | Description |
@@ -767,7 +767,7 @@ The `resolve_model()` method maps agent model names to fully-qualified pydantic_
 ### Exception Hierarchy
 
 ```
-OpenClawError (base)
+OrgitrationError (base)
 ├── ConfigurationError        — Invalid/missing configuration
 ├── AgentNotFoundError        — Agent not registered
 ├── AgentExecutionError       — LLM call or tool execution failed
