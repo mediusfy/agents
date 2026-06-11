@@ -115,14 +115,8 @@ func buildCompositionRoot(t *testing.T, databaseURL string) *compositionRoot {
 	// ----------------------------------------------------------------
 	// 4. Database migrations (schema + entity tables)
 	// ----------------------------------------------------------------
-	if err := schemaRepo.Migrate(ctx); err != nil {
-		t.Fatalf("step 4: schema migration failed: %v", err)
-	}
-	if err := entityRepo.MigrateEntities(ctx); err != nil {
-		t.Fatalf("step 4: entity migration failed: %v", err)
-	}
-	if err := requestIdempotencyStore.MigrateRequestIdempotency(ctx); err != nil {
-		t.Fatalf("step 4: request idempotency migration failed: %v", err)
+	if err := postgres.RunMigrations(ctx, pool); err != nil {
+		t.Fatalf("step 4: database migrations failed: %v", err)
 	}
 	record(&order, &mu, "4_migrations")
 

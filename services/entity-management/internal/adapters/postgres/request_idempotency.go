@@ -69,22 +69,6 @@ func (s *RequestIdempotencyStore) CleanExpired(ctx context.Context) (int, error)
 	return int(tag.RowsAffected()), nil
 }
 
-func (s *RequestIdempotencyStore) MigrateRequestIdempotency(ctx context.Context) error {
-	ddl := `
-	CREATE TABLE IF NOT EXISTS request_idempotency_keys (
-		request_key TEXT PRIMARY KEY,
-		entity_id   TEXT NOT NULL,
-		created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-		expires_at  TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '7 days'
-	);
-	CREATE INDEX IF NOT EXISTS idx_request_idempotency_expires
-		ON request_idempotency_keys(expires_at);
-	`
-	_, err := s.pool.Exec(ctx, ddl)
-	if err != nil {
-		return fmt.Errorf("migrate request idempotency keys: %w", err)
-	}
-	return nil
-}
+
 
 var _ domain.RequestIdempotencyStore = (*RequestIdempotencyStore)(nil)

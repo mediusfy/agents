@@ -3,6 +3,8 @@ package domain
 import (
 	"context"
 	"time"
+
+	"shared/residency"
 )
 
 // Error is a typed sentinel error for domain-level failures.
@@ -107,23 +109,16 @@ func (s EntityStatus) CanTransitionTo(target EntityStatus) bool {
 }
 
 // DataResidencyZone represents the geographic boundary for entity data storage.
-type DataResidencyZone string
+type DataResidencyZone = residency.DataResidencyZone
 
 const (
-	ZoneUSEast1 DataResidencyZone = "us-east-1"
-	ZoneEUWest1 DataResidencyZone = "eu-west-1"
+	ZoneUSEast1 = residency.ZoneUSEast1
+	ZoneEUWest1 = residency.ZoneEUWest1
 )
 
 // ResolveZone maps a cloud region to its data residency zone.
 func ResolveZone(region string) DataResidencyZone {
-	switch region {
-	case "us-east-1", "us-west-2":
-		return ZoneUSEast1
-	case "eu-west-1", "eu-central-1":
-		return ZoneEUWest1
-	default:
-		return DataResidencyZone(region)
-	}
+	return residency.ResolveZone(region)
 }
 
 // ImmutableFields lists entity fields that cannot be changed after creation.

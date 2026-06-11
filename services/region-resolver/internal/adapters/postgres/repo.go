@@ -36,30 +36,7 @@ func NewEntityRepository(pool *pgxpool.Pool, logger *slog.Logger) *EntityReposit
 	}
 }
 
-// MigrateEntities creates the entities table if it does not exist.
-func (r *EntityRepository) MigrateEntities(ctx context.Context) error {
-	query := `
-	CREATE TABLE IF NOT EXISTS entities (
-		id                TEXT PRIMARY KEY,
-		name              TEXT NOT NULL,
-		region            TEXT NOT NULL,
-		data_residency_zone TEXT NOT NULL,
-		status            TEXT NOT NULL DEFAULT 'active',
-		version           INTEGER NOT NULL DEFAULT 1,
-		labels            JSONB DEFAULT '{}',
-		created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-		updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
-	);
 
-	CREATE INDEX IF NOT EXISTS idx_entities_region ON entities(region);
-	CREATE INDEX IF NOT EXISTS idx_entities_zone ON entities(data_residency_zone);
-	`
-	_, err := r.pool.Exec(ctx, query)
-	if err != nil {
-		return fmt.Errorf("migrate entities table: %w", err)
-	}
-	return nil
-}
 
 // Save persists a new entity. Returns an error if the ID already exists.
 func (r *EntityRepository) Save(ctx context.Context, entity *domain.Entity) error {
