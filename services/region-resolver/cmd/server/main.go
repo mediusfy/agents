@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -13,7 +12,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
@@ -24,11 +22,7 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	"github.com/prodanlabs/region-resolver/internal/adapters/gencode"
-	"github.com/prodanlabs/region-resolver/internal/adapters/handlers"
-	natsbus "github.com/prodanlabs/region-resolver/internal/adapters/natsbus"
-	"github.com/prodanlabs/region-resolver/internal/adapters/postgres"
-	"github.com/prodanlabs/region-resolver/internal/domain"
-	"github.com/prodanlabs/region-resolver/internal/ports"
+	"github.com/prodanlabs/region-resolver/pkg"
 )
 
 const serviceName = "region-resolver"
@@ -58,52 +52,21 @@ func run(logger *slog.Logger) error {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	// --- Database ---
-	dbCtx, dbCancel := context.WithTimeout(ctx, 10*time.Second)
-	defer dbCancel()
-
-	pool, err := pgxpool.New(dbCtx, cfg.DatabaseURL)
+	// Initialize the application using the composition root
+	app, err := pkg.NewApp(ctx, func(c *pkg.AppConfig) {
+		c.DatabaseURL = cfg.DatabaseURL
+		c.NATSURL = cfg.NATSURL
+		c.Logger = logger
+	})
 	if err != nil {
-		return fmt.Errorf("pgxpool new: %w", err)
+		return fmt.Errorf("initialize app: %w", err)
 	}
-	defer pool.Close()
-
-	if err := pool.Ping(dbCtx); err != nil {
-		return fmt.Errorf("pgxpool ping: %w", err)
-	}
-	logger.InfoContext(ctx, "connected to postgres")
-
-	// --- Entity Repository ---
-	entityRepo := postgres.NewEntityRepository(pool, logger)
-	if err := entityRepo.MigrateEntities(ctx); err != nil {
-		return fmt.Errorf("migrate entities: %w", err)
-	}
-	logger.InfoContext(ctx, "database migrations applied")
-
-	// --- Event Bus (NATS or degraded noop fallback) ---
-	var bus ports.EventBus
-	natsBus, err := natsbus.NewNATSEventBus(cfg.NATSURL, logger)
-	if err != nil {
-		logger.WarnContext(ctx, "nats unavailable, using no-op event bus (degraded mode)",
-			"error", err)
-		bus = natsbus.NewNoopBus(logger)
-	} else {
-		bus = natsBus
-	}
-
-	eventPublisher := ports.NewEventPublisherAdapter(bus, serviceName)
-
-	// --- Domain Service ---
-	domainSvc := domain.NewService(entityRepo, eventPublisher)
-
-	// --- Handlers ---
-	httpHandler := handlers.NewHTTPHandler(domainSvc, logger)
-	grpcHandler := handlers.NewGRPCHandler(domainSvc)
+	defer app.Close()
 
 	// --- HTTP Mux ---
 	mux := http.NewServeMux()
-	httpHandler.RegisterRoutes(mux, func(_ context.Context) bool {
-		return pool.Ping(ctx) == nil
+	app.HTTPHandler.RegisterRoutes(mux, func(_ context.Context) bool {
+		return app.DB.Ping(ctx) == nil
 	})
 
 	httpSrv := &http.Server{
@@ -116,7 +79,7 @@ func run(logger *slog.Logger) error {
 
 	// --- gRPC Server ---
 	grpcSrv := grpc.NewServer()
-	gencode.RegisterEntityServiceServer(grpcSrv, grpcHandler)
+	gencode.RegisterEntityServiceServer(grpcSrv, app.GRPCHandler)
 	reflection.Register(grpcSrv)
 
 	grpcLis, err := net.Listen("tcp", fmt.Sprintf(":%s", cfg.GRPCPort))
@@ -159,11 +122,6 @@ func run(logger *slog.Logger) error {
 		// Shutdown HTTP server.
 		if err := httpSrv.Shutdown(shutdownCtx); err != nil {
 			logger.ErrorContext(context.Background(), "http server shutdown error", "error", err)
-		}
-
-		// Close event bus connection.
-		if err := bus.Close(); err != nil {
-			logger.ErrorContext(context.Background(), "event bus close error", "error", err)
 		}
 
 		return nil
@@ -235,5 +193,3 @@ func initTracer(cfg config) (func(), error) {
 	}, nil
 }
 
-// Silence unused import warning.
-var _ = json.Marshal

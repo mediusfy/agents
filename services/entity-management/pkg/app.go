@@ -58,17 +58,9 @@ func NewApp(ctx context.Context, cfg Config) (*App, error) {
 	outboxRepo := postgres.NewOutboxRepository(pool, logger)
 	requestIdempotencyStore := postgres.NewRequestIdempotencyStore(pool, logger)
 
-	if err := schemaRepo.Migrate(ctx); err != nil {
+	if err := postgres.RunMigrations(ctx, pool); err != nil {
 		pool.Close()
-		return nil, fmt.Errorf("db migrate schemas: %w", err)
-	}
-	if err := entityRepo.MigrateEntities(ctx); err != nil {
-		pool.Close()
-		return nil, fmt.Errorf("db migrate entities: %w", err)
-	}
-	if err := requestIdempotencyStore.MigrateRequestIdempotency(ctx); err != nil {
-		pool.Close()
-		return nil, fmt.Errorf("db migrate request idempotency: %w", err)
+		return nil, fmt.Errorf("db migrate: %w", err)
 	}
 
 	var bus ports.EventBus

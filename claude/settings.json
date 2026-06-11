@@ -1,0 +1,125 @@
+{
+  "env": {
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/curl -s -m 1 -X POST http://127.0.0.1:8766/refresh -H 'X-Source: checkpoints-app-refresh' > /dev/null 2>&1 || true"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/curl -s -m 1 -X POST http://127.0.0.1:8766/refresh -H 'X-Source: checkpoints-app-refresh' > /dev/null 2>&1 || true"
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "agent-sdk-dev@claude-plugins-official": true,
+    "agentforce-adlc@claude-plugins-official": false,
+    "airtable@claude-plugins-official": true,
+    "cloudflare@claude-plugins-official": true,
+    "github@claude-plugins-official": true,
+    "gopls-lsp@claude-plugins-official": true,
+    "claude-code-setup@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true,
+    "dataverse@claude-plugins-official": true
+  },
+  "theme": "auto",
+  "disabledMcpServers": [],
+  "mcpServers": {
+    "kubernetes": {
+      "args": [
+        "mcp-server-kubernetes"
+      ],
+      "command": "npx"
+    },
+    "logfire": {
+      "headers": {
+        "Authorization": "Bearer pylf_v1_eu_yfCGQ4ScDWSHrjdyGq6HmGx5z8p05tJVx4gyBXtnH6Hm"
+      },
+      "type": "http",
+      "url": "https://logfire-eu.pydantic.dev/mcp"
+    },
+    "openclaw-agents": {
+      "type": "stdio",
+      "command": "/bin/bash",
+      "args": [
+        "/Users/jocham/programming/agents/mcp_run.sh"
+      ],
+      "env": {}
+    },
+    "redis-mcp-server": {
+      "args": [
+        "--from",
+        "redis-mcp-server@latest",
+        "redis-mcp-server",
+        "--url",
+        "redis://default:aGlWcS6hN406SKy2OS7UtGLjlHwPWtm2@redis-11035.c57.us-east-1-4.ec2.cloud.redislabs.com:11035"
+      ],
+      "command": "uvx",
+      "type": "stdio"
+    },
+    "filesystem": {
+      "command": "uvx",
+      "args": [
+        "@modelcontextprotocol/server-filesystem",
+        "/resume-parser"
+      ],
+      "description": "Safe, scoped file operations"
+    },
+    "chromadb": {
+      "command": "uvx",
+      "args": [
+        "mcp-server-chroma",
+        "--path",
+        "./data/vectors"
+      ],
+      "description": "Query resume embeddings for semantic search"
+    },
+    "sonarqube": {
+      "args": [
+        "run",
+        "--init",
+        "--pull=always",
+        "-i",
+        "--rm",
+        "-e",
+        "SONARQUBE_TOKEN",
+        "-e",
+        "SONARQUBE_ORG",
+        "mcp/sonarqube"
+      ],
+      "command": "docker",
+      "env": {
+        "SONARQUBE_ORG": "omni-rufkis-1",
+        "SONARQUBE_TOKEN": "38ba5a4b39630db8d0ce0e47bff1b59138ed1800"
+      }
+    }
+  },
+  "plugins": {
+    "logfire": {
+      "headers": {
+        "Authorization": "Bearer pylf_v2_eu_3fd048bb-3ff5-4d76-95eb-76d36927c22b_ljmRpZhZqfbRqlx3Y7xjlcqg7vwVHwcWh26591fjDz02"
+      },
+      "type": "http",
+      "url": "https://logfire-eu.pydantic.dev/mcp"
+    },
+    "openclaw": {
+      "source": "/Users/jocham/programming/agents"
+    }
+  },
+  "model": "haiku"
+}

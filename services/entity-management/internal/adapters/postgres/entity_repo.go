@@ -33,36 +33,7 @@ func NewEntityRepository(pool *pgxpool.Pool, logger *slog.Logger) *EntityReposit
 	}
 }
 
-func (r *EntityRepository) MigrateEntities(ctx context.Context) error {
-	ddl := `
-	CREATE TABLE IF NOT EXISTS entities (
-		id                 TEXT PRIMARY KEY,
-		schema_id          TEXT NOT NULL REFERENCES entity_schemas(id),
-		name               TEXT NOT NULL,
-		type               TEXT NOT NULL DEFAULT '',
-		region             TEXT NOT NULL DEFAULT '',
-		data_residency_zone TEXT NOT NULL DEFAULT '',
-		status             TEXT NOT NULL DEFAULT 'active',
-		version            INTEGER NOT NULL DEFAULT 1,
-		attributes         JSONB NOT NULL DEFAULT '{}'::jsonb,
-		metadata           JSONB NOT NULL DEFAULT '{}'::jsonb,
-		created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-		updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-		deleted_at         TIMESTAMPTZ
-	);
-	CREATE INDEX IF NOT EXISTS idx_entities_schema_id ON entities(schema_id);
-	CREATE INDEX IF NOT EXISTS idx_entities_status ON entities(status);
-	CREATE INDEX IF NOT EXISTS idx_entities_region ON entities(region);
-	CREATE INDEX IF NOT EXISTS idx_entities_deleted_at ON entities(deleted_at);
-	CREATE INDEX IF NOT EXISTS idx_entities_schema_created_id
-		ON entities(schema_id, created_at DESC, id DESC);
-	`
-	_, err := r.pool.Exec(ctx, ddl)
-	if err != nil {
-		return fmt.Errorf("migrate entities: %w", err)
-	}
-	return nil
-}
+
 
 func (r *EntityRepository) Save(ctx context.Context, entity *domain.Entity) error {
 	ctx, span := r.tracer.Start(ctx, "postgres.EntityRepository.Save",
