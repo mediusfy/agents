@@ -344,7 +344,6 @@ class VectorDBManager:
 vector_db = VectorDBManager()
 
 
-
 # ── Helpers ────────────────────────────────────────────────────────
 
 

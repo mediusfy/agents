@@ -1,7 +1,6 @@
 """Lightweight stub for vector_db when heavy ML deps (sentence-transformers, asyncpg) aren't installed."""
 
 import logging
-from typing import Any
 
 logger = logging.getLogger(__name__)
 

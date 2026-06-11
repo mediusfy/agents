@@ -11,10 +11,12 @@ logger = logging.getLogger(__name__)
 
 PROVIDER_BASE_URLS: dict[str, str] = {
     "deepseek": "https://api.deepseek.com/v1",
+    "openai": "https://api.openai.com/v1",
 }
 
 PROVIDER_KEY_VARS: dict[str, str] = {
     "deepseek": "DEEPSEEK_API_KEY",
+    "openai": "OPENAI_API_KEY",
 }
 
 
@@ -24,6 +26,7 @@ def _get_api_key(provider: str) -> str | None:
 
     key_map: dict[str, str | None] = {
         "deepseek": settings.deepseek_api_key,
+        "openai": settings.openai_api_key,
     }
     return key_map.get(provider)
 
@@ -43,23 +46,32 @@ def create_model(model_spec: str):
     provider, _, model_name = model_spec.partition(":")
     provider = provider.lower()
 
-    base_url = PROVIDER_BASE_URLS.get(provider)
-    if not base_url:
-        logger.warning(
-            "Unknown provider prefix '%s' in model spec '%s', using native inference",
-            provider,
-            model_spec,
-        )
-        return model_spec
+    from openclaw.settings import settings
+    import os
 
-    api_key = _get_api_key(provider)
-    if not api_key:
-        logger.warning(
-            "No API key found for provider '%s' (set %s in .env), falling back to native inference",
-            provider,
-            PROVIDER_KEY_VARS.get(provider, f"{provider.upper()}_API_KEY"),
-        )
-        return model_spec
+    if provider == "openai" and settings.model_provider == "litellm":
+        env = os.environ.get("LITELLM_ENV", "local").lower()
+        base_url = os.environ.get("LITELLM_CLOUD_URL", "https://litellm-proxy.run.app") if env == "cloud" else "http://localhost:4000"
+        base_url = f"{base_url}/v1"
+        api_key = os.environ.get("LITELLM_VIRTUAL_KEY") or os.environ.get("LITELLM_MASTER_KEY") or "sk-MPQ3A_kKYzNrhTpL6tYUVg"
+    else:
+        base_url = PROVIDER_BASE_URLS.get(provider)
+        if not base_url:
+            logger.warning(
+                "Unknown provider prefix '%s' in model spec '%s', using native inference",
+                provider,
+                model_spec,
+            )
+            return model_spec
+
+        api_key = _get_api_key(provider)
+        if not api_key:
+            logger.warning(
+                "No API key found for provider '%s' (set %s in .env), falling back to native inference",
+                provider,
+                PROVIDER_KEY_VARS.get(provider, f"{provider.upper()}_API_KEY"),
+            )
+            return model_spec
 
     from pydantic_ai.models.openai import OpenAIChatModel
 
