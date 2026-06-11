@@ -1,8 +1,6 @@
 import asyncio
 import contextlib
-import importlib
 import logging
-import pkgutil
 import time
 from collections.abc import Callable
 from typing import Any
@@ -113,13 +111,6 @@ class AgentRegistry:
     def items(self):
         return self._agents.items()
 
-    def autodiscover(self):
-        import openclaw.agents
-
-        package = openclaw.agents
-        prefix = package.__name__ + "."
-        for _importer, modname, _ispkg in pkgutil.iter_modules(package.__path__, prefix):
-            importlib.import_module(modname)
 
     def _resolve_owner(self, capability: str, owner: str | None) -> str:
         """Pick the agent that should serve a capability call.

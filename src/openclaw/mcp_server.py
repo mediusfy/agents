@@ -478,18 +478,16 @@ async def scaffold_and_build_service(service_name: str, bounded_context: str, re
 
 
 @mcp.tool()
-def submit_async_task(task_type: str, payload: str, callback_tool: str = "") -> str:
-    """
-    Submit a heavy task for asynchronous execution via the internal event broker.
+async def submit_async_task(
+    task_type: str,
+    payload: str,
+    callback_tool: str | None = None,
+) -> str:
+    """Submit a long-running task to the background queue.
 
-    For long-running work (builds, test suites, deployments) that would timeout
-    under standard MCP request/response, submit here and poll for completion
-    via check_task_status.
-
-    Args:
-        task_type: One of "build", "test_suite", "deploy", "pipeline"
-        payload: JSON payload with task parameters
-        callback_tool: Optional tool name to call on completion
+    task_type: One of "build", "test_suite", "deploy", "pipeline"
+    payload: JSON payload with task parameters
+    callback_tool: Optional tool name to call on completion
 
     Returns:
         task_id — use with check_task_status to poll for results.
@@ -500,7 +498,7 @@ def submit_async_task(task_type: str, payload: str, callback_tool: str = "") -> 
         payload_length=len(payload),
         _level="info",
     ):
-        task_id = event_broker.submit(
+        task_id = await event_broker.submit(
             Event(
                 kind=EventKind.TASK_SUBMITTED,
                 data={
@@ -514,13 +512,14 @@ def submit_async_task(task_type: str, payload: str, callback_tool: str = "") -> 
 
 
 @mcp.tool()
-def check_task_status(task_id: str) -> str:
+async def check_task_status(task_id: str) -> str:
     """Check the status of an async task submitted via submit_async_task."""
     with logfire.span("mcp.check_task_status", task_id=task_id, _level="info"):
-        status = event_broker.get_status(task_id)
+        status = await event_broker.get_status(task_id)
         if not status:
             return f"Task '{task_id}' not found."
         return f"Task: {task_id}\nStatus: {status.get('status', 'unknown')}\nResult: {status.get('result', 'pending')}"
+
 
 
 @mcp.tool()

@@ -125,7 +125,7 @@ class OpenClawPipeline:
         self.artifact_writer.write_artifacts(self.state.artifacts)
 
         # Run merge stage: apply artifacts into the real project tree
-        if stage == "all" and getattr(self.state, "approved", False):
+        if stage == "all" and self.state.approved:
             from openclaw.stages.merge_stage import MergeStage
 
             merge = MergeStage()

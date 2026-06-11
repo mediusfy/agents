@@ -73,7 +73,8 @@ class PersistentEventBroker:
             """)
         self._tables_ensured = True
 
-    async def _async_submit(self, event: Event) -> str:
+    async def submit(self, event: Event) -> str:
+        """Submit a task event and return a task ID for polling."""
         await self._ensure_tables()
         task_id = f"task_{uuid.uuid4().hex[:12]}"
         pool = await _get_pool()
@@ -94,11 +95,8 @@ class PersistentEventBroker:
 
         return task_id
 
-    def submit(self, event: Event) -> str:
-        """Submit a task event and return a task ID for polling."""
-        return _run_sync(self._async_submit(event))
-
-    async def _async_complete(self, task_id: str, result: str) -> None:
+    async def complete(self, task_id: str, result: str) -> None:
+        """Mark a task as completed with a result."""
         await self._ensure_tables()
         pool = await _get_pool()
         async with pool.acquire() as conn:
@@ -138,11 +136,8 @@ class PersistentEventBroker:
         with logfire.span("event_broker.complete", task_id=task_id, _level="info"):
             logger.info("Task %s completed (stored in vector DB)", task_id)
 
-    def complete(self, task_id: str, result: str) -> None:
-        """Mark a task as completed with a result."""
-        _run_sync(self._async_complete(task_id, result))
-
-    async def _async_fail(self, task_id: str, error: str) -> None:
+    async def fail(self, task_id: str, error: str) -> None:
+        """Mark a task as failed with an error message."""
         await self._ensure_tables()
         pool = await _get_pool()
         async with pool.acquire() as conn:
@@ -168,11 +163,8 @@ class PersistentEventBroker:
         with logfire.span("event_broker.fail", task_id=task_id, _level="warn"):
             logger.warning("Task %s failed: %s", task_id, error)
 
-    def fail(self, task_id: str, error: str) -> None:
-        """Mark a task as failed with an error message."""
-        _run_sync(self._async_fail(task_id, error))
-
-    async def _async_get_status(self, task_id: str) -> dict[str, Any] | None:
+    async def get_status(self, task_id: str) -> dict[str, Any] | None:
+        """Get the current status of a task."""
         await self._ensure_tables()
         pool = await _get_pool()
         async with pool.acquire() as conn:
@@ -187,15 +179,11 @@ class PersistentEventBroker:
                 "elapsed_seconds": round(time.time() - row["created_at"], 1),
             }
 
-    def get_status(self, task_id: str) -> dict[str, Any] | None:
-        """Get the current status of a task."""
-        return _run_sync(self._async_get_status(task_id))
-
     async def wait_for(self, task_id: str, timeout_seconds: int = 300) -> dict[str, Any] | None:
         """Wait asynchronously for a task to complete via polling."""
         start_time = time.time()
         while time.time() - start_time < timeout_seconds:
-            status = await self._async_get_status(task_id)
+            status = await self.get_status(task_id)
             if not status:
                 return None
             if status["status"] in ("completed", "failed"):
@@ -220,18 +208,16 @@ class PersistentEventBroker:
             "elapsed_seconds": timeout_seconds,
         }
 
-    async def _async_get_pending_tasks(self) -> list[dict[str, Any]]:
+    async def get_pending_tasks(self) -> list[dict[str, Any]]:
+        """Get all pending tasks — for worker agents to discover work."""
         await self._ensure_tables()
         pool = await _get_pool()
         async with pool.acquire() as conn:
             rows = await conn.fetch("SELECT id, status, created_at FROM broker_tasks WHERE status = 'pending'")
             return [{"id": r["id"], "status": r["status"], "created_at": r["created_at"]} for r in rows]
 
-    def get_pending_tasks(self) -> list[dict[str, Any]]:
-        """Get all pending tasks — for worker agents to discover work."""
-        return _run_sync(self._async_get_pending_tasks())
-
-    async def _async_get_events(self, since_id: str | None = None) -> list[Event]:
+    async def get_events(self, since_id: str | None = None) -> list[Event]:
+        """Get all events since a given event ID."""
         await self._ensure_tables()
         pool = await _get_pool()
         async with pool.acquire() as conn:
@@ -256,22 +242,6 @@ class PersistentEventBroker:
                 )
                 for r in rows
             ]
-
-    def get_events(self, since_id: str | None = None) -> list[Event]:
-        """Get all events since a given event ID."""
-        return _run_sync(self._async_get_events(since_id))
-
-
-def _run_sync(coro):
-    """Run a coroutine synchronously, handling running event loops."""
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            future = asyncio.run_coroutine_threadsafe(coro, loop)
-            return future.result(timeout=60)
-        return loop.run_until_complete(coro)
-    except RuntimeError:
-        return asyncio.run(coro)
 
 
 # Singleton

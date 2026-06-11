@@ -22,16 +22,22 @@ def register_all_agents() -> None:
     """Register all agents (pipeline + travel/finance) on the unified registry.
 
     This is the single registration entry point for the entire ecosystem.
-    Safe to call repeatedly — subsequent calls are no-ops. This matters for
-    the MCP tools `delegate_to_openclaw_agent` and `modify_existing_code`,
-    which both re-invoke this on every call.
+    Safe to call repeatedly — subsequent calls are no-ops.
     """
     global _registered
     if _registered and registry.is_registered(_KNOWN_AGENT):
         return
     # Either we never registered, or a test cleared the registry — reset.
     _registered = False
-    # ── SDLC Pipeline Agents ──────────────────────────────────────────────
+
+    _register_sdlc_agents()
+    _register_utility_agents()
+
+    _registered = True
+
+
+def _register_sdlc_agents() -> None:
+    """Register all technical SDLC pipeline agents."""
     from openclaw.agents.ba import ba_agent
     from openclaw.agents.backend import backend_agent
     from openclaw.agents.cto import cto_agent
@@ -69,7 +75,9 @@ def register_all_agents() -> None:
     )
     registry.register("planner", planner_agent, ["plan", "planning"])
 
-    # ── Travel & Finance Agents (now all under non_technical/) ───────────
+
+def _register_utility_agents() -> None:
+    """Register utility and travel/finance agents (non-technical)."""
     from openclaw.agents.non_technical.accountant import AccountantDeps, accountant_agent
     from openclaw.agents.non_technical.asymmetric_reviewer import (
         AsymmetricReviewerDeps,
@@ -113,4 +121,3 @@ def register_all_agents() -> None:
         lambda: PriceAnalystDeps(),
     )
 
-    _registered = True

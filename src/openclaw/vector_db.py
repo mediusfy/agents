@@ -168,27 +168,30 @@ class VectorDBManager:
         metadatas: list[dict],
         ids: list[str],
     ):
-        _require_vector_deps()
-        await _ensure_table(collection_name)
-        pool = await _get_pool()
-        async with pool.acquire() as conn:
-            for doc_text, meta, doc_id in zip(documents, metadatas, ids, strict=True):
-                embedding = _to_embedding(doc_text)
-                embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
-                await conn.execute(
-                    f"""
-                    INSERT INTO v_{collection_name} (id, metadata, embedding, content)
-                    VALUES ($1, $2::jsonb, $3::vector, $4)
-                    ON CONFLICT (id) DO UPDATE SET
-                        metadata = EXCLUDED.metadata,
-                        embedding = EXCLUDED.embedding,
-                        content   = EXCLUDED.content
-                    """,
-                    doc_id,
-                    _serialize_meta(meta),
-                    embedding_str,
-                    doc_text,
-                )
+        try:
+            _require_vector_deps()
+            await _ensure_table(collection_name)
+            pool = await _get_pool()
+            async with pool.acquire() as conn:
+                for doc_text, meta, doc_id in zip(documents, metadatas, ids, strict=True):
+                    embedding = _to_embedding(doc_text)
+                    embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
+                    await conn.execute(
+                        f"""
+                        INSERT INTO v_{collection_name} (id, metadata, embedding, content)
+                        VALUES ($1, $2::jsonb, $3::vector, $4)
+                        ON CONFLICT (id) DO UPDATE SET
+                            metadata = EXCLUDED.metadata,
+                            embedding = EXCLUDED.embedding,
+                            content   = EXCLUDED.content
+                        """,
+                        doc_id,
+                        _serialize_meta(meta),
+                        embedding_str,
+                        doc_text,
+                    )
+        except OpenclawDependencyError as exc:
+            logger.warning("Vector DB add_documents called but vector dependencies are not installed: %s", exc)
 
     def add_documents(
         self,
@@ -215,23 +218,28 @@ class VectorDBManager:
         query: str,
         n_results: int = 3,
     ) -> list[str]:
-        _require_vector_deps()
-        await _ensure_table(collection_name)
-        embedding = _to_embedding(query)
-        embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
-        pool = await _get_pool()
-        async with pool.acquire() as conn:
-            rows = await conn.fetch(
-                f"""
-                SELECT content
-                FROM v_{collection_name}
-                ORDER BY embedding <=> $1::vector
-                LIMIT $2
-                """,
-                embedding_str,
-                n_results,
-            )
-            return [row["content"] for row in rows]
+        try:
+            _require_vector_deps()
+            await _ensure_table(collection_name)
+            embedding = _to_embedding(query)
+            embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
+            pool = await _get_pool()
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(
+                    f"""
+                    SELECT content
+                    FROM v_{collection_name}
+                    ORDER BY embedding <=> $1::vector
+                    LIMIT $2
+                    """,
+                    embedding_str,
+                    n_results,
+                )
+                return [row["content"] for row in rows]
+        except OpenclawDependencyError as exc:
+            logger.warning("Vector DB search called but vector dependencies are not installed: %s", exc)
+            return ["Vector DB not available — install heavy dependencies (sentence-transformers, asyncpg, pgvector)"]
+
 
     def search(self, collection_name: str, query: str, n_results: int = 3) -> list[str]:
         """Synchronous convenience wrapper (avoids event-loop deadlock)."""
@@ -334,6 +342,7 @@ class VectorDBManager:
 # ── Singleton ──────────────────────────────────────────────────────
 
 vector_db = VectorDBManager()
+
 
 
 # ── Helpers ────────────────────────────────────────────────────────
