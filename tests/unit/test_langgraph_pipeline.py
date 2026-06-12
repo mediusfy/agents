@@ -1,5 +1,6 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from orchestration.models.core import PipelineState
 from orchestration.pipeline.config import PipelineConfig
@@ -10,6 +11,13 @@ def mock_provider():
     p = AsyncMock()
     p.run_agent = AsyncMock(return_value=MagicMock(data=MagicMock()))
     return p
+
+
+@pytest.fixture(autouse=True)
+def register_agents():
+    from orchestration.agents.registration import register_all_agents
+
+    register_all_agents()
 
 
 @pytest.fixture
@@ -87,7 +95,11 @@ class TestLangGraphRouting:
         from orchestration.models.core import UserStory
         from orchestration.pipeline.langgraph.routing import route_after_ba
 
-        s = PipelineState(run_id="r1", stage="ba", user_stories=[UserStory(id="US-1", title="Test", gherkin="Given...")])
+        s = PipelineState(
+            run_id="r1",
+            stage="ba",
+            user_stories=[UserStory(id="US-1", title="Test", gherkin="Given...")],
+        )
         assert route_after_ba(s) == "advisory"
 
     def test_route_after_ba_with_errors(self):
@@ -115,11 +127,12 @@ class TestLangGraphRouting:
         assert route_after_advisory(s) == "end"
 
     def test_route_after_implementation_test_failure(self):
-        from orchestration.pipeline.langgraph.routing import route_after_implementation
         from orchestration.models.core import FailureReport
+        from orchestration.pipeline.langgraph.routing import route_after_implementation
 
         s = PipelineState(
-            run_id="r1", stage="implementation",
+            run_id="r1",
+            stage="implementation",
             failure_report=FailureReport(source="test_suite", error_type="test_failure", trace="tests failed"),
         )
         assert route_after_implementation(s) == "retry_implementation"
@@ -164,6 +177,7 @@ class TestLangGraphGraphBuilder:
 
     def test_full_graph_with_checkpointer(self, config, mock_provider):
         from langgraph.checkpoint.memory import MemorySaver
+
         from orchestration.pipeline.langgraph.graphs import build_full_graph
 
         checkpointer = MemorySaver()

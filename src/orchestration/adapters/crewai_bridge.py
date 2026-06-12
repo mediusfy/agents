@@ -34,7 +34,7 @@ def _extract_backstory(agent: PydanticAgent) -> str:
 
 def _extract_tool_defs(agent: PydanticAgent) -> list[Any]:
     """Extract tool definitions from a pydantic_ai Agent for CrewAI tools."""
-    tools = []
+    tools: list[Any] = []
     toolset = getattr(agent, "_function_toolset", None)
     if toolset is None:
         return tools
@@ -65,12 +65,14 @@ def _pydantic_tool_to_crewai(pydantic_tool: Any) -> Any:
     if fn is None:
         return None
 
+    _callable = fn
+
     class _WrappedTool(BaseTool):
         name: str = name
         description: str = description
 
-        def _run(self, *args, **kwargs) -> Any:
-            return fn(*args, **kwargs)
+        def _run(self, *args: Any, **kwargs: Any) -> Any:
+            return _callable(*args, **kwargs)
 
     return _WrappedTool()
 

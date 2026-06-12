@@ -3,6 +3,7 @@ import logging
 from orchestration.adapters.agents import AgentProviderPort
 from orchestration.models.core import FailureReport, PipelineState
 from orchestration.pipeline.config import PipelineConfig
+from orchestration.pipeline.context import ContextFrame
 from orchestration.session_recorder import recorder
 from orchestration.stages.advisory_stage import AdvisoryStage
 from orchestration.stages.ba_stage import BAStage
@@ -42,7 +43,22 @@ async def ba_node(
             rec.set_output(new_state)
             if not new_state.user_stories:
                 logger.warning("BA returned no stories")
-            return {"user_stories": new_state.user_stories, "stage": "ba", "errors": new_state.errors}
+
+            notes = [f"Defined requirements for project: {config.project}"]
+            if new_state.user_stories:
+                notes.extend(f"Story: {us.title}" for us in new_state.user_stories)
+            cf = ContextFrame(
+                output=f"Generated {len(new_state.user_stories)} user stories.",
+                memory_notes=notes,
+            )
+            history = [*state.context_history, cf] if state.context_history else [cf]
+            return {
+                "user_stories": new_state.user_stories,
+                "stage": "ba",
+                "errors": new_state.errors,
+                "active_context": cf,
+                "context_history": history,
+            }
         except Exception as e:
             logger.error(f"BA stage failed: {e}")
             return _make_error(state, "ba", str(e))
@@ -64,10 +80,21 @@ async def advisory_node(
         try:
             new_state = await stage.run(state, config)
             rec.set_output(new_state)
+
+            notes = []
+            for k, v in new_state.advisory_results.items():
+                notes.append(f"Advisory ({k}): {v[:100]}...")
+            cf = ContextFrame(
+                output=f"CTO Advisory completed. Approved: {new_state.cto_approved}.",
+                memory_notes=notes,
+            )
+            history = [*state.context_history, cf] if state.context_history else [cf]
             return {
                 "advisory_results": new_state.advisory_results,
                 "cto_approved": new_state.cto_approved,
                 "stage": "advisory",
+                "active_context": cf,
+                "context_history": history,
             }
         except Exception as e:
             logger.error(f"Advisory stage failed: {e}")
@@ -90,12 +117,24 @@ async def implementation_node(
         try:
             new_state = await stage.run(state, config)
             rec.set_output(new_state)
+
+            files: list[str] = []
+            for art in new_state.artifacts or []:
+                if art.files:
+                    files.extend(art.files.keys())
+            cf = ContextFrame(
+                output=f"Implementation stage generated {len(new_state.artifacts or [])} artifacts.",
+                modified_files=files,
+            )
+            history = [*state.context_history, cf] if state.context_history else [cf]
             return {
                 "artifacts": new_state.artifacts,
                 "failure_report": new_state.failure_report,
                 "feedback": new_state.feedback,
                 "stage": "implementation",
                 "refinement_attempts": state.refinement_attempts + 1,
+                "active_context": cf,
+                "context_history": history,
             }
         except Exception as e:
             logger.error(f"Implementation stage failed: {e}")
@@ -118,11 +157,19 @@ async def quality_gate_node(
         try:
             new_state = await stage.run(state, config)
             rec.set_output(new_state)
+
+            cf = ContextFrame(
+                output=f"Quality Gate validation complete. Approved: {new_state.approved}.",
+                memory_notes=[f"Feedback: {new_state.feedback}"] if new_state.feedback else [],
+            )
+            history = [*state.context_history, cf] if state.context_history else [cf]
             return {
                 "approved": new_state.approved,
                 "failure_report": new_state.failure_report,
                 "feedback": new_state.feedback,
                 "stage": "quality_gate",
+                "active_context": cf,
+                "context_history": history,
             }
         except Exception as e:
             logger.error(f"Quality gate failed: {e}")
@@ -143,7 +190,17 @@ async def merge_node(
         try:
             new_state = await stage.run(state, config)
             rec.set_output(new_state)
-            return {"stage": "merge", "approved": new_state.approved}
+
+            cf = ContextFrame(
+                output=f"Merge stage complete. Approved: {new_state.approved}.",
+            )
+            history = [*state.context_history, cf] if state.context_history else [cf]
+            return {
+                "stage": "merge",
+                "approved": new_state.approved,
+                "active_context": cf,
+                "context_history": history,
+            }
         except Exception as e:
             logger.error(f"Merge failed: {e}")
             return _make_error(state, "merge", str(e))

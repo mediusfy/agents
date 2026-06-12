@@ -159,20 +159,20 @@ class PipelineConfig:
 
     def _validate_blueprint(self):
         if self.blueprint not in BLUEPRINTS:
-            raise ValueError(
-                f"Unknown blueprint '{self.blueprint}'. "
-                f"Available: {', '.join(BLUEPRINTS)}"
-            )
+            raise ValueError(f"Unknown blueprint '{self.blueprint}'. Available: {', '.join(BLUEPRINTS)}")
         bp = BLUEPRINTS[self.blueprint]
         expected = bp.get("framework", "legacy")
         if self.framework == "legacy" and expected != "legacy":
             return
         if self.framework != "legacy" and self.framework != expected:
             import logging
+
             logging.getLogger(__name__).warning(
-                "Blueprint '%s' expects framework '%s' but '%s' was requested. "
-                "Using '%s'.",
-                self.blueprint, expected, self.framework, self.framework,
+                "Blueprint '%s' expects framework '%s' but '%s' was requested. Using '%s'.",
+                self.blueprint,
+                expected,
+                self.framework,
+                self.framework,
             )
 
     def output_dir(self, base: Path = Path("./generated-app")) -> Path:

@@ -117,17 +117,21 @@ class ImplementationStage(StageRunner):
         async def _instrumented_test(sem, us, story_idx):
             label = f"{us.id}:test_eng"
             progress.start(label)
+            from orchestration.context_engine import retrieve_context
+
+            test_ctx = retrieve_context("test_eng", us.gherkin)
+            test_prompt = f"Write tests for gherkin: {us.gherkin}"
+            if test_ctx:
+                test_prompt += f"\n\nRetrieved Test Guidelines:\n{test_ctx}"
             async with recorder.record_span(
                 run_id=state.run_id,
                 agent_name="test_eng",
                 pipeline_stage="implementation",
-                prompt=f"Write tests for gherkin: {us.gherkin}",
+                prompt=test_prompt,
                 story_id=us.id,
                 story_gherkin=us.gherkin,
             ) as rec:
-                res = await self.provider.run_agent(
-                    sem, "test_eng", registry.get("test_eng"), f"Write tests for gherkin: {us.gherkin}"
-                )
+                res = await self.provider.run_agent(sem, "test_eng", registry.get("test_eng"), test_prompt)
                 rec.set_output(res)
                 res.output.metadata["user_story_id"] = us.id
                 res.output.metadata["story_index"] = story_idx
@@ -154,31 +158,37 @@ class ImplementationStage(StageRunner):
         # Collapsed from 4 sequential phases into 1. The backend agent already
         # self-validates with run_go_build, so splitting doesn't buy quality.
         async def run_backend(sem, us, repo_ctx, cto_adv, proj_state, story_idx):
+            from orchestration.context_engine import retrieve_context
+
+            backend_ctx = retrieve_context("backend", us.gherkin)
+            backend_ctx_str = f"\n\nRetrieved Backend Guidelines:\n{backend_ctx}" if backend_ctx else ""
+
             if is_retry:
                 prompt = (
                     f"{repo_ctx}\n\n"
                     f"CTO ADVICE:\n{cto_adv}\n\n"
                     f"FULL GHERKIN:\n{us.gherkin}\n\n"
-                    "PREVIOUS FAILURE DETECTED:\n"
+                    f"PREVIOUS FAILURE DETECTED:\n"
                     f"Source: {state.failure_report.source}\n"
                     f"Error Type: {state.failure_report.error_type}\n"
                     f"Trace/Feedback:\n{state.failure_report.trace}\n\n"
-                    "TASK: Analyze the failure telemetry and generate a hyper-specific patch to fix the issue. "
-                    "Only output the corrected files instead of rewriting the entire backend from scratch."
+                    f"TASK: Analyze the failure telemetry and generate a hyper-specific patch to fix "
+                    f"the issue. Only output corrected files instead of rewriting from scratch.{backend_ctx_str}"
                 )
             else:
                 prompt = (
                     f"{repo_ctx}\n\n"
                     f"CTO ADVICE:\n{cto_adv}\n\n"
                     f"FULL GHERKIN:\n{us.gherkin}\n\n"
-                    "TASK: Generate a complete Go backend for this user story using Hexagonal Architecture. "
-                    "Include ALL of the following in one pass:\n"
-                    "1. Domain structs and interfaces (domain/types.go)\n"
-                    "2. Postgres database adapters (adapters/postgres_repo.go)\n"
-                    "3. Pub/Sub event handlers and definitions (ports/events.go)\n"
-                    "4. Core business logic service wiring (domain/service.go)\n"
-                    "5. Entry point with HTTP/gRPC server (cmd/server/main.go)\n\n"
-                    "All files must compile together. Run `run_go_build` to self-validate before returning."
+                    f"TASK: Generate a complete Go backend for this user story using Hexagonal Architecture. "
+                    f"Include ALL of the following in one pass:\n"
+                    f"1. Domain structs and interfaces (domain/types.go)\n"
+                    f"2. Postgres database adapters (adapters/postgres_repo.go)\n"
+                    f"3. Pub/Sub event handlers and definitions (ports/events.go)\n"
+                    f"4. Core business logic service wiring (domain/service.go)\n"
+                    f"5. Entry point with HTTP/gRPC server (cmd/server/main.go)\n\n"
+                    f"All files must compile together. "
+                    f"Run `run_go_build` to self-validate before returning.{backend_ctx_str}"
                 )
             res = await run_tagged(sem, "backend", prompt, story_id=us.id, deps=proj_state)
             res.metadata["story_index"] = story_idx
@@ -192,20 +202,28 @@ class ImplementationStage(StageRunner):
             )
 
             if not is_retry:
+                from orchestration.context_engine import retrieve_context
+
+                fe_ctx = retrieve_context("frontend", us.gherkin)
+                fe_ctx_str = f"\n\nRetrieved Frontend Guidelines:\n{fe_ctx}" if fe_ctx else ""
+
                 fe_prompt = (
                     f"{repo_context}\n\n{markdown_ctx}\n\n"
-                    "CTO ADVICE:\n{cto_advice}\n\n"
+                    f"CTO ADVICE:\n{cto_advice}\n\n"
                     f"UX GUIDELINES:\n{ux_advice}\n\n"
                     f"FULL GHERKIN:\n{us.gherkin}\n\n"
-                    f"TASK:\nImplement frontend for story {us.id}: {us.title}"
+                    f"TASK:\nImplement frontend for story {us.id}: {us.title}{fe_ctx_str}"
                 )
                 per_story_tasks.append(("frontend", run_tagged(semaphore, "frontend", fe_prompt, story_id=us.id)))
+
+                db_ctx = retrieve_context("database", us.gherkin)
+                db_ctx_str = f"\n\nRetrieved Database Guidelines:\n{db_ctx}" if db_ctx else ""
 
                 db_prompt = (
                     f"FULL GHERKIN:\n{us.gherkin}\n\n"
                     "EVENTS:\n"
                     + "\n".join(f" - {e.name}: {e.description}" for e in (us.event_triggers or []))
-                    + f"\n\nTASK:\nGenerate database schema/migrations for story {us.id}: {us.title}"
+                    + f"\n\nTASK:\nGenerate database schema/migrations for story {us.id}: {us.title}{db_ctx_str}"
                 )
                 per_story_tasks.append(("database", run_tagged(semaphore, "database", db_prompt, story_id=us.id)))
 

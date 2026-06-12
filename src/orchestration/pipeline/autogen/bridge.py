@@ -10,7 +10,7 @@ from orchestration.session_recorder import recorder
 logger = logging.getLogger(__name__)
 
 
-_GROUP_MAP = {
+_GROUP_MAP: dict[str, Any] = {
     "SdlcGroupChat": SdlcGroupChat,
     "DesignGroupChat": DesignGroupChat,
     "DebugGroupChat": DebugGroupChat,
@@ -49,6 +49,8 @@ async def run_autogen_pipeline(
         prompt=task,
     ) as rec:
         try:
+            from orchestration.pipeline.context import ContextFrame
+
             logger.info("Starting %s...", group_class_name)
             _, manager = group_cls().build(task)
             from autogen import UserProxyAgent
@@ -61,6 +63,14 @@ async def run_autogen_pipeline(
             result = await asyncio.to_thread(user.initiate_chat, manager, message=task)
             rec.set_output({"group": group_class_name, "summary": str(result)[:500]})
             _apply_group_result(state, group_class_name, result)
+
+            summary = str(result.summary if hasattr(result, "summary") else result)[:200]
+            cf = ContextFrame(
+                output=f"AutoGen execution for {group_class_name} completed. Summary: {summary}...",
+            )
+            state.active_context = cf
+            state.context_history.append(cf)
+
             state.stage = label
         except Exception as e:
             logger.error("AutoGen pipeline failed: %s", e)

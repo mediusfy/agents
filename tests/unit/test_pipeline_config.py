@@ -10,7 +10,7 @@ class TestPipelineConfig:
         assert cfg.framework == "legacy"
 
     def test_known_blueprints_are_valid(self):
-        for name, bp in BLUEPRINTS.items():
+        for _name, bp in BLUEPRINTS.items():
             assert "description" in bp
             assert "framework" in bp
             assert bp["framework"] in ("legacy", "langgraph", "crewai", "autogen", "composite")

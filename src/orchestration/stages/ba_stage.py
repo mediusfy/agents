@@ -37,7 +37,13 @@ class BAStage(StageRunner):
         semaphore = asyncio.Semaphore(10)
         raw_requirements = config.requirement or "Build a standard service."
 
+        from orchestration.context_engine import retrieve_context
+
+        retrieved_ctx = retrieve_context("ba", raw_requirements)
+
         prompt = f"Process these requirements: {raw_requirements}"
+        if retrieved_ctx:
+            prompt += f"\n\nRetrieved Context/ADRs/Rules:\n{retrieved_ctx}"
         if md_context:
             prompt += f"\n\nAdhere to the following local guidelines:\n{md_context}"
 

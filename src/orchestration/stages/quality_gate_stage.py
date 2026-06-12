@@ -27,15 +27,20 @@ class QualityGateStage(StageRunner):
         artifacts = state.artifacts or []
 
         logger.info("Running SRE Agent...")
+        from orchestration.context_engine import retrieve_context
+
+        sre_ctx = retrieve_context("sre", "Provision infrastructure and apply Helm charts.")
+        sre_prompt = "Provision infrastructure and apply Helm charts."
+        if sre_ctx:
+            sre_prompt += f"\n\nRetrieved SRE Context/ADRs:\n{sre_ctx}"
+
         async with recorder.record_span(
             run_id=state.run_id,
             agent_name="sre",
             pipeline_stage="quality_gate",
-            prompt="Provision infrastructure and apply Helm charts for the services.",
+            prompt=sre_prompt,
         ) as rec:
-            sre_res = await self.provider.run_agent(
-                semaphore, "sre", registry.get("sre"), "Provision infrastructure and apply Helm charts."
-            )
+            sre_res = await self.provider.run_agent(semaphore, "sre", registry.get("sre"), sre_prompt)
             rec.set_output(sre_res)
             # Create a clean copy to avoid mutating the agent's returned artifact
             sre_artifact = sre_res.output.model_copy(deep=True)
@@ -58,17 +63,24 @@ class QualityGateStage(StageRunner):
             return state
 
         logger.info("Running Security Audit...")
+        from orchestration.context_engine import retrieve_context
+
+        sec_ctx = retrieve_context("security", full_text)
+        sec_prompt = f"Audit the following code for vulnerabilities:\n{full_text}"
+        if sec_ctx:
+            sec_prompt += f"\n\nRetrieved Security Context:\n{sec_ctx}"
+
         async with recorder.record_span(
             run_id=state.run_id,
             agent_name="security",
             pipeline_stage="quality_gate",
-            prompt=f"Audit the following code for vulnerabilities:\n{full_text}",
+            prompt=sec_prompt,
         ) as rec:
             sec_res = await self.provider.run_agent(
                 semaphore,
                 "security",
                 registry.get("security"),
-                f"Audit the following code for vulnerabilities:\n{full_text}",
+                sec_prompt,
             )
             rec.set_output(sec_res)
             sec_result = sec_res.output
@@ -87,17 +99,22 @@ class QualityGateStage(StageRunner):
                 return state
 
         logger.info("Running Quality Gate...")
+        qg_ctx = retrieve_context("quality_gate", full_text)
+        qg_prompt = f"Perform quality gate check on these artifacts:\n{full_text}"
+        if qg_ctx:
+            qg_prompt += f"\n\nRetrieved Quality Gate Rules:\n{qg_ctx}"
+
         async with recorder.record_span(
             run_id=state.run_id,
             agent_name="quality_gate",
             pipeline_stage="quality_gate",
-            prompt="Perform quality gate check on these artifacts:",
+            prompt=qg_prompt,
         ) as rec:
             q_res = await self.provider.run_agent(
                 semaphore,
                 "quality_gate",
                 registry.get("quality_gate"),
-                f"Perform quality gate check on these artifacts:\n{full_text}",
+                qg_prompt,
             )
             rec.set_output(q_res)
             q_result = q_res.output
@@ -120,6 +137,10 @@ class QualityGateStage(StageRunner):
         )
         if state.feedback:
             review_prompt += f"\n\nAddress previous feedback: {state.feedback}"
+
+        review_ctx = retrieve_context("review", full_text)
+        if review_ctx:
+            review_prompt += f"\n\nRetrieved Review Context/Conventions:\n{review_ctx}"
 
         async with recorder.record_span(
             run_id=state.run_id,

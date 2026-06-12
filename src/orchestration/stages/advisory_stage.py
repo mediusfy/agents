@@ -39,8 +39,18 @@ class AdvisoryStage(StageRunner):
             tech_stack=["Go", "Vue", "PostgreSQL", "Redis"], compliance_tier="Standard", monthly_cloud_budget=1000.0
         )
 
+        from orchestration.context_engine import retrieve_context
+
+        cto_ctx = retrieve_context("cto", story_context)
+        ux_ctx = retrieve_context("ux", story_context)
+
         cto_prompt = f"Review these user stories and provide architectural advice:\n{story_context}"
+        if cto_ctx:
+            cto_prompt += f"\n\nRetrieved Architectural Context/ADRs/Rules:\n{cto_ctx}"
+
         ux_prompt = f"Review these user stories and provide UX/UI advice:\n{story_context}"
+        if ux_ctx:
+            ux_prompt += f"\n\nRetrieved UX Context/Rules:\n{ux_ctx}"
 
         if md_context:
             cto_prompt += f"\n\nAdhere to the following local guidelines:\n{md_context}"

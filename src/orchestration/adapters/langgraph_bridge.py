@@ -40,16 +40,41 @@ def _default_prompt(state: PipelineState, agent_name: str) -> str:
     return f"Process requirements: {state.requirement}"
 
 
-def _state_delta(_state: PipelineState, agent_name: str, result: Any) -> dict[str, Any]:
+def _state_delta(state: PipelineState, agent_name: str, result: Any) -> dict[str, Any]:
+    from orchestration.pipeline.context import ContextFrame
+
     output = getattr(result, "data", getattr(result, "output", result))
+
+    cf = ContextFrame(
+        output=str(output)[:500],
+    )
+
+    delta: dict[str, Any] = {
+        "active_context": cf,
+        "context_history": [*state.context_history, cf] if state.context_history else [cf],
+    }
+
     if agent_name == "ba":
         stories = output if isinstance(output, list) else []
-        return {"user_stories": stories, "stage": "ba"}
-    if agent_name in ("cto", "ux"):
+        delta.update({"user_stories": stories, "stage": "ba"})
+    elif agent_name in ("cto", "ux"):
         recs = getattr(output, "recommendations", [])
-        return {f"advisory_results.{agent_name}": "\n".join(recs) if recs else "(none)"}
-    return {"stage": agent_name}
+        delta.update({f"advisory_results.{agent_name}": "\n".join(recs) if recs else "(none)"})
+    else:
+        delta.update({"stage": agent_name})
+    return delta
 
 
 def _error_delta(state: PipelineState, agent_name: str, error: str) -> dict[str, Any]:
-    return {"errors": state.errors + [f"{agent_name}: {error}"], "stage": agent_name}
+    from orchestration.pipeline.context import ContextFrame
+
+    cf = ContextFrame(
+        output=f"Error in {agent_name}: {error}",
+        command_traces=[error],
+    )
+    return {
+        "errors": state.errors + [f"{agent_name}: {error}"],
+        "stage": agent_name,
+        "active_context": cf,
+        "context_history": [*state.context_history, cf] if state.context_history else [cf],
+    }

@@ -101,7 +101,9 @@ def _register_utility_agents() -> None:
     registry.register("current_events", current_events_agent, ["news", "history"], lambda: CurrentEventsDeps())
     registry.register("region_analyzer", region_analyzer_agent, ["analysis.region"], lambda: RegionAnalyzerDeps())
     registry.register("weather", weather_agent, ["weather"], lambda: WeatherDeps())
-    registry.register("crypto_oracle", crypto_oracle_agent, ["finance.crypto", "news.crypto", "research"], lambda: CryptoOracleDeps())
+    registry.register(
+        "crypto_oracle", crypto_oracle_agent, ["finance.crypto", "news.crypto", "research"], lambda: CryptoOracleDeps()
+    )
     registry.register(
         "holiday_planner",
         holiday_planner_agent,

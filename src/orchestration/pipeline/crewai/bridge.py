@@ -43,11 +43,25 @@ async def run_crewai_pipeline(
         prompt=config.requirement or "",
     ) as rec:
         try:
+            from orchestration.pipeline.context import ContextFrame
+
             logger.info("Running %s...", crew_class_name)
             crew = crew_cls().build(state)
             result = await _run_crew_async(crew)
             rec.set_output({"crew": crew_class_name, "result": str(result)[:500]})
             _apply_result(state, result)
+
+            files: list[str] = []
+            for art in state.artifacts or []:
+                if art.files:
+                    files.extend(art.files.keys())
+            cf = ContextFrame(
+                output=f"CrewAI execution for {crew_class_name} completed.",
+                modified_files=files,
+            )
+            state.active_context = cf
+            state.context_history.append(cf)
+
             state.stage = "implementation"
         except Exception as e:
             logger.error("CrewAI pipeline failed: %s", e)
@@ -60,6 +74,7 @@ async def run_crewai_pipeline(
 
 async def _run_crew_async(crew: Any) -> Any:
     import asyncio
+
     return await asyncio.to_thread(crew.kickoff)
 
 

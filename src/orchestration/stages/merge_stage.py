@@ -117,6 +117,18 @@ class MergeStage(StageRunner):
                 self.result.files_written += 1
                 logger.info(f"  Merged: {dest.relative_to(target_root)}")
 
+                # Store in context engine
+                try:
+                    from orchestration.context_engine import store_artifact_context
+
+                    store_artifact_context(
+                        domain="project",
+                        content=f"File: {clean_path}\nAgent: {agent}\nContent:\n{content}",
+                        metadata={"agent": agent, "file": clean_path, "project": config.project},
+                    )
+                except Exception as ce:
+                    logger.debug("Failed to store merged file context: %s", ce)
+
         # Store merge result in state metadata
         # (Removed unused meta assignments)
 

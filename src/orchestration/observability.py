@@ -46,10 +46,6 @@ def configure_observability() -> None:
         logger.info(LOGFIRE_CONFIGURE_ERROR)
         return
 
-    # Prefer the raw env var first (tests delete it to simulate no-creds), then
-    # fall back to the settings object which loads .env at import time.
-    # If the env var is empty/falsy but settings has a value, the .env is
-    # providing it — let through so Logfire actually works in prod.
     logfire_token = os.environ.get("LOGFIRE_TOKEN", "") or getattr(settings, "logfire_token", "") or ""
     logfire_credentials = os.path.expanduser("~/.logfire/credentials.json")
     has_credentials = bool(logfire_token) or os.path.exists(logfire_credentials)

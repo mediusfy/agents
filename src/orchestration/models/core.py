@@ -3,6 +3,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from orchestration.pipeline.context import ContextFrame
+
 
 class EventTrigger(BaseModel):
     id: str
@@ -94,3 +96,5 @@ class PipelineState(BaseModel):
     feedback: str | None = None
     failure_report: FailureReport | None = None
     errors: list[str] = Field(default_factory=list)
+    active_context: ContextFrame | None = None
+    context_history: list[ContextFrame] = Field(default_factory=list)

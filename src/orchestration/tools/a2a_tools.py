@@ -1,3 +1,5 @@
+import json
+
 from pydantic_ai import RunContext
 
 from orchestration.exceptions import (
@@ -5,6 +7,7 @@ from orchestration.exceptions import (
     AgentNotFoundError,
     AmbiguousCapabilityError,
 )
+from orchestration.pipeline.context import ContextFrame
 from orchestration.registry import instrumented_query, registry
 from orchestration.session_recorder import current_run_context
 from orchestration.tools.registry import register_tool
@@ -37,7 +40,7 @@ async def delegate_to_agent(
     ctx: RunContext,
     capability: str,
     prompt: str,
-    context_summary: str,
+    context_summary: str | dict | ContextFrame,
     owner: str | None = None,
 ) -> str:
     """Delegate a sub-task to another agent based on their capability.
@@ -45,10 +48,17 @@ async def delegate_to_agent(
     To ensure proficient token usage and accurate responses:
     - capability: Which agent capability to use (see discover_agent_capabilities)
     - prompt: The specific task/question for the target agent
-    - context_summary: Provide ONLY the absolutely necessary context. Do not dump full history.
+    - context_summary: Provide ONLY the absolutely necessary context (can be a string, dict, or ContextFrame). Do not dump full history.
     - owner: When a capability has multiple providers, pin the agent name here.
       Required for ambiguous capabilities; ignored when there is only one owner.
     """
+    if isinstance(context_summary, dict):
+        context_str = json.dumps(context_summary, indent=2)
+    elif hasattr(context_summary, "model_dump"):
+        context_str = json.dumps(context_summary.model_dump(), indent=2)
+    else:
+        context_str = str(context_summary)
+
     # `or {}` defends against the ContextVar being unset (default is now {},
     # but a caller could still explicitly set None outside of record_span).
     ctx_data = current_run_context.get() or {}
@@ -59,16 +69,16 @@ async def delegate_to_agent(
 
     full_prompt = (
         f"--- DELEGATED TASK ---\n"
-        f"Context provided by caller:\n{context_summary}\n\n"
+        f"Context provided by caller:\n{context_str}\n\n"
         f"Task:\n{prompt}\n\n"
         f"Please provide an accurate and concise response."
     )
 
     attrs = {
         "capability": capability,
-        "context_summary_length": len(context_summary),
+        "context_summary_length": len(context_str),
         "prompt_length": len(prompt),
-        "context_summary_preview": context_summary[:200],
+        "context_summary_preview": context_str[:200],
         "caller_agent": ctx_data.get("agent_name", ""),
         "caller_pipeline_stage": ctx_data.get("pipeline_stage", ""),
         "caller_run_id": ctx_data.get("run_id", ""),

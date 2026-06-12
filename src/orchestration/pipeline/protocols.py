@@ -14,5 +14,4 @@ class PipelineOrchestrator(Protocol):
     it directly.
     """
 
-    async def execute(self) -> PipelineState:
-        ...
+    async def execute(self) -> PipelineState: ...

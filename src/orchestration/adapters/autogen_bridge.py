@@ -103,8 +103,6 @@ def as_autogen_assistant(
 
             return _wrapper
 
-        agent.register_function(
-            function_map={tool_name: lambda *a, fn=tool_fn, **kw: fn(*a, **kw)}
-        )
+        agent.register_function(function_map={tool_name: lambda *a, fn=tool_fn, **kw: fn(*a, **kw)})
 
     return agent

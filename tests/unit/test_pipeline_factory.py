@@ -26,14 +26,17 @@ class TestPipelineFactory:
         cfg = PipelineConfig(blueprint="langgraph_full", framework="langgraph")
         pipeline = build_pipeline(cfg)
         from orchestration.pipeline.protocols import PipelineOrchestrator
+
         assert isinstance(pipeline, PipelineOrchestrator)
 
     def test_build_crewai_missing_dep_when_not_installed(self):
         import importlib
+
         original = importlib.util.find_spec
         importlib.util.find_spec = lambda name: None if name == "crewai" else original(name)
         try:
             from orchestration.pipeline.factory import build_pipeline
+
             cfg = PipelineConfig(blueprint="crew_sdlc", framework="crewai")
             with pytest.raises(ImportError, match="crewai"):
                 build_pipeline(cfg)
@@ -42,10 +45,12 @@ class TestPipelineFactory:
 
     def test_build_autogen_missing_dep_when_not_installed(self):
         import importlib
+
         original = importlib.util.find_spec
         importlib.util.find_spec = lambda name: None if name == "pyautogen" else original(name)
         try:
             from orchestration.pipeline.factory import build_pipeline
+
             cfg = PipelineConfig(blueprint="autogen_sdlc", framework="autogen")
             with pytest.raises(ImportError, match="pyautogen"):
                 build_pipeline(cfg)
@@ -58,6 +63,7 @@ class TestPipelineFactory:
         cfg = PipelineConfig(blueprint="composite", framework="composite")
         pipeline = build_pipeline(cfg)
         from orchestration.pipeline.protocols import PipelineOrchestrator
+
         assert isinstance(pipeline, PipelineOrchestrator)
 
     def test_protocol_runtime_checkable(self):
