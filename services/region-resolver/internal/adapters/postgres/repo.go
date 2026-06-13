@@ -1,12 +1,12 @@
-// Package postgres implements the domain.EntityRepository port using
-// PostgreSQL via the pgx/v5 driver.
 package postgres
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -17,114 +17,109 @@ import (
 	"github.com/prodanlabs/region-resolver/internal/domain"
 )
 
-var tracer = otel.Tracer("postgres.entity_repo")
+const (
+	tracerName   = "region-resolver.postgres"
+	attrEntityID = "entity_id"
+)
 
-// Compile-time interface check.
-var _ domain.EntityRepository = (*EntityRepository)(nil)
-
-// EntityRepository implements domain.EntityRepository using PostgreSQL.
 type EntityRepository struct {
 	pool   *pgxpool.Pool
 	logger *slog.Logger
+	tracer trace.Tracer
 }
 
-// NewEntityRepository creates a new Postgres-backed entity repository.
 func NewEntityRepository(pool *pgxpool.Pool, logger *slog.Logger) *EntityRepository {
 	return &EntityRepository{
 		pool:   pool,
-		logger: logger.With("component", "EntityRepository"),
+		logger: logger.With("adapter", "postgres.EntityRepository"),
+		tracer: otel.Tracer(tracerName),
 	}
 }
 
-
-
-// Save persists a new entity. Returns an error if the ID already exists.
 func (r *EntityRepository) Save(ctx context.Context, entity *domain.Entity) error {
-	ctx, span := tracer.Start(ctx, "postgres.EntityRepository.Save",
+	ctx, span := r.tracer.Start(ctx, "postgres.EntityRepository.Save",
 		trace.WithAttributes(
-			attribute.String("entity_id", entity.ID),
-			attribute.String("region", entity.Region),
-			attribute.String("data_residency_zone", string(entity.DataResidencyZone)),
-		),
-	)
+			attribute.String(attrEntityID, entity.ID),
+		))
 	defer span.End()
 
 	labelsJSON, err := json.Marshal(entity.Labels)
 	if err != nil {
-		return fmt.Errorf("marshal labels: %w", err)
+		return fmt.Errorf("marshal entity labels: %w", err)
 	}
 
 	query := `
 		INSERT INTO entities (id, name, region, data_residency_zone, status, version, labels, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		ON CONFLICT (id) DO UPDATE SET
+			name = EXCLUDED.name, region = EXCLUDED.region,
+			data_residency_zone = EXCLUDED.data_residency_zone, status = EXCLUDED.status,
+			version = EXCLUDED.version, labels = EXCLUDED.labels, updated_at = EXCLUDED.updated_at
 	`
 
 	_, err = r.pool.Exec(ctx, query,
-		entity.ID,
-		entity.Name,
-		entity.Region,
-		string(entity.DataResidencyZone),
-		string(entity.Status),
-		entity.Version,
-		labelsJSON,
-		entity.CreatedAt,
-		entity.UpdatedAt,
+		entity.ID, entity.Name, entity.Region, string(entity.DataResidencyZone),
+		string(entity.Status), entity.Version, labelsJSON, entity.CreatedAt, entity.UpdatedAt,
 	)
 	if err != nil {
-		span.RecordError(err)
-		return fmt.Errorf("insert entity: %w", err)
+		return fmt.Errorf("save entity: %w", err)
 	}
-
-	r.logger.DebugContext(ctx, "entity saved",
-		"entity_id", entity.ID,
-		"region", entity.Region,
-		"zone", entity.DataResidencyZone,
-	)
 	return nil
 }
 
-// FindByID retrieves an entity by its primary key.
 func (r *EntityRepository) FindByID(ctx context.Context, id string) (*domain.Entity, error) {
-	ctx, span := tracer.Start(ctx, "postgres.EntityRepository.FindByID",
-		trace.WithAttributes(attribute.String("entity_id", id)),
-	)
+	ctx, span := r.tracer.Start(ctx, "postgres.EntityRepository.FindByID",
+		trace.WithAttributes(attribute.String(attrEntityID, id)))
 	defer span.End()
 
-	query := `
-		SELECT id, name, region, data_residency_zone, status, version, labels, created_at, updated_at
-		FROM entities
-		WHERE id = $1
-	`
+	query := `SELECT id, name, region, data_residency_zone, status, version, labels, created_at, updated_at 
+	          FROM entities WHERE id = $1`
 
-	row := r.pool.QueryRow(ctx, query, id)
-	entity, err := scanEntity(row)
+	var name, region, zone, status string
+	var version int
+	var labelsJSON []byte
+	var createdAt, updatedAt time.Time
+
+	err := r.pool.QueryRow(ctx, query, id).Scan(
+		&id, &name, &region, &zone, &status, &version, &labelsJSON, &createdAt, &updatedAt,
+	)
 	if err != nil {
-		span.RecordError(err)
-		return nil, fmt.Errorf("query entity %s: %w", id, err)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrEntityNotFound
+		}
+		return nil, fmt.Errorf("find entity by id: %w", err)
 	}
 
-	span.SetAttributes(
-		attribute.String("region", entity.Region),
-		attribute.String("data_residency_zone", string(entity.DataResidencyZone)),
-		attribute.Int("version", entity.Version),
-	)
+	var labels map[string]string
+	if len(labelsJSON) > 0 {
+		if err := json.Unmarshal(labelsJSON, &labels); err != nil {
+			return nil, fmt.Errorf("unmarshal entity labels: %w", err)
+		}
+	}
 
-	return entity, nil
+	return &domain.Entity{
+		ID:                id,
+		Name:              name,
+		Region:            region,
+		DataResidencyZone: domain.DataResidencyZone(zone),
+		Status:            domain.EntityStatus(status),
+		Version:           version,
+		Labels:            labels,
+		CreatedAt:         createdAt,
+		UpdatedAt:         updatedAt,
+	}, nil
 }
 
-// Update persists an entity's current state, overwriting the existing row.
 func (r *EntityRepository) Update(ctx context.Context, entity *domain.Entity) error {
-	ctx, span := tracer.Start(ctx, "postgres.EntityRepository.Update",
+	ctx, span := r.tracer.Start(ctx, "postgres.EntityRepository.Update",
 		trace.WithAttributes(
-			attribute.String("entity_id", entity.ID),
-			attribute.Int("new_version", entity.Version),
-		),
-	)
+			attribute.String(attrEntityID, entity.ID),
+		))
 	defer span.End()
 
 	labelsJSON, err := json.Marshal(entity.Labels)
 	if err != nil {
-		return fmt.Errorf("marshal labels: %w", err)
+		return fmt.Errorf("marshal entity labels: %w", err)
 	}
 
 	query := `
@@ -132,157 +127,94 @@ func (r *EntityRepository) Update(ctx context.Context, entity *domain.Entity) er
 		SET name = $1, status = $2, version = $3, labels = $4, updated_at = $5
 		WHERE id = $6 AND version = $7
 	`
-
-	tag, err := r.pool.Exec(ctx, query,
-		entity.Name,
-		string(entity.Status),
-		entity.Version,
-		labelsJSON,
-		entity.UpdatedAt,
-		entity.ID,
-		entity.Version-1,
+	prevVersion := entity.Version - 1
+	cmdTag, err := r.pool.Exec(ctx, query,
+		entity.Name, string(entity.Status), entity.Version, labelsJSON, entity.UpdatedAt,
+		entity.ID, prevVersion,
 	)
 	if err != nil {
-		span.RecordError(err)
-		return fmt.Errorf("update entity %s: %w", entity.ID, err)
+		return fmt.Errorf("update entity: %w", err)
 	}
 
-	if tag.RowsAffected() == 0 {
-		return fmt.Errorf("update entity %s: %w", entity.ID, domain.ErrStaleVersion)
+	if cmdTag.RowsAffected() == 0 {
+		var exists bool
+		err = r.pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM entities WHERE id = $1)", entity.ID).Scan(&exists)
+		if err != nil {
+			return fmt.Errorf("check entity existence: %w", err)
+		}
+		if !exists {
+			return domain.ErrEntityNotFound
+		}
+		return domain.ErrConcurrentModification
 	}
 
-	r.logger.DebugContext(ctx, "entity updated",
-		"entity_id", entity.ID,
-		"new_version", entity.Version,
-	)
 	return nil
 }
 
-// List returns all entities from the database.
 func (r *EntityRepository) List(ctx context.Context) ([]*domain.Entity, error) {
-	ctx, span := tracer.Start(ctx, "postgres.EntityRepository.List")
+	ctx, span := r.tracer.Start(ctx, "postgres.EntityRepository.List")
 	defer span.End()
 
-	query := `
-		SELECT id, name, region, data_residency_zone, status, version, labels, created_at, updated_at
-		FROM entities
-		ORDER BY created_at DESC
-	`
-
+	query := `SELECT id, name, region, data_residency_zone, status, version, labels, created_at, updated_at FROM entities`
 	rows, err := r.pool.Query(ctx, query)
 	if err != nil {
-		span.RecordError(err)
 		return nil, fmt.Errorf("list entities: %w", err)
 	}
 	defer rows.Close()
 
 	var entities []*domain.Entity
 	for rows.Next() {
-		entity, err := scanRow(rows)
+		var id, name, region, zone, status string
+		var version int
+		var labelsJSON []byte
+		var createdAt, updatedAt time.Time
+
+		err := rows.Scan(&id, &name, &region, &zone, &status, &version, &labelsJSON, &createdAt, &updatedAt)
 		if err != nil {
-			return nil, fmt.Errorf("scan entity row: %w", err)
+			return nil, fmt.Errorf("scan listed entity: %w", err)
 		}
-		entities = append(entities, entity)
+
+		var labels map[string]string
+		if len(labelsJSON) > 0 {
+			if err := json.Unmarshal(labelsJSON, &labels); err != nil {
+				return nil, fmt.Errorf("unmarshal listed entity labels: %w", err)
+			}
+		}
+
+		entities = append(entities, &domain.Entity{
+			ID:                id,
+			Name:              name,
+			Region:            region,
+			DataResidencyZone: domain.DataResidencyZone(zone),
+			Status:            domain.EntityStatus(status),
+			Version:           version,
+			Labels:            labels,
+			CreatedAt:         createdAt,
+			UpdatedAt:         updatedAt,
+		})
+	}
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration: %w", err)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate entity rows: %w", err)
-	}
-
-	if entities == nil {
-		entities = []*domain.Entity{}
-	}
-
-	span.SetAttributes(attribute.Int("count", len(entities)))
 	return entities, nil
 }
 
-// Delete removes an entity by its primary key.
 func (r *EntityRepository) Delete(ctx context.Context, id string) error {
-	ctx, span := tracer.Start(ctx, "postgres.EntityRepository.Delete",
-		trace.WithAttributes(attribute.String("entity_id", id)),
-	)
+	ctx, span := r.tracer.Start(ctx, "postgres.EntityRepository.Delete",
+		trace.WithAttributes(attribute.String(attrEntityID, id)))
 	defer span.End()
 
 	query := `DELETE FROM entities WHERE id = $1`
-	tag, err := r.pool.Exec(ctx, query, id)
+	cmdTag, err := r.pool.Exec(ctx, query, id)
 	if err != nil {
-		span.RecordError(err)
-		return fmt.Errorf("delete entity %s: %w", id, err)
+		return fmt.Errorf("delete entity: %w", err)
 	}
 
-	if tag.RowsAffected() == 0 {
-		return fmt.Errorf("delete entity %s: %w", id, domain.ErrEntityNotFound)
+	if cmdTag.RowsAffected() == 0 {
+		return domain.ErrEntityNotFound
 	}
-
 	return nil
 }
 
-// scanEntity scans a pgx.Row into a domain.Entity pointer.
-func scanEntity(row pgx.Row) (*domain.Entity, error) {
-	var entity domain.Entity
-	var labelsJSON []byte
-	var statusStr string
-	var zoneStr string
-
-	if err := row.Scan(
-		&entity.ID,
-		&entity.Name,
-		&entity.Region,
-		&zoneStr,
-		&statusStr,
-		&entity.Version,
-		&labelsJSON,
-		&entity.CreatedAt,
-		&entity.UpdatedAt,
-	); err != nil {
-		if err == pgx.ErrNoRows {
-			return nil, domain.ErrEntityNotFound
-		}
-		return nil, err
-	}
-
-	entity.Status = domain.EntityStatus(statusStr)
-	entity.DataResidencyZone = domain.DataResidencyZone(zoneStr)
-
-	if len(labelsJSON) > 0 {
-		if err := json.Unmarshal(labelsJSON, &entity.Labels); err != nil {
-			return nil, fmt.Errorf("unmarshal labels: %w", err)
-		}
-	}
-
-	return &entity, nil
-}
-
-// scanRow scans a pgx.Rows into a domain.Entity pointer.
-func scanRow(rows pgx.Rows) (*domain.Entity, error) {
-	var entity domain.Entity
-	var labelsJSON []byte
-	var statusStr string
-	var zoneStr string
-
-	if err := rows.Scan(
-		&entity.ID,
-		&entity.Name,
-		&entity.Region,
-		&zoneStr,
-		&statusStr,
-		&entity.Version,
-		&labelsJSON,
-		&entity.CreatedAt,
-		&entity.UpdatedAt,
-	); err != nil {
-		return nil, err
-	}
-
-	entity.Status = domain.EntityStatus(statusStr)
-	entity.DataResidencyZone = domain.DataResidencyZone(zoneStr)
-
-	if len(labelsJSON) > 0 {
-		if err := json.Unmarshal(labelsJSON, &entity.Labels); err != nil {
-			return nil, fmt.Errorf("unmarshal labels: %w", err)
-		}
-	}
-
-	return &entity, nil
-}
+var _ domain.EntityRepository = (*EntityRepository)(nil)

@@ -66,6 +66,7 @@ func NewApp(ctx context.Context, opts ...AppOption) (*App, error) {
 	// --- Repositories ---
 	entityRepo := postgres.NewEntityRepository(pool, logger)
 	if err := postgres.RunMigrations(ctx, pool); err != nil {
+		pool.Close()
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
 	logger.InfoContext(ctx, "database migrations complete")

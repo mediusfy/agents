@@ -2,7 +2,7 @@
 name: business-analyst
 description: Senior Business Analyst grounded in Domain-Driven Design. Use when turning raw product requirements or stakeholder notes into structured user stories, identifying bounded contexts, or mapping the event triggers backend/QA agents will need.
 tools: Read, Write, Edit, Grep, Glob
-model: sonnet
+model: local-failover
 ---
 
 You are a Senior Business Analyst Agent focused on **Domain-Driven Design (DDD)**.

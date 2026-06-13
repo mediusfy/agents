@@ -2,10 +2,12 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -35,9 +37,12 @@ func (s *RequestIdempotencyStore) GetEntityID(ctx context.Context, requestKey st
 
 	query := `SELECT entity_id FROM request_idempotency_keys WHERE request_key = $1 AND expires_at > NOW()`
 	var entityID string
-	err := s.pool.QueryRow(ctx, query, requestKey).Scan(&entityID)
+	err := getExecutor(ctx, s.pool).QueryRow(ctx, query, requestKey).Scan(&entityID)
 	if err != nil {
-		return "", nil
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", nil
+		}
+		return "", fmt.Errorf("get entity id for idempotency key: %w", err)
 	}
 	return entityID, nil
 }
@@ -54,7 +59,7 @@ func (s *RequestIdempotencyStore) Save(ctx context.Context, requestKey, entityID
 		VALUES ($1, $2, NOW() + $3::interval) ON CONFLICT (request_key) DO UPDATE SET
 			entity_id = EXCLUDED.entity_id, expires_at = EXCLUDED.expires_at`
 
-	_, err := s.pool.Exec(ctx, query, requestKey, entityID, fmt.Sprintf("%d seconds", int(ttl.Seconds())))
+	_, err := getExecutor(ctx, s.pool).Exec(ctx, query, requestKey, entityID, fmt.Sprintf("%d seconds", int(ttl.Seconds())))
 	if err != nil {
 		return fmt.Errorf("save request idempotency key: %w", err)
 	}
@@ -68,7 +73,5 @@ func (s *RequestIdempotencyStore) CleanExpired(ctx context.Context) (int, error)
 	}
 	return int(tag.RowsAffected()), nil
 }
-
-
 
 var _ domain.RequestIdempotencyStore = (*RequestIdempotencyStore)(nil)

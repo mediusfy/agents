@@ -33,7 +33,9 @@ func NewEntityRepository(pool *pgxpool.Pool, logger *slog.Logger) *EntityReposit
 	}
 }
 
-
+func (r *EntityRepository) executor(ctx context.Context) pgxExecutor {
+	return getExecutor(ctx, r.pool)
+}
 
 func (r *EntityRepository) Save(ctx context.Context, entity *domain.Entity) error {
 	ctx, span := r.tracer.Start(ctx, "postgres.EntityRepository.Save",
@@ -58,7 +60,7 @@ func (r *EntityRepository) Save(ctx context.Context, entity *domain.Entity) erro
 			deleted_at = EXCLUDED.deleted_at
 	`
 
-	_, err := r.pool.Exec(ctx, query,
+	_, err := r.executor(ctx).Exec(ctx, query,
 		entity.ID, entity.SchemaID, entity.Name, entity.Type, entity.Region,
 		string(entity.DataResidencyZone), string(entity.Status), entity.Version,
 		string(attrsJSON), string(metaJSON), entity.CreatedAt, entity.UpdatedAt, entity.DeletedAt,
@@ -78,7 +80,7 @@ func (r *EntityRepository) FindByID(ctx context.Context, id string) (*domain.Ent
 		status, version, attributes, metadata, created_at, updated_at, deleted_at
 		FROM entities WHERE id = $1`
 
-	entity, err := r.scanEntity(ctx, r.pool.QueryRow(ctx, query, id))
+	entity, err := r.scanEntity(ctx, r.executor(ctx).QueryRow(ctx, query, id))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("find entity by id: %w", domain.ErrEntityNotFound)
@@ -111,7 +113,7 @@ func (r *EntityRepository) Update(ctx context.Context, id string, op domain.Upda
 		    updated_at=$9, deleted_at=$10
 		WHERE id=$1 AND version=$11
 	`
-	tag, err := r.pool.Exec(ctx, query,
+	tag, err := r.executor(ctx).Exec(ctx, query,
 		id, entity.Name, entity.Type, entity.Region, string(entity.Status),
 		entity.Version, string(attrsJSON), string(metaJSON),
 		entity.UpdatedAt, entity.DeletedAt, op.ExpectedVersion,
@@ -136,7 +138,7 @@ func (r *EntityRepository) UpdateStatus(ctx context.Context, id string, status d
 
 	now := time.Now().UTC()
 	query := `UPDATE entities SET status=$2, updated_at=$3, version=version+1 WHERE id=$1`
-	tag, err := r.pool.Exec(ctx, query, id, string(status), now)
+	tag, err := r.executor(ctx).Exec(ctx, query, id, string(status), now)
 	if err != nil {
 		return fmt.Errorf("update status: %w", err)
 	}
@@ -148,7 +150,7 @@ func (r *EntityRepository) UpdateStatus(ctx context.Context, id string, status d
 
 func (r *EntityRepository) SoftDelete(ctx context.Context, id string, deletedAt time.Time) error {
 	query := `UPDATE entities SET deleted_at=$2, updated_at=$2, status='deleted', version=version+1 WHERE id=$1 AND deleted_at IS NULL`
-	tag, err := r.pool.Exec(ctx, query, id, deletedAt)
+	tag, err := r.executor(ctx).Exec(ctx, query, id, deletedAt)
 	if err != nil {
 		return fmt.Errorf("soft delete entity: %w", err)
 	}
@@ -167,7 +169,7 @@ func (r *EntityRepository) SoftDelete(ctx context.Context, id string, deletedAt 
 
 func (r *EntityRepository) Restore(ctx context.Context, id string) error {
 	query := `UPDATE entities SET deleted_at=NULL, status='active', updated_at=NOW(), version=version+1 WHERE id=$1 AND deleted_at IS NOT NULL`
-	tag, err := r.pool.Exec(ctx, query, id)
+	tag, err := r.executor(ctx).Exec(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("restore entity: %w", err)
 	}
@@ -302,7 +304,7 @@ func (r *EntityRepository) ListEntities(ctx context.Context, params domain.ListE
 
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM entities WHERE %s`, whereClause)
 	var totalCount int
-	if err := r.pool.QueryRow(ctx, countQuery, args...).Scan(&totalCount); err != nil {
+	if err := r.executor(ctx).QueryRow(ctx, countQuery, args...).Scan(&totalCount); err != nil {
 		return nil, fmt.Errorf("list entities: count: %w", err)
 	}
 
@@ -359,7 +361,7 @@ func mapFilterField(field string) string {
 
 func (r *EntityRepository) exists(ctx context.Context, id string) (bool, error) {
 	var exists bool
-	if err := r.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM entities WHERE id = $1)`, id).Scan(&exists); err != nil {
+	if err := r.executor(ctx).QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM entities WHERE id = $1)`, id).Scan(&exists); err != nil {
 		return false, fmt.Errorf("entity exists check: %w", err)
 	}
 	return exists, nil
@@ -399,7 +401,7 @@ func (r *EntityRepository) scanEntity(_ context.Context, row pgx.Row) (*domain.E
 }
 
 func (r *EntityRepository) scanEntities(ctx context.Context, query string, args ...any) ([]*domain.Entity, error) {
-	rows, err := r.pool.Query(ctx, query, args...)
+	rows, err := r.executor(ctx).Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query entities: %w", err)
 	}

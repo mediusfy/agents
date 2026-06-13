@@ -202,6 +202,7 @@ func (r *OutboxRelay) processBatch(ctx context.Context) {
 		return
 	}
 
+	r.logger.DebugContext(ctx, "fetched pending outbox events", "count", len(events))
 	for _, event := range events {
 		select {
 		case <-ctx.Done():

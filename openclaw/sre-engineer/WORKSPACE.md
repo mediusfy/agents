@@ -2,10 +2,10 @@
 
 ## Context
 
-Your workspace: `/Users/jocham/programming/ai/openclaw/`  
+Your workspace: `/Users/jocham/programming/projects/mediusfy/agents/openclaw/`  
 Canonical role: `shared/agents/sre-engineer.md` (symlinked as `AGENTS.md`)
 
-The monorepo at `/Users/jocham/programming/ai/` is the central AI agent ecosystem:
+The monorepo at `/Users/jocham/programming/projects/mediusfy/agents/` is the central AI agent ecosystem:
 
 - **`shared/agents/sre-engineer.md`** — your role definition
 - **`shared/workspace/*.md`** — shared identity/template files (SOUL.md, IDENTITY.md, etc.)

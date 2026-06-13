@@ -34,4 +34,3 @@ require (
 )
 
 replace shared => ../../shared/go
-

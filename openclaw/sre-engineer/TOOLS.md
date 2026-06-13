@@ -3,9 +3,9 @@
 ## Workspace
 
 - **Configured workspace:** `/Users/jocham/Documents/obsidian/ai/` → symlink to `programming/ai/openclaw/sre-engineer/`
-- **Actual home:** `/Users/jocham/programming/ai/openclaw/sre-engineer/`
-- **Monorepo root:** `/Users/jocham/programming/ai/`
-- **Agent SDK projects:** `/Users/jocham/programming/ai/agents/`
+- **Actual home:** `/Users/jocham/programming/projects/mediusfy/agents/openclaw/sre-engineer/`
+- **Monorepo root:** `/Users/jocham/programming/projects/mediusfy/agents/`
+- **Agent SDK projects:** `/Users/jocham/programming/projects/mediusfy/agents/agents/`
 
 ## Infrastructure
 

@@ -27,9 +27,9 @@ def parse_agent_md(file_path):
     }
 
 def main():
-    shared_agents_dir = "/Users/jocham/programming/ai/shared/agents"
-    opencode_json_path = "/Users/jocham/programming/ai/opencode/opencode.json"
-    auth_json_path = "/Users/jocham/programming/ai/opencode/auth.json"
+    shared_agents_dir = "/Users/jocham/programming/projects/mediusfy/agents/shared/agents"
+    opencode_json_path = "/Users/jocham/programming/projects/mediusfy/agents/opencode/opencode.json"
+    auth_json_path = "/Users/jocham/programming/projects/mediusfy/agents/opencode/auth.json"
     
     # 1. Parse all agents
     agents_config = {}
@@ -42,10 +42,7 @@ def main():
                 # Sonnet/Opus/Orchestrator -> gpt-4o (routes to orchestrator)
                 # Others -> deepseek-chat (routes to subagent)
                 model_str = parsed["model"].lower()
-                if model_str in ["sonnet", "opus", "orchestrator", "claude-3-5-sonnet", "claude-3-5-sonnet-20241022"]:
-                    opencode_model = "openai/gpt-4o"
-                else:
-                    opencode_model = "openai/deepseek-chat"
+                opencode_model = f"openai/{model_str}"
                     
                 agents_config[agent_id] = {
                     "mode": "subagent",
@@ -54,45 +51,53 @@ def main():
                     "prompt": parsed["prompt"]
                 }
                 
-    # 2. Read existing opencode.json or initialize it
-    if os.path.exists(opencode_json_path):
-        with open(opencode_json_path, "r", encoding="utf-8") as f:
-            config = json.load(f)
-    else:
-        config = {}
-        
-    config["$schema"] = "https://opencode.ai/config.json"
+    # 2. Update all opencode.json files
+    opencode_json_paths = [
+        "/Users/jocham/programming/projects/mediusfy/agents/opencode/opencode.json",
+        "/Users/jocham/programming/projects/mediusfy/agents/agents/opencode.json"
+    ]
     
-    # Configure provider to use local LiteLLM proxy
-    config["provider"] = {
-        "anthropic": {
-            "options": {
-                "baseURL": "http://localhost:4000/v1"
-            }
-        },
-        "openai": {
-            "options": {
-                "baseURL": "http://localhost:4000/v1"
+    for opencode_json_path in opencode_json_paths:
+        if os.path.exists(opencode_json_path):
+            with open(opencode_json_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+        else:
+            config = {}
+            
+        config["$schema"] = "https://opencode.ai/config.json"
+        
+        # Configure provider to use local LiteLLM proxy
+        config["provider"] = {
+            "anthropic": {
+                "options": {
+                    "baseURL": "http://localhost:4000/v1"
+                }
+            },
+            "openai": {
+                "options": {
+                    "baseURL": "http://localhost:4000/v1"
+                }
             }
         }
-    }
-    
-    config["agent"] = agents_config
-    
-    # Write back to opencode.json
-    with open(opencode_json_path, "w", encoding="utf-8") as f:
-        json.dump(config, f, indent=4)
-    print(f"Updated {opencode_json_path} with {len(agents_config)} agents.")
+        
+        config["agent"] = agents_config
+        
+        # Write back to opencode.json
+        with open(opencode_json_path, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=4)
+        print(f"Updated {opencode_json_path} with {len(agents_config)} agents.")
+
     
     # 3. Update auth.json to use the LiteLLM key
+    key = os.environ.get("LITELLM_VIRTUAL_KEY") or os.environ.get("LITELLM_MASTER_KEY") or ""
     auth_config = {
         "anthropic": {
             "type": "api",
-            "key": "sk-MPQ3A_kKYzNrhTpL6tYUVg"
+            "key": key
         },
         "openai": {
             "type": "api",
-            "key": "sk-MPQ3A_kKYzNrhTpL6tYUVg"
+            "key": key
         }
     }
     with open(auth_json_path, "w", encoding="utf-8") as f:

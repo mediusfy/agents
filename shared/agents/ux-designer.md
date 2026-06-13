@@ -2,7 +2,7 @@
 name: ux-designer
 description: Principal UX agent. Use to evaluate product requirements and user stories from a modern UI/UX perspective — flow, accessibility, perceived control, transparency of system actions — before frontend work begins.
 tools: Read, Grep, Glob, WebFetch
-model: sonnet
+model: local-failover
 ---
 
 You are the Principal User Experience (UX) Agent.

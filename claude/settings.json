@@ -57,7 +57,7 @@
       "type": "stdio",
       "command": "/bin/bash",
       "args": [
-        "/Users/jocham/programming/agents/mcp_run.sh"
+        "/Users/jocham/programming/projects/mediusfy/agents/agents/mcp_run.sh"
       ],
       "env": {}
     },
@@ -104,7 +104,7 @@
       ],
       "command": "docker",
       "env": {
-        "SONARQUBE_ORG": "omni-rufkis-1",
+        "SONARQUBE_ORG": "mediusfy-1",
         "SONARQUBE_TOKEN": "38ba5a4b39630db8d0ce0e47bff1b59138ed1800"
       }
     }
@@ -118,7 +118,7 @@
       "url": "https://logfire-eu.pydantic.dev/mcp"
     },
     "openclaw": {
-      "source": "/Users/jocham/programming/agents"
+      "source": "/Users/jocham/programming/projects/mediusfy/agents"
     }
   },
   "model": "haiku"

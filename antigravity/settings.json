@@ -1,7 +1,7 @@
 {
   "allowNonWorkspaceAccess": true,
   "colorScheme": "solarized dark",
-  "model": "Gemini 3.5 Flash (Low)",
+  "model": "Gemini 3.5 Flash (Medium)",
   "permissions": {
     "allow": [
       "command(make test-go)",
@@ -56,7 +56,7 @@
       "command(make agent-check)",
       "command(make agent-test)",
       "command(make agent-lint)",
-      "command(/Users/jocham/programming/omni-rufkis/rufkis/agent/python_agents/.venv/bin/ruff)",
+      "command(/Users/jocham/programming/projects/mediusfy/platform/agent/python_agents/.venv/bin/ruff)",
       "command(make plan)",
       "command(make fmt)",
       "command(make agent-format)",
@@ -89,11 +89,11 @@
   },
   "toolPermission": "always-proceed",
   "trustedWorkspaces": [
-    "/Users/jocham/programming/omni-rufkis/rufkis",
+    "/Users/jocham/programming/projects/mediusfy/platform",
     "/Users/jocham/programming/omni-rufkis",
-    "/Users/jocham/programming/homeLab_infra_IaC",
-    "/Users/jocham/programming/rufkis-agent-operator",
-    "/Users/jocham/programming/agents",
+    "/Users/jocham/programming/projects/mediusfy/infrastructure",
+    "/Users/jocham/programming/projects/mediusfy/platform-agent-operator",
+    "/Users/jocham/programming/projects/mediusfy/agents",
     "/Users/jocham/.hermes"
   ]
 }

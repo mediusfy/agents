@@ -3,6 +3,7 @@ package ports
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -307,7 +308,7 @@ func TestHandleDeleteEntity_HardDelete_InternalServerError_Returns500(t *testing
 	t.Parallel()
 
 	deleteUC := newHandlerFakeDeleteRestoreUC()
-	deleteUC.hardDeleteErr = domain.ErrConcurrentModification // generic unexpected error
+	deleteUC.hardDeleteErr = errors.New("unexpected database error") // generic unexpected error
 
 	handler := NewEntityHTTPHandler(
 		&handlerNoopCreateUC{},

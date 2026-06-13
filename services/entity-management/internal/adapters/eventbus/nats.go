@@ -72,11 +72,14 @@ func (b *NATSBus) Publish(ctx context.Context, subject string, envelope *ports.E
 
 func (b *NATSBus) Subscribe(ctx context.Context, subject string, handler ports.EventHandler) error {
 	sub, err := b.conn.Subscribe(subject, func(msg *nats.Msg) {
-		disp := handler(ctx, msg.Data)
+		msgCtx := context.Background()
+		disp := handler(msgCtx, msg.Data)
 		switch disp {
 		case ports.Ack:
 		case ports.Retry:
-			b.conn.Publish(msg.Reply, msg.Data)
+			if msg.Reply != "" {
+				b.conn.Publish(msg.Reply, msg.Data)
+			}
 		case ports.BadRequest:
 		}
 	})

@@ -4,13 +4,13 @@ Principal UX agent. Use to evaluate product requirements and user stories from a
 
 ## Context
 
-This agent works within the project at `/Users/jocham/programming/ai/agents/`. The project uses Go/Vue 3, follows hexagonal architecture, and adheres to CODING_STANDARDS.md.
+This agent works within the project at `/Users/jocham/programming/projects/mediusfy/agents/agents/`. The project uses Go/Vue 3, follows hexagonal architecture, and adheres to CODING_STANDARDS.md.
 
 ## Execution Policy
 
 **Use local agents for heavy work, not Hermes sub-agents.**
 
-### Option A: Pydantic AI agents (`/Users/jocham/programming/ai/agents/`)
+### Option A: Pydantic AI agents (`/Users/jocham/programming/projects/mediusfy/agents/agents/`)
 Domain-specific Pydantic AI agents, run locally via `exec` with DeepSeek:
 
 | Task | Agent file | Invoke via |
@@ -43,7 +43,7 @@ Invoke via Antigravity CLI using the agent definitions in the plugin directory.
 
 Or via pipeline MCP:
 ```bash
-cd /Users/jocham/programming/ai/agents && ./agy_bridge_run.sh
+cd /Users/jocham/programming/projects/mediusfy/agents/agents && ./agy_bridge_run.sh
 ```
 
 ### When to use which
@@ -54,8 +54,8 @@ cd /Users/jocham/programming/ai/agents && ./agy_bridge_run.sh
 
 ## Related
 
-- [Claude Code definition](/Users/jocham/programming/ai/agents/agents/ux-designer.md)
-- [CODING_STANDARDS.md](/Users/jocham/programming/ai/agents/CODING_STANDARDS.md)
-- [Pydantic AI agents](/Users/jocham/programming/ai/agents/src/openclaw/agents/)
+- [Claude Code definition](/Users/jocham/programming/projects/mediusfy/agents/agents/agents/ux-designer.md)
+- [CODING_STANDARDS.md](/Users/jocham/programming/projects/mediusfy/agents/agents/CODING_STANDARDS.md)
+- [Pydantic AI agents](/Users/jocham/programming/projects/mediusfy/agents/agents/src/openclaw/agents/)
 - [Antigravity SDK agents](~/.gemini/config/plugins/agy-agents/agents/)
-- [Antigravity MCP Bridge](/Users/jocham/programming/ai/agents/src/openclaw/agy_bridge/server.py)
+- [Antigravity MCP Bridge](/Users/jocham/programming/projects/mediusfy/agents/agents/src/openclaw/agy_bridge/server.py)

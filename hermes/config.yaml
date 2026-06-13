@@ -1,8 +1,6 @@
 model:
-  default: orchestrator
-  provider: custom
-  base_url: http://0.0.0.0:4000/v1
-  api_key: sk-MPQ3A_kKYzNrhTpL6tYUVg
+  default: local-failover
+  provider: LLMLite
 providers: {}
 fallback_providers: []
 credential_pool_strategies: {}
@@ -68,7 +66,7 @@ agent:
       \ is gonna be LEGENDARY! ARE YOU READY?! LET'S DO THIS! \U0001F4AA\U0001F624\
       \U0001F680"
 terminal:
-  backend: local
+  backend: hybrid
   modal_mode: auto
   cwd: .
   timeout: 180
@@ -226,8 +224,8 @@ auxiliary:
   kanban_decomposer:
     provider: custom
     model: gemini-2.5-flash
-    base_url: http://0.0.0.0:4000/v1
-    api_key: sk-MPQ3A_kKYzNrhTpL6tYUVg
+    base_url: https://litellm.jocham.io/v1
+    api_key: sk-xdao5uOdajbGwGEMBNdrTg
     timeout: 180
     extra_body: {}
   profile_describer:
@@ -247,8 +245,8 @@ auxiliary:
   session_search:
     provider: custom
     model: gemini-2.5-flash
-    base_url: http://0.0.0.0:4000/v1
-    api_key: sk-MPQ3A_kKYzNrhTpL6tYUVg
+    base_url: https://litellm.jocham.io/v1
+    api_key: sk-xdao5uOdajbGwGEMBNdrTg
     timeout: 30
     extra_body: {}
     max_concurrency: 3
@@ -469,7 +467,8 @@ approvals:
   cron_mode: deny
   mcp_reload_confirm: true
   destructive_slash_confirm: true
-command_allowlist: []
+command_allowlist:
+- execute_code
 quick_commands: {}
 hooks: {}
 hooks_auto_accept: false
@@ -635,11 +634,11 @@ platforms:
     enabled: true
 mcp_servers:
   openclaw:
-    command: /Users/jocham/programming/ai/agents/.venv/bin/python
+    command: /Users/jocham/programming/projects/mediusfy/agents/agents/.venv/bin/python
     args:
-    - /Users/jocham/programming/ai/agents/src/openclaw/mcp_server.py
+    - /Users/jocham/programming/projects/mediusfy/agents/agents/src/orchestration/mcp_server.py
     env:
-      PYTHONPATH: /Users/jocham/programming/ai/agents/src
+      PYTHONPATH: /Users/jocham/programming/projects/mediusfy/agents/agents/src
       LOGFIRE_SEND_TO_LOGFIRE: 'false'
     timeout: 300
     connect_timeout: 30
@@ -648,20 +647,57 @@ mcp_servers:
     args:
     - logfire-mcp@latest
     - --read-token
-    - pylf_v1_eu_y8w8M985WQk70qRl2QRl8V7dJJMYFdSvpbYcXg0wwJ88
+    - $LOGFIRE_READ_TOKEN
   antigravity:
-    url: https://hermes-gke-4.taildcb72a.ts.net:8443/sse
+    url: https://hermes-gke.taildcb72a.ts.net:8443/sse
 known_plugin_toolsets:
   cli:
   - spotify
 custom_providers:
 - name: LLMLite
-  base_url: http://0.0.0.0:4000/v1
-  api_key: sk-MPQ3A_kKYzNrhTpL6tYUVg
-  model: orchestrator
+  base_url: https://litellm.jocham.io/v1
+  api_key: sk-xdao5uOdajbGwGEMBNdrTg
+  model: code-architect
   models:
+    code-fast:
+      context_length: 200000
+      max_tokens: 2000
+    code-architect:
+      context_length: 200000
+      max_tokens: 2000
+    code-agent:
+      context_length: 200000
+      max_tokens: 2000
+    code-debug:
+      context_length: 200000
+      max_tokens: 2000
+    heavy-logic-o4:
+      context_length: 200000
+      max_tokens: 2000
+    code-devops:
+      context_length: 200000
+      max_tokens: 2000
+    ux-planner:
+      context_length: 200000
+      max_tokens: 2000
+    code-doc-gen:
+      context_length: 200000
+      max_tokens: 2000
+    local-inline-copilot:
+      context_length: 32000
+      max_tokens: 2000
+    local-failover:
+      context_length: 32000
+      max_tokens: 2000
+    local-repo-brain:
+      context_length: 32000
+      max_tokens: 2000
     orchestrator:
-      context_length: 64500
+      context_length: 200000
+      max_tokens: 2000
+    subagent:
+      context_length: 32000
+      max_tokens: 2000
 
 # ── Fallback Model ────────────────────────────────────────────────────
 # Automatic provider failover when primary is unavailable.

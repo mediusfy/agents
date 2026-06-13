@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -18,6 +19,21 @@ import (
 )
 
 const tracerName = "entity-management.postgres"
+
+type pgxExecutor interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+type txKey struct{}
+
+func getExecutor(ctx context.Context, fallback pgxExecutor) pgxExecutor {
+	if tx, ok := ctx.Value(txKey{}).(pgx.Tx); ok {
+		return tx
+	}
+	return fallback
+}
 
 type UnitOfWork struct {
 	pool   *pgxpool.Pool
@@ -30,8 +46,6 @@ func NewUnitOfWork(pool *pgxpool.Pool, logger *slog.Logger) *UnitOfWork {
 		logger: logger.With("adapter", "postgres.UnitOfWork"),
 	}
 }
-
-type txKey struct{}
 
 func (u *UnitOfWork) Execute(ctx context.Context, fn func(uowCtx context.Context) error) error {
 	tx, err := u.pool.Begin(ctx)
@@ -69,7 +83,9 @@ func NewSchemaRepository(pool *pgxpool.Pool, logger *slog.Logger) *SchemaReposit
 	}
 }
 
-
+func (r *SchemaRepository) executor(ctx context.Context) pgxExecutor {
+	return getExecutor(ctx, r.pool)
+}
 
 func (r *SchemaRepository) Save(ctx context.Context, schema *domain.EntitySchema) error {
 	ctx, span := r.tracer.Start(ctx, "postgres.SchemaRepository.Save",
@@ -94,7 +110,7 @@ func (r *SchemaRepository) Save(ctx context.Context, schema *domain.EntitySchema
 			updated_at = EXCLUDED.updated_at
 	`
 
-	_, err = r.pool.Exec(ctx, query,
+	_, err = r.executor(ctx).Exec(ctx, query,
 		schema.ID, schema.Name, schema.Version, string(attrsJSON),
 		schema.CreatedAt, schema.UpdatedAt,
 	)
@@ -112,7 +128,7 @@ func (r *SchemaRepository) FindByID(ctx context.Context, id string) (*domain.Ent
 	query := `SELECT id, name, version, attributes, created_at, updated_at
 		FROM entity_schemas WHERE id = $1`
 
-	schema, err := r.scanSchema(ctx, r.pool.QueryRow(ctx, query, id))
+	schema, err := r.scanSchema(ctx, r.executor(ctx).QueryRow(ctx, query, id))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("find schema by id: %w", domain.ErrSchemaNotFound)
@@ -130,7 +146,7 @@ func (r *SchemaRepository) FindByName(ctx context.Context, name string) (*domain
 	query := `SELECT id, name, version, attributes, created_at, updated_at
 		FROM entity_schemas WHERE name = $1 ORDER BY version DESC LIMIT 1`
 
-	schema, err := r.scanSchema(ctx, r.pool.QueryRow(ctx, query, name))
+	schema, err := r.scanSchema(ctx, r.executor(ctx).QueryRow(ctx, query, name))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("find schema by name: %w", domain.ErrSchemaNotFound)
@@ -147,7 +163,7 @@ func (r *SchemaRepository) FindAll(ctx context.Context) ([]*domain.EntitySchema,
 	query := `SELECT DISTINCT ON (name) id, name, version, attributes, created_at, updated_at
 		FROM entity_schemas ORDER BY name, version DESC`
 
-	rows, err := r.pool.Query(ctx, query)
+	rows, err := r.executor(ctx).Query(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("find all schemas: %w", err)
 	}
@@ -172,7 +188,7 @@ func (r *SchemaRepository) Delete(ctx context.Context, id string) error {
 		trace.WithAttributes(attribute.String("schema_id", id)))
 	defer span.End()
 
-	tag, err := r.pool.Exec(ctx, `DELETE FROM entity_schemas WHERE id = $1`, id)
+	tag, err := r.executor(ctx).Exec(ctx, `DELETE FROM entity_schemas WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("delete schema: %w", err)
 	}
@@ -218,10 +234,14 @@ func NewOutboxRepository(pool *pgxpool.Pool, logger *slog.Logger) *OutboxReposit
 	}
 }
 
+func (r *OutboxRepository) executor(ctx context.Context) pgxExecutor {
+	return getExecutor(ctx, r.pool)
+}
+
 func (r *OutboxRepository) Save(ctx context.Context, event *domain.OutboxEvent) error {
 	query := `INSERT INTO outbox_events (id, aggregate_id, aggregate_type, event_type, payload, status, retry_count, created_at)
 		VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8)`
-	_, err := r.pool.Exec(ctx, query,
+	_, err := r.executor(ctx).Exec(ctx, query,
 		event.ID, event.AggregateID, event.AggregateType, event.EventType,
 		event.Payload, event.Status, event.RetryCount, event.CreatedAt)
 	if err != nil {
@@ -231,7 +251,7 @@ func (r *OutboxRepository) Save(ctx context.Context, event *domain.OutboxEvent) 
 }
 
 func (r *OutboxRepository) MarkPublished(ctx context.Context, id string) error {
-	_, err := r.pool.Exec(ctx, `UPDATE outbox_events SET status = 'published' WHERE id = $1`, id)
+	_, err := r.executor(ctx).Exec(ctx, `UPDATE outbox_events SET status = 'published' WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("outbox mark published: %w", err)
 	}
@@ -239,7 +259,7 @@ func (r *OutboxRepository) MarkPublished(ctx context.Context, id string) error {
 }
 
 func (r *OutboxRepository) MarkFailed(ctx context.Context, id string, _ error) error {
-	_, err := r.pool.Exec(ctx,
+	_, err := r.executor(ctx).Exec(ctx,
 		`UPDATE outbox_events SET status = 'failed', retry_count = retry_count + 1 WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("outbox mark failed: %w", err)
@@ -248,9 +268,17 @@ func (r *OutboxRepository) MarkFailed(ctx context.Context, id string, _ error) e
 }
 
 func (r *OutboxRepository) FetchPending(ctx context.Context, limit int) ([]*domain.OutboxEvent, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("outbox fetch pending: begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
 	query := `SELECT id, aggregate_id, aggregate_type, event_type, payload, status, retry_count, created_at
-		FROM outbox_events WHERE status = 'pending' ORDER BY created_at LIMIT $1`
-	rows, err := r.pool.Query(ctx, query, limit)
+		FROM outbox_events WHERE status = 'pending' OR (status = 'processing' AND created_at < NOW() - INTERVAL '5 minutes')
+		ORDER BY created_at LIMIT $1
+		FOR UPDATE SKIP LOCKED`
+	rows, err := tx.Query(ctx, query, limit)
 	if err != nil {
 		return nil, fmt.Errorf("outbox fetch pending: %w", err)
 	}
@@ -265,7 +293,20 @@ func (r *OutboxRepository) FetchPending(ctx context.Context, limit int) ([]*doma
 		}
 		events = append(events, &e)
 	}
-	return events, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("outbox rows: %w", err)
+	}
+
+	for _, e := range events {
+		if _, err := tx.Exec(ctx, `UPDATE outbox_events SET status = 'processing' WHERE id = $1`, e.ID); err != nil {
+			return nil, fmt.Errorf("outbox claim: %w", err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("outbox fetch pending: commit: %w", err)
+	}
+	return events, nil
 }
 
 type IdempotencyStore struct {
@@ -282,10 +323,14 @@ func NewIdempotencyStore(pool *pgxpool.Pool, logger *slog.Logger) *IdempotencySt
 	}
 }
 
+func (s *IdempotencyStore) executor(ctx context.Context) pgxExecutor {
+	return getExecutor(ctx, s.pool)
+}
+
 func (s *IdempotencyStore) IsDuplicate(ctx context.Context, key domain.IdempotencyKey) (bool, error) {
 	query := `SELECT EXISTS(SELECT 1 FROM idempotency_keys WHERE event_id = $1 AND entity_id = $2 AND expires_at > NOW())`
 	var exists bool
-	err := s.pool.QueryRow(ctx, query, key.EventID, key.EntityID).Scan(&exists)
+	err := s.executor(ctx).QueryRow(ctx, query, key.EventID, key.EntityID).Scan(&exists)
 	if err != nil {
 		return false, fmt.Errorf("idempotency check: %w", err)
 	}
@@ -295,7 +340,7 @@ func (s *IdempotencyStore) IsDuplicate(ctx context.Context, key domain.Idempoten
 func (s *IdempotencyStore) MarkProcessed(ctx context.Context, key domain.IdempotencyKey) error {
 	query := `INSERT INTO idempotency_keys (event_id, entity_id, expires_at)
 		VALUES ($1, $2, NOW() + INTERVAL '7 days') ON CONFLICT DO NOTHING`
-	_, err := s.pool.Exec(ctx, query, key.EventID, key.EntityID)
+	_, err := s.executor(ctx).Exec(ctx, query, key.EventID, key.EntityID)
 	if err != nil {
 		return fmt.Errorf("idempotency mark processed: %w", err)
 	}
@@ -303,7 +348,7 @@ func (s *IdempotencyStore) MarkProcessed(ctx context.Context, key domain.Idempot
 }
 
 func (s *IdempotencyStore) CleanExpired(ctx context.Context) (int, error) {
-	tag, err := s.pool.Exec(ctx, `DELETE FROM idempotency_keys WHERE expires_at <= NOW()`)
+	tag, err := s.executor(ctx).Exec(ctx, `DELETE FROM idempotency_keys WHERE expires_at <= NOW()`)
 	if err != nil {
 		return 0, fmt.Errorf("idempotency clean: %w", err)
 	}

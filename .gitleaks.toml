@@ -1,0 +1,16 @@
+# Gitleaks configuration — detects secrets in the repo
+# Run: gitleaks detect --config .gitleaks.toml
+
+title = "Gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known false positives and test keys"
+paths = [
+  '''go\.sum''',
+  '''uv\.lock''',
+  '''\.pytest_cache/''',
+  '''\.venv/''',
+]

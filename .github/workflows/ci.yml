@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  go-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: ['1.26']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Test shared/go
+        run: go test ./...
+        working-directory: shared/go
+      - name: Test region-resolver
+        run: go test ./...
+        working-directory: services/region-resolver
+      - name: Test entity-management
+        run: go test ./...
+        working-directory: services/entity-management
+
+  go-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+      - uses: golangci/golangci-lint-action@v7
+        with:
+          working-directory: shared/go
+      - uses: golangci/golangci-lint-action@v7
+        with:
+          working-directory: services/region-resolver
+      - uses: golangci/golangci-lint-action@v7
+        with:
+          working-directory: services/entity-management
+
+  secrets-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        with:
+          config-path: .gitleaks.toml
+
+  python-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Lint semantic-router
+        run: uv pip compile pyproject.toml --quiet && ruff check .
+        working-directory: services/semantic-router
+      - name: Lint agents
+        run: uv pip compile pyproject.toml --quiet && ruff check .
+        working-directory: agents

@@ -49,6 +49,17 @@ model_list:
       model: ollama/qwen2.5-coder:7b
       api_base: http://host.docker.internal:11434
 
+  - model_name: local-failover
+    litellm_params:
+      model: ollama/qwen2.5-coder:7b
+      api_base: http://host.docker.internal:11434
+
+  - model_name: local-repo-brain
+    litellm_params:
+      model: ollama/qwen2.5-coder:14b
+      api_base: http://host.docker.internal:11434
+
+
 litellm_settings:
   drop_params: true
   success_callback: ["prometheus"]

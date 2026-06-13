@@ -23,8 +23,49 @@ import (
 	"entity-management/internal/domain"
 )
 
-const tracerName = "entity-management.ports"
-const meterName = "entity-management.ports"
+const (
+	tracerName      = "entity-management.ports"
+	meterName       = "entity-management.ports"
+	iso8601         = "2006-01-02T15:04:05.000Z"
+	contentTypeJSON = "application/json"
+
+	metricSuccessName = "entity_management.operations.success"
+	metricErrorName   = "entity_management.operations.error"
+
+	attrSchemaID       = "schema_id"
+	attrSchemaVersion  = "schema_version"
+	attrEntityID       = "entity_id"
+	attrEntityName     = "entity_name"
+	attrEntityType     = "entity_type"
+	attrEntityStatus   = "entity_status"
+	attrEntityVersion  = "entity_version"
+	attrNewVersion     = "new_version"
+	attrRegion         = "region"
+	attrHasIdempotency = "has_idempotency_key"
+	attrCreated        = "created"
+	attrLimit          = "limit"
+	attrHasCursor      = "has_cursor"
+	attrFilterCount    = "filter_count"
+	attrIncludeDeleted = "include_deleted"
+	attrOperation      = "operation"
+	attrComponent      = "component"
+
+	headerIdempotency  = "Idempotency-Key"
+	headerForwardedFor = "X-Forwarded-For"
+
+	opDefineSchema  = "define_schema"
+	opGetSchema     = "get_schema"
+	opListSchemas   = "list_schemas"
+	opCreateEntity  = "create_entity"
+	opListEntities  = "list_entities"
+	opGetEntity     = "get_entity"
+	opUpdateEntity  = "update_entity"
+	opDeleteEntity  = "delete_entity"
+	opRestoreEntity = "restore_entity"
+
+	compSchemaHandler = "SchemaHTTPHandler"
+	compEntityHandler = "EntityHTTPHandler"
+)
 
 // HTTPHandler is a marker interface for HTTP handlers that can register
 // their routes on a chi router.
@@ -83,58 +124,85 @@ func NewRouter(
 	return r
 }
 
-// --- Schema HTTP Handlers ---
+// --- Telemetry Utility Engine ---
 
-// SchemaHTTPHandler translates HTTP requests to the application layer.
-type SchemaHTTPHandler struct {
-	svc    *application.SchemaService
-	logger *slog.Logger
-	tracer trace.Tracer
-	meter  metric.Meter
+type telemetryEngine struct {
+	tracer    trace.Tracer
+	meter     metric.Meter
+	component string
 }
 
-// NewSchemaHTTPHandler creates a new HTTP handler for schema operations.
-func NewSchemaHTTPHandler(svc *application.SchemaService, logger *slog.Logger) *SchemaHTTPHandler {
-	return &SchemaHTTPHandler{
-		svc:    svc,
-		logger: logger.With("handler", "SchemaHTTPHandler"),
-		tracer: otel.Tracer(tracerName),
-		meter:  otel.Meter(meterName),
+func newTelemetryEngine(component string) telemetryEngine {
+	return telemetryEngine{
+		tracer:    otel.Tracer(tracerName),
+		meter:     otel.Meter(meterName),
+		component: component,
 	}
 }
 
-// RegisterRoutes registers HTTP endpoints on the provided chi router.
+func (t *telemetryEngine) recordSuccess(ctx context.Context, operation string) {
+	if counter, err := t.meter.Int64Counter(metricSuccessName, metric.WithDescription("Successful operations")); err == nil {
+		counter.Add(ctx, 1, metric.WithAttributes(
+			attribute.String(attrOperation, operation),
+			attribute.String(attrComponent, t.component),
+		))
+	}
+}
+
+func (t *telemetryEngine) recordError(ctx context.Context, operation string) {
+	if counter, err := t.meter.Int64Counter(metricErrorName, metric.WithDescription("Failed operations")); err == nil {
+		counter.Add(ctx, 1, metric.WithAttributes(
+			attribute.String(attrOperation, operation),
+			attribute.String(attrComponent, t.component),
+		))
+	}
+}
+
+// --- Schema HTTP Handlers ---
+
+type SchemaHTTPHandler struct {
+	svc    *application.SchemaService
+	logger *slog.Logger
+	tel    telemetryEngine
+}
+
+func NewSchemaHTTPHandler(svc *application.SchemaService, logger *slog.Logger) *SchemaHTTPHandler {
+	return &SchemaHTTPHandler{
+		svc:    svc,
+		logger: logger.With("handler", compSchemaHandler),
+		tel:    newTelemetryEngine(compSchemaHandler),
+	}
+}
+
 func (h *SchemaHTTPHandler) RegisterRoutes(r chi.Router) {
 	r.Post("/schemas", h.handleDefineSchema)
 	r.Get("/schemas/{id}", h.handleGetSchema)
 	r.Get("/schemas", h.handleListSchemas)
 }
 
-// SchemaDefineRequest is the HTTP JSON request body for defining a schema.
 type SchemaDefineRequest struct {
 	Name       string                       `json:"name"`
 	Attributes []domain.AttributeDefinition `json:"attributes"`
 }
 
-// SchemaDefineResponse is the HTTP JSON response for a successful definition.
 type SchemaDefineResponse struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
 	Version int    `json:"version"`
 }
 
-// ErrorResponse is a standard error payload for the API.
 type ErrorResponse struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
 }
 
 func (h *SchemaHTTPHandler) handleDefineSchema(w http.ResponseWriter, r *http.Request) {
-	ctx, span := h.tracer.Start(r.Context(), "ports.SchemaHTTPHandler.handleDefineSchema")
+	ctx, span := h.tel.tracer.Start(r.Context(), "ports.SchemaHTTPHandler.handleDefineSchema")
 	defer span.End()
 
 	var req SchemaDefineRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.tel.recordError(ctx, opDefineSchema)
 		writeJSON(ctx, w, http.StatusBadRequest, ErrorResponse{
 			Code:    "INVALID_JSON",
 			Message: "invalid request body: " + err.Error(),
@@ -150,31 +218,16 @@ func (h *SchemaHTTPHandler) handleDefineSchema(w http.ResponseWriter, r *http.Re
 	result, err := h.svc.DefineSchema(ctx, input)
 	if err != nil {
 		span.RecordError(err)
-		h.recordError(ctx, "define_schema")
-
-		code := http.StatusInternalServerError
-		switch {
-		case errors.Is(err, domain.ErrInvalidSchema),
-			errors.Is(err, domain.ErrUnsupportedFieldType):
-			code = http.StatusBadRequest
-		case errors.Is(err, domain.ErrSchemaAlreadyExists):
-			code = http.StatusConflict
-		case errors.Is(err, domain.ErrSchemaNotFound):
-			code = http.StatusNotFound
-		}
-
-		writeJSON(ctx, w, code, ErrorResponse{
-			Code:    httpCodeToErrorCode(code),
-			Message: unwrapErrorMessage(err),
-		})
+		h.tel.recordError(ctx, opDefineSchema)
+		handleHTTPError(ctx, w, err)
 		return
 	}
 
 	span.SetAttributes(
-		attribute.String("schema_id", result.Schema.ID),
-		attribute.Int("schema_version", result.Schema.Version),
+		attribute.String(attrSchemaID, result.Schema.ID),
+		attribute.Int(attrSchemaVersion, result.Schema.Version),
 	)
-	h.recordSuccess(ctx, "define_schema")
+	h.tel.recordSuccess(ctx, opDefineSchema)
 
 	writeJSON(ctx, w, http.StatusCreated, SchemaDefineResponse{
 		ID:      result.Schema.ID,
@@ -184,7 +237,7 @@ func (h *SchemaHTTPHandler) handleDefineSchema(w http.ResponseWriter, r *http.Re
 }
 
 func (h *SchemaHTTPHandler) handleGetSchema(w http.ResponseWriter, r *http.Request) {
-	ctx, span := h.tracer.Start(r.Context(), "ports.SchemaHTTPHandler.handleGetSchema")
+	ctx, span := h.tel.tracer.Start(r.Context(), "ports.SchemaHTTPHandler.handleGetSchema")
 	defer span.End()
 
 	id := chi.URLParam(r, "id")
@@ -199,72 +252,35 @@ func (h *SchemaHTTPHandler) handleGetSchema(w http.ResponseWriter, r *http.Reque
 	schema, err := h.svc.GetSchema(ctx, id)
 	if err != nil {
 		span.RecordError(err)
-		h.recordError(ctx, "get_schema")
-		code := http.StatusInternalServerError
-		if errors.Is(err, domain.ErrSchemaNotFound) {
-			code = http.StatusNotFound
-		}
-		writeJSON(ctx, w, code, ErrorResponse{
-			Code:    httpCodeToErrorCode(code),
-			Message: unwrapErrorMessage(err),
-		})
+		h.tel.recordError(ctx, opGetSchema)
+		handleHTTPError(ctx, w, err)
 		return
 	}
 
-	h.recordSuccess(ctx, "get_schema")
+	h.tel.recordSuccess(ctx, opGetSchema)
 	writeJSON(ctx, w, http.StatusOK, schema)
 }
 
 func (h *SchemaHTTPHandler) handleListSchemas(w http.ResponseWriter, r *http.Request) {
-	ctx, span := h.tracer.Start(r.Context(), "ports.SchemaHTTPHandler.handleListSchemas")
+	ctx, span := h.tel.tracer.Start(r.Context(), "ports.SchemaHTTPHandler.handleListSchemas")
 	defer span.End()
 
 	schemas, err := h.svc.ListSchemas(ctx)
 	if err != nil {
 		span.RecordError(err)
-		h.recordError(ctx, "list_schemas")
-		writeJSON(ctx, w, http.StatusInternalServerError, ErrorResponse{
-			Code:    "INTERNAL_ERROR",
-			Message: err.Error(),
-		})
+		h.tel.recordError(ctx, opListSchemas)
+		handleHTTPError(ctx, w, err)
 		return
 	}
 	if schemas == nil {
 		schemas = []*domain.EntitySchema{}
 	}
-	h.recordSuccess(ctx, "list_schemas")
+	h.tel.recordSuccess(ctx, opListSchemas)
 	writeJSON(ctx, w, http.StatusOK, schemas)
-}
-
-func (h *SchemaHTTPHandler) recordSuccess(ctx context.Context, operation string) {
-	counter, err := h.meter.Int64Counter("entity_management.operations.success",
-		metric.WithDescription("Successful operations"),
-	)
-	if err != nil {
-		return
-	}
-	counter.Add(ctx, 1, metric.WithAttributes(
-		attribute.String("operation", operation),
-		attribute.String("component", "SchemaHTTPHandler"),
-	))
-}
-
-func (h *SchemaHTTPHandler) recordError(ctx context.Context, operation string) {
-	counter, err := h.meter.Int64Counter("entity_management.operations.error",
-		metric.WithDescription("Failed operations"),
-	)
-	if err != nil {
-		return
-	}
-	counter.Add(ctx, 1, metric.WithAttributes(
-		attribute.String("operation", operation),
-		attribute.String("component", "SchemaHTTPHandler"),
-	))
 }
 
 // --- Entity HTTP Handlers ---
 
-// EntityHTTPHandler translates HTTP requests for entity operations.
 type EntityHTTPHandler struct {
 	createUC CreateEntityUseCase
 	readUC   ReadEntityUseCase
@@ -272,11 +288,9 @@ type EntityHTTPHandler struct {
 	deleteUC DeleteRestoreUseCase
 	listUC   ListEntitiesUseCase
 	logger   *slog.Logger
-	tracer   trace.Tracer
-	meter    metric.Meter
+	tel      telemetryEngine
 }
 
-// NewEntityHTTPHandler creates a new HTTP handler for entity operations.
 func NewEntityHTTPHandler(
 	createUC CreateEntityUseCase,
 	readUC ReadEntityUseCase,
@@ -291,13 +305,11 @@ func NewEntityHTTPHandler(
 		updateUC: updateUC,
 		deleteUC: deleteUC,
 		listUC:   listUC,
-		logger:   logger.With("handler", "EntityHTTPHandler"),
-		tracer:   otel.Tracer(tracerName),
-		meter:    otel.Meter(meterName),
+		logger:   logger.With("handler", compEntityHandler),
+		tel:      newTelemetryEngine(compEntityHandler),
 	}
 }
 
-// RegisterRoutes registers HTTP endpoints on the provided chi router.
 func (h *EntityHTTPHandler) RegisterRoutes(r chi.Router) {
 	r.Post("/entities", h.handleCreateEntity)
 	r.Get("/entities", h.handleListEntities)
@@ -306,8 +318,6 @@ func (h *EntityHTTPHandler) RegisterRoutes(r chi.Router) {
 	r.Delete("/entities/{id}", h.handleDeleteEntity)
 	r.Post("/entities/{id}/restore", h.handleRestoreEntity)
 }
-
-// --- Create Entity (POST /api/v1/entities) ---
 
 type createEntityRequest struct {
 	SchemaID   string         `json:"schema_id"`
@@ -332,44 +342,38 @@ type createEntityResponse struct {
 }
 
 func (h *EntityHTTPHandler) handleCreateEntity(w http.ResponseWriter, r *http.Request) {
-	ctx, span := h.tracer.Start(r.Context(), "ports.EntityHTTPHandler.handleCreateEntity")
+	ctx, span := h.tel.tracer.Start(r.Context(), "ports.EntityHTTPHandler.handleCreateEntity")
 	defer span.End()
 
 	var req createEntityRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.tel.recordError(ctx, opCreateEntity)
 		writeJSON(ctx, w, http.StatusBadRequest, ErrorResponse{
 			Code:    "INVALID_JSON",
 			Message: "invalid request body: " + err.Error(),
 		})
-		h.recordError(ctx, "create_entity")
 		return
 	}
 
 	if req.SchemaID == "" {
-		writeJSON(ctx, w, http.StatusBadRequest, ErrorResponse{
-			Code:    "MISSING_SCHEMA_ID",
-			Message: "schema_id is required",
-		})
-		h.recordError(ctx, "create_entity")
+		h.tel.recordError(ctx, opCreateEntity)
+		writeJSON(ctx, w, http.StatusBadRequest, ErrorResponse{Code: "MISSING_SCHEMA_ID", Message: "schema_id is required"})
 		return
 	}
 	if req.Name == "" {
-		writeJSON(ctx, w, http.StatusBadRequest, ErrorResponse{
-			Code:    "MISSING_NAME",
-			Message: "name is required",
-		})
-		h.recordError(ctx, "create_entity")
+		h.tel.recordError(ctx, opCreateEntity)
+		writeJSON(ctx, w, http.StatusBadRequest, ErrorResponse{Code: "MISSING_NAME", Message: "name is required"})
 		return
 	}
 
-	idempotencyKey := r.Header.Get("Idempotency-Key")
+	idempotencyKey := r.Header.Get(headerIdempotency)
 
 	span.SetAttributes(
-		attribute.String("schema_id", req.SchemaID),
-		attribute.String("entity_name", req.Name),
-		attribute.String("entity_type", req.Type),
-		attribute.String("region", req.Region),
-		attribute.Bool("has_idempotency_key", idempotencyKey != ""),
+		attribute.String(attrSchemaID, req.SchemaID),
+		attribute.String(attrEntityName, req.Name),
+		attribute.String(attrEntityType, req.Type),
+		attribute.String(attrRegion, req.Region),
+		attribute.Bool(attrHasIdempotency, idempotencyKey != ""),
 	)
 
 	appReq := application.CreateEntityRequest{
@@ -385,28 +389,16 @@ func (h *EntityHTTPHandler) handleCreateEntity(w http.ResponseWriter, r *http.Re
 	result, err := h.createUC.Execute(ctx, appReq)
 	if err != nil {
 		span.RecordError(err)
-		h.recordError(ctx, "create_entity")
-		code := http.StatusInternalServerError
-		switch {
-		case errors.Is(err, domain.ErrSchemaNotFound):
-			code = http.StatusNotFound
-		case errors.Is(err, domain.ErrValidationFailed),
-			errors.Is(err, domain.ErrInvalidEntity),
-			errors.Is(err, domain.ErrMissingRequiredAttr):
-			code = http.StatusBadRequest
-		}
-		writeJSON(ctx, w, code, ErrorResponse{
-			Code:    httpCodeToErrorCode(code),
-			Message: unwrapErrorMessage(err),
-		})
+		h.tel.recordError(ctx, opCreateEntity)
+		handleHTTPError(ctx, w, err)
 		return
 	}
 
 	span.SetAttributes(
-		attribute.String("entity_id", result.EntityID),
-		attribute.Bool("created", result.Created),
+		attribute.String(attrEntityID, result.EntityID),
+		attribute.Bool(attrCreated, result.Created),
 	)
-	h.recordSuccess(ctx, "create_entity")
+	h.tel.recordSuccess(ctx, opCreateEntity)
 
 	resp := createEntityResponse{
 		ID:                result.EntityID,
@@ -428,8 +420,6 @@ func (h *EntityHTTPHandler) handleCreateEntity(w http.ResponseWriter, r *http.Re
 	writeJSON(ctx, w, statusCode, resp)
 }
 
-// --- List Entities (GET /api/v1/entities) ---
-
 type updateEntityRequest struct {
 	ExpectedVersion int            `json:"expected_version"`
 	Name            *string        `json:"name,omitempty"`
@@ -440,7 +430,7 @@ type updateEntityRequest struct {
 }
 
 func (h *EntityHTTPHandler) handleListEntities(w http.ResponseWriter, r *http.Request) {
-	ctx, span := h.tracer.Start(r.Context(), "ports.EntityHTTPHandler.handleListEntities")
+	ctx, span := h.tel.tracer.Start(r.Context(), "ports.EntityHTTPHandler.handleListEntities")
 	defer span.End()
 
 	schemaID := r.URL.Query().Get("schema_id")
@@ -459,7 +449,7 @@ func (h *EntityHTTPHandler) handleListEntities(w http.ResponseWriter, r *http.Re
 		}
 	}
 
-	requestOrigin := r.Header.Get("X-Forwarded-For")
+	requestOrigin := r.Header.Get(headerForwardedFor)
 	if requestOrigin == "" {
 		requestOrigin = r.RemoteAddr
 	}
@@ -469,11 +459,11 @@ func (h *EntityHTTPHandler) handleListEntities(w http.ResponseWriter, r *http.Re
 	includeDeleted, _ := strconv.ParseBool(r.URL.Query().Get("include_deleted"))
 
 	span.SetAttributes(
-		attribute.String("schema_id", schemaID),
-		attribute.Int("limit", limit),
-		attribute.Bool("has_cursor", cursor != ""),
-		attribute.Int("filter_count", len(rawFilters)),
-		attribute.Bool("include_deleted", includeDeleted),
+		attribute.String(attrSchemaID, schemaID),
+		attribute.Int(attrLimit, limit),
+		attribute.Bool(attrHasCursor, cursor != ""),
+		attribute.Int(attrFilterCount, len(rawFilters)),
+		attribute.Bool(attrIncludeDeleted, includeDeleted),
 	)
 
 	req := application.ListEntitiesRequest{
@@ -488,19 +478,12 @@ func (h *EntityHTTPHandler) handleListEntities(w http.ResponseWriter, r *http.Re
 	result, err := h.listUC.Execute(ctx, req)
 	if err != nil {
 		span.RecordError(err)
-		h.recordError(ctx, "list_entities")
-		code := http.StatusInternalServerError
-		if errors.Is(err, domain.ErrInvalidFilter) || errors.Is(err, domain.ErrInvalidCursor) {
-			code = http.StatusBadRequest
-		}
-		writeJSON(ctx, w, code, ErrorResponse{
-			Code:    httpCodeToErrorCode(code),
-			Message: unwrapErrorMessage(err),
-		})
+		h.tel.recordError(ctx, opListEntities)
+		handleHTTPError(ctx, w, err)
 		return
 	}
 
-	h.recordSuccess(ctx, "list_entities")
+	h.tel.recordSuccess(ctx, opListEntities)
 
 	type listEntityItem struct {
 		ID        string  `json:"id"`
@@ -533,17 +516,15 @@ func (h *EntityHTTPHandler) handleListEntities(w http.ResponseWriter, r *http.Re
 		items = append(items, item)
 	}
 
-	response := map[string]any{
+	writeJSON(ctx, w, http.StatusOK, map[string]any{
 		"entities":    items,
 		"next_cursor": result.NextCursor,
 		"total_count": result.TotalCount,
-	}
-
-	writeJSON(ctx, w, http.StatusOK, response)
+	})
 }
 
 func (h *EntityHTTPHandler) handleGetEntity(w http.ResponseWriter, r *http.Request) {
-	ctx, span := h.tracer.Start(r.Context(), "ports.EntityHTTPHandler.handleGetEntity")
+	ctx, span := h.tel.tracer.Start(r.Context(), "ports.EntityHTTPHandler.handleGetEntity")
 	defer span.End()
 
 	id := chi.URLParam(r, "id")
@@ -555,36 +536,27 @@ func (h *EntityHTTPHandler) handleGetEntity(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	span.SetAttributes(attribute.String("entity_id", id))
+	span.SetAttributes(attribute.String(attrEntityID, id))
 
 	entity, err := h.readUC.Execute(ctx, id)
 	if err != nil {
 		span.RecordError(err)
-		h.recordError(ctx, "get_entity")
-
-		code := http.StatusInternalServerError
-		if errors.Is(err, domain.ErrEntityNotFound) {
-			code = http.StatusNotFound
-		}
-
-		writeJSON(ctx, w, code, ErrorResponse{
-			Code:    httpCodeToErrorCode(code),
-			Message: unwrapErrorMessage(err),
-		})
+		h.tel.recordError(ctx, opGetEntity)
+		handleHTTPError(ctx, w, err)
 		return
 	}
 
-	h.recordSuccess(ctx, "get_entity")
+	h.tel.recordSuccess(ctx, opGetEntity)
 	span.SetAttributes(
-		attribute.String("entity_status", entity.Status),
-		attribute.Int("entity_version", entity.Version),
+		attribute.String(attrEntityStatus, entity.Status),
+		attribute.Int(attrEntityVersion, entity.Version),
 	)
 
 	writeJSON(ctx, w, http.StatusOK, entity)
 }
 
 func (h *EntityHTTPHandler) handleUpdateEntity(w http.ResponseWriter, r *http.Request) {
-	ctx, span := h.tracer.Start(r.Context(), "ports.EntityHTTPHandler.handleUpdateEntity")
+	ctx, span := h.tel.tracer.Start(r.Context(), "ports.EntityHTTPHandler.handleUpdateEntity")
 	defer span.End()
 
 	id := chi.URLParam(r, "id")
@@ -595,24 +567,24 @@ func (h *EntityHTTPHandler) handleUpdateEntity(w http.ResponseWriter, r *http.Re
 		})
 		return
 	}
-	span.SetAttributes(attribute.String("entity_id", id))
+	span.SetAttributes(attribute.String(attrEntityID, id))
 
 	var req updateEntityRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.tel.recordError(ctx, opUpdateEntity)
 		writeJSON(ctx, w, http.StatusBadRequest, ErrorResponse{
 			Code:    "INVALID_JSON",
 			Message: "invalid request body: " + err.Error(),
 		})
-		h.recordError(ctx, "update_entity")
 		return
 	}
 
 	if req.ExpectedVersion <= 0 {
+		h.tel.recordError(ctx, opUpdateEntity)
 		writeJSON(ctx, w, http.StatusBadRequest, ErrorResponse{
 			Code:    "INVALID_VERSION",
 			Message: "expected_version must be a positive integer",
 		})
-		h.recordError(ctx, "update_entity")
 		return
 	}
 
@@ -629,93 +601,42 @@ func (h *EntityHTTPHandler) handleUpdateEntity(w http.ResponseWriter, r *http.Re
 	entity, err := h.updateUC.Execute(ctx, appReq)
 	if err != nil {
 		span.RecordError(err)
-		h.recordError(ctx, "update_entity")
-		code := http.StatusInternalServerError
-		switch {
-		case errors.Is(err, domain.ErrEntityNotFound):
-			code = http.StatusNotFound
-		case errors.Is(err, domain.ErrStaleVersion),
-			errors.Is(err, domain.ErrConcurrentModification):
-			code = http.StatusConflict
-		case errors.Is(err, domain.ErrImmutableField):
-			code = http.StatusBadRequest
-		case errors.Is(err, domain.ErrInvalidStatusTransition):
-			code = http.StatusBadRequest
-		}
-		writeJSON(ctx, w, code, ErrorResponse{
-			Code:    httpCodeToErrorCode(code),
-			Message: unwrapErrorMessage(err),
-		})
+		h.tel.recordError(ctx, opUpdateEntity)
+		handleHTTPError(ctx, w, err)
 		return
 	}
 
-	h.recordSuccess(ctx, "update_entity")
+	h.tel.recordSuccess(ctx, opUpdateEntity)
 	span.SetAttributes(
-		attribute.Int("new_version", entity.Version),
-		attribute.String("entity_status", entity.Status),
+		attribute.Int(attrNewVersion, entity.Version),
+		attribute.String(attrEntityStatus, entity.Status),
 	)
 
 	writeJSON(ctx, w, http.StatusOK, entity)
 }
 
-// handleDeleteEntity handles DELETE /api/v1/entities/{id}.
-//
-// Gherkin: "As an API consumer, I want to DELETE /api/v1/entities/{id}"
-//
-//	Scenario: Successful deletion
-//	  Given an entity with ID "abc-123" exists
-//	  When a DELETE request is made to /api/v1/entities/abc-123
-//	  Then the response status is 204
-//	  And the entity with ID "abc-123" no longer exists in the database
-//
-//	Scenario: Entity not found
-//	  Given no entity with ID "nonexistent" exists
-//	  When a DELETE request is made to /api/v1/entities/nonexistent
-//	  Then the response status is 404
 func (h *EntityHTTPHandler) handleDeleteEntity(w http.ResponseWriter, r *http.Request) {
-	ctx, span := h.tracer.Start(r.Context(), "ports.EntityHTTPHandler.handleDeleteEntity")
+	ctx, span := h.tel.tracer.Start(r.Context(), "ports.EntityHTTPHandler.handleDeleteEntity")
 	defer span.End()
 
 	id := chi.URLParam(r, "id")
 	if id == "" {
-		writeJSON(ctx, w, http.StatusBadRequest, ErrorResponse{
-			Code:    "MISSING_ID",
-			Message: "entity id is required",
-		})
-		h.recordError(ctx, "delete_entity")
+		h.tel.recordError(ctx, opDeleteEntity)
+		writeJSON(ctx, w, http.StatusBadRequest, ErrorResponse{Code: "MISSING_ID", Message: "entity id is required"})
 		return
 	}
-	span.SetAttributes(attribute.String("entity_id", id))
+	span.SetAttributes(attribute.String(attrEntityID, id))
 
 	permanent := r.URL.Query().Get("permanent") == "true"
 	if permanent {
 		if err := h.deleteUC.HardDelete(ctx, id); err != nil {
 			span.RecordError(err)
-			h.recordError(ctx, "delete_entity")
-
-			if errors.Is(err, domain.ErrEntityNotFound) {
-				writeJSON(ctx, w, http.StatusNotFound, ErrorResponse{
-					Code:    "NOT_FOUND",
-					Message: "entity not found",
-				})
-				return
-			}
-			if errors.Is(err, domain.ErrNotDeleted) {
-				writeJSON(ctx, w, http.StatusBadRequest, ErrorResponse{
-					Code:    "BAD_REQUEST",
-					Message: "entity is not soft-deleted",
-				})
-				return
-			}
-
-			writeJSON(ctx, w, http.StatusInternalServerError, ErrorResponse{
-				Code:    "INTERNAL_ERROR",
-				Message: unwrapErrorMessage(err),
-			})
+			h.tel.recordError(ctx, opDeleteEntity)
+			handleHTTPError(ctx, w, err)
 			return
 		}
 
-		h.recordSuccess(ctx, "delete_entity")
+		h.tel.recordSuccess(ctx, opDeleteEntity)
 		writeJSON(ctx, w, http.StatusOK, map[string]string{
 			"status":    "hard_deleted",
 			"entity_id": id,
@@ -723,31 +644,22 @@ func (h *EntityHTTPHandler) handleDeleteEntity(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	if err := h.deleteUC.PermanentDelete(ctx, id); err != nil {
+	if err := h.deleteUC.SoftDelete(ctx, id); err != nil {
 		span.RecordError(err)
-		h.recordError(ctx, "delete_entity")
-
-		if errors.Is(err, domain.ErrEntityNotFound) {
-			writeJSON(ctx, w, http.StatusNotFound, ErrorResponse{
-				Code:    "NOT_FOUND",
-				Message: "entity not found",
-			})
-			return
-		}
-
-		writeJSON(ctx, w, http.StatusInternalServerError, ErrorResponse{
-			Code:    "INTERNAL_ERROR",
-			Message: unwrapErrorMessage(err),
-		})
+		h.tel.recordError(ctx, opDeleteEntity)
+		handleHTTPError(ctx, w, err)
 		return
 	}
 
-	h.recordSuccess(ctx, "delete_entity")
-	w.WriteHeader(http.StatusNoContent) // 204 No Content
+	h.tel.recordSuccess(ctx, opDeleteEntity)
+	writeJSON(ctx, w, http.StatusOK, map[string]string{
+		"status":    "soft_deleted",
+		"entity_id": id,
+	})
 }
 
 func (h *EntityHTTPHandler) handleRestoreEntity(w http.ResponseWriter, r *http.Request) {
-	ctx, span := h.tracer.Start(r.Context(), "ports.EntityHTTPHandler.handleRestoreEntity")
+	ctx, span := h.tel.tracer.Start(r.Context(), "ports.EntityHTTPHandler.handleRestoreEntity")
 	defer span.End()
 
 	id := chi.URLParam(r, "id")
@@ -758,68 +670,60 @@ func (h *EntityHTTPHandler) handleRestoreEntity(w http.ResponseWriter, r *http.R
 		})
 		return
 	}
-	span.SetAttributes(attribute.String("entity_id", id))
+	span.SetAttributes(attribute.String(attrEntityID, id))
 
 	if err := h.deleteUC.Restore(ctx, id); err != nil {
 		span.RecordError(err)
-		h.recordError(ctx, "restore_entity")
-		code := http.StatusInternalServerError
-		switch {
-		case errors.Is(err, domain.ErrEntityNotFound):
-			code = http.StatusNotFound
-		case errors.Is(err, domain.ErrNotDeleted):
-			code = http.StatusBadRequest
-		}
-		writeJSON(ctx, w, code, ErrorResponse{
-			Code:    httpCodeToErrorCode(code),
-			Message: unwrapErrorMessage(err),
-		})
+		h.tel.recordError(ctx, opRestoreEntity)
+		handleHTTPError(ctx, w, err)
 		return
 	}
 
-	h.recordSuccess(ctx, "restore_entity")
+	h.tel.recordSuccess(ctx, opRestoreEntity)
 	writeJSON(ctx, w, http.StatusOK, map[string]string{
 		"status":    "restored",
 		"entity_id": id,
 	})
 }
 
-func (h *EntityHTTPHandler) recordSuccess(ctx context.Context, operation string) {
-	counter, err := h.meter.Int64Counter("entity_management.operations.success",
-		metric.WithDescription("Successful operations"),
-	)
-	if err != nil {
-		return
-	}
-	counter.Add(ctx, 1, metric.WithAttributes(
-		attribute.String("operation", operation),
-		attribute.String("component", "EntityHTTPHandler"),
-	))
-}
-
-func (h *EntityHTTPHandler) recordError(ctx context.Context, operation string) {
-	counter, err := h.meter.Int64Counter("entity_management.operations.error",
-		metric.WithDescription("Failed operations"),
-	)
-	if err != nil {
-		return
-	}
-	counter.Add(ctx, 1, metric.WithAttributes(
-		attribute.String("operation", operation),
-		attribute.String("component", "EntityHTTPHandler"),
-	))
-}
-
-// --- Helpers ---
-
-const iso8601 = "2006-01-02T15:04:05.000Z"
+// --- Structural Helpers & Global Mappings ---
 
 func writeJSON(ctx context.Context, w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", contentTypeJSON)
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(v); err != nil {
 		slog.Default().ErrorContext(ctx, "failed to encode JSON response", "error", err)
 	}
+}
+
+func handleHTTPError(ctx context.Context, w http.ResponseWriter, err error) {
+	code := http.StatusInternalServerError
+
+	switch {
+	case errors.Is(err, domain.ErrSchemaNotFound), errors.Is(err, domain.ErrEntityNotFound):
+		code = http.StatusNotFound
+	case errors.Is(err, domain.ErrInvalidSchema),
+		errors.Is(err, domain.ErrUnsupportedFieldType),
+		errors.Is(err, domain.ErrValidationFailed),
+		errors.Is(err, domain.ErrInvalidEntity),
+		errors.Is(err, domain.ErrMissingRequiredAttr),
+		errors.Is(err, domain.ErrInvalidFilter),
+		errors.Is(err, domain.ErrInvalidCursor),
+		errors.Is(err, domain.ErrImmutableField),
+		errors.Is(err, domain.ErrNotDeleted),
+		errors.Is(err, domain.ErrInvalidStatusTransition):
+		code = http.StatusBadRequest
+	case errors.Is(err, domain.ErrSchemaAlreadyExists):
+		code = http.StatusConflict
+	case errors.Is(err, domain.ErrStaleVersion),
+		errors.Is(err, domain.ErrConcurrentModification):
+		code = http.StatusConflict
+	}
+
+	writeJSON(ctx, w, code, ErrorResponse{
+		Code:    httpCodeToErrorCode(code),
+		Message: unwrapErrorMessage(err),
+	})
 }
 
 func httpCodeToErrorCode(code int) string {
@@ -837,8 +741,6 @@ func httpCodeToErrorCode(code int) string {
 	}
 }
 
-// unwrapErrorMessage extracts the innermost sentinel error message from a
-// wrapped error chain.
 func unwrapErrorMessage(err error) string {
 	if err == nil {
 		return ""

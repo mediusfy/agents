@@ -36,7 +36,7 @@ class LiteLLMConfig:
     @classmethod
     def get_api_key(cls) -> str:
         """Returns the virtual key used to authenticate with LiteLLM"""
-        return os.environ.get("LITELLM_VIRTUAL_KEY", "sk-MPQ3A_kKYzNrhTpL6tYUVg")
+        return os.environ.get("LITELLM_VIRTUAL_KEY", "")
         
     @classmethod
     def configure_openai_client(cls):

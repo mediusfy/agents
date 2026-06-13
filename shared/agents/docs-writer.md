@@ -2,7 +2,7 @@
 name: docs-writer
 description: Technical writer and API documentation specialist. Use to generate OpenAPI/Swagger specs, READMEs, runbooks, AGENTS.md, and API reference docs from existing code. Follows CODING_STANDARDS.md §3 documentation conventions.
 tools: Read, Write, Edit, Grep, Glob
-model: sonnet
+model: local-failover
 ---
 
 You are a Technical Writer and API Documentation Specialist.

@@ -197,9 +197,8 @@ dist
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
-# Go workspace file
+# Go workspace file (go.work.sum must be tracked for reproducible builds)
 go.work
-go.work.sum
 
 # env file
 .env
@@ -373,7 +372,7 @@ cython_debug/
 **/.DS_STORE
 
 
-# OS, IDE, and local local files
+# OS, IDE, and local files
 .DS_Store
 .idea/
 .claude/
@@ -381,10 +380,5 @@ cython_debug/
 session_trace.jsonl
 telemetry.jsonl
 
-# OS, IDE, and local local files
-.DS_Store
-.idea/
-.claude/
-.air/review/
-session_trace.jsonl
-telemetry.jsonl
+# Nested repos / workspaces (not part of this monorepo)
+frontend-engineer/

@@ -45,6 +45,7 @@ func (h *GRPCHandler) CreateEntity(ctx context.Context, req *gencode.CreateEntit
 	result, err := h.svc.CreateEntity(ctx, domain.CreateEntityInput{
 		Name:   req.Name,
 		Region: req.Region,
+		// TODO: map req.Labels once protobuf CreateEntityRequest gains a Labels field
 	})
 	if err != nil {
 		span.RecordError(err)
@@ -102,6 +103,7 @@ func (h *GRPCHandler) UpdateEntity(ctx context.Context, req *gencode.UpdateEntit
 		s := domain.EntityStatus(*req.Status)
 		op.Status = &s
 	}
+	// TODO: map req.Labels to op.Labels once protobuf UpdateEntityRequest gains a Labels field
 
 	entity, err := h.svc.UpdateEntity(ctx, req.Id, op)
 	if err != nil {
@@ -149,6 +151,7 @@ func (h *GRPCHandler) ListEntities(ctx context.Context, _ *gencode.ListEntitiesR
 }
 
 // domainEntityToProto converts a domain Entity to a protobuf Entity.
+// TODO: map e.Labels once the protobuf Entity message gains a Labels field.
 func domainEntityToProto(e *domain.Entity) *gencode.Entity {
 	return &gencode.Entity{
 		Id:                e.ID,

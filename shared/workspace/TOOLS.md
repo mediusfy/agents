@@ -2,11 +2,11 @@
 
 ## Project Reference
 
-- **Standards:** /Users/jocham/programming/ai/agents/CODING_STANDARDS.md
-- **Agent definitions (Claude Code):** /Users/jocham/programming/ai/agents/agents/
-- **Pydantic AI agents (USE THESE — DeepSeek):** /Users/jocham/programming/ai/agents/src/hermes/agents/
+- **Standards:** /Users/jocham/programming/projects/mediusfy/agents/agents/CODING_STANDARDS.md
+- **Agent definitions (Claude Code):** /Users/jocham/programming/projects/mediusfy/agents/agents/agents/
+- **Pydantic AI agents (USE THESE — DeepSeek):** /Users/jocham/programming/projects/mediusfy/agents/agents/src/hermes/agents/
 - **Antigravity SDK agents (USE THESE — Gemini):** ~/.gemini/config/plugins/agy-agents/agents/
-- **Repo root:** /Users/jocham/programming/ai/agents/
+- **Repo root:** /Users/jocham/programming/projects/mediusfy/agents/agents/
 
 ## Execution Rules
 
@@ -16,7 +16,7 @@
 
 ```python
 # Example: run UX audit via local Pydantic AI agent
-cd /Users/jocham/programming/ai/agents && python -c "
+cd /Users/jocham/programming/projects/mediusfy/agents/agents && python -c "
 import asyncio
 from hermes.agents.registration import register_all_agents
 from hermes.agents.ux import ux_agent
@@ -36,7 +36,7 @@ python main.py --project <path> --step ux
 
 Run the bridge for MCP integration:
 ```bash
-cd /Users/jocham/programming/ai/agents && ./agy_bridge_run.sh
+cd /Users/jocham/programming/projects/mediusfy/agents/agents && ./agy_bridge_run.sh
 ```
 
 ### Quick decision
@@ -50,7 +50,7 @@ cd /Users/jocham/programming/ai/agents && ./agy_bridge_run.sh
 ## Git
 
 - Repo: `git@github.com:drewjocham/agents.git`
-- Local: `/Users/jocham/programming/ai/agents/` (monorepo containing ux-designer)
+- Local: `/Users/jocham/programming/projects/mediusfy/agents/agents/` (monorepo containing ux-designer)
 - Remote: `origin` set to the above
 
 ## DeepSeek

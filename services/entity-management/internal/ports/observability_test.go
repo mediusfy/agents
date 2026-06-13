@@ -301,7 +301,6 @@ func (uc *observabilityFakeListUC) Execute(ctx context.Context, req application.
 // ---------------------------------------------------------------------------
 
 func TestObservability_SpanNamingConvention(t *testing.T) {
-	t.Parallel()
 
 	spanCollector := newTestSpanCollector()
 	tp := spanCollector.TracerProvider()
@@ -414,7 +413,6 @@ func TestObservability_SpanNamingConvention(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestObservability_TraceAttributes(t *testing.T) {
-	t.Parallel()
 
 	spanCollector := newTestSpanCollector()
 	tp := spanCollector.TracerProvider()
@@ -493,7 +491,6 @@ func TestObservability_TraceAttributes(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestObservability_ErrorRecording(t *testing.T) {
-	t.Parallel()
 
 	spanCollector := newTestSpanCollector()
 	tp := spanCollector.TracerProvider()
@@ -555,7 +552,6 @@ func TestObservability_ErrorRecording(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestObservability_CreateOperationSpanAttributes(t *testing.T) {
-	t.Parallel()
 
 	spanCollector := newTestSpanCollector()
 	tp := spanCollector.TracerProvider()
@@ -611,7 +607,6 @@ func TestObservability_CreateOperationSpanAttributes(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestObservability_DomainErrorInSpan(t *testing.T) {
-	t.Parallel()
 
 	spanCollector := newTestSpanCollector()
 	tp := spanCollector.TracerProvider()
@@ -662,7 +657,6 @@ func TestObservability_DomainErrorInSpan(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestObservability_ConcurrentOperations(t *testing.T) {
-	t.Parallel()
 
 	spanCollector := newTestSpanCollector()
 	tp := spanCollector.TracerProvider()
@@ -731,7 +725,6 @@ func TestObservability_ConcurrentOperations(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestObservability_ParentChildSpanRelationships(t *testing.T) {
-	t.Parallel()
 
 	exporter := tracetest.NewInMemoryExporter()
 	tp := sdktrace.NewTracerProvider(
@@ -794,7 +787,6 @@ func TestObservability_ParentChildSpanRelationships(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestObservability_SchemaHandlerSpanAttributes(t *testing.T) {
-	t.Parallel()
 
 	spanCollector := newTestSpanCollector()
 	tp := spanCollector.TracerProvider()

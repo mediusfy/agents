@@ -3,6 +3,7 @@ package ports
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -459,29 +460,29 @@ func (f *failingHandlerRepo) Save(_ context.Context, _ *domain.Entity) error {
 	return nil
 }
 func (f *failingHandlerRepo) FindByID(_ context.Context, _ string) (*domain.Entity, error) {
-	return nil, domain.ErrConcurrentModification
+	return nil, errors.New("database connection failed")
 }
 func (f *failingHandlerRepo) Update(_ context.Context, _ string, _ domain.UpdateOperation) (*domain.Entity, error) {
-	return nil, domain.ErrConcurrentModification
+	return nil, errors.New("database connection failed")
 }
 func (f *failingHandlerRepo) UpdateStatus(_ context.Context, _ string, _ domain.EntityStatus) error {
-	return domain.ErrConcurrentModification
+	return errors.New("database connection failed")
 }
 func (f *failingHandlerRepo) FindBySchemaID(_ context.Context, _ string) ([]*domain.Entity, error) {
-	return nil, domain.ErrConcurrentModification
+	return nil, errors.New("database connection failed")
 }
 func (f *failingHandlerRepo) List(_ context.Context, _ domain.EntityFilter) ([]*domain.Entity, error) {
-	return nil, domain.ErrConcurrentModification
+	return nil, errors.New("database connection failed")
 }
 func (f *failingHandlerRepo) SoftDelete(_ context.Context, _ string, _ time.Time) error {
-	return domain.ErrConcurrentModification
+	return errors.New("database connection failed")
 }
 func (f *failingHandlerRepo) Restore(_ context.Context, _ string) error {
-	return domain.ErrConcurrentModification
+	return errors.New("database connection failed")
 }
 func (f *failingHandlerRepo) HardDelete(_ context.Context, _ string) error {
-	return domain.ErrConcurrentModification
+	return errors.New("database connection failed")
 }
 func (f *failingHandlerRepo) ListEntities(_ context.Context, _ domain.ListEntitiesParams) (*domain.PaginatedResult, error) {
-	return nil, domain.ErrConcurrentModification
+	return nil, errors.New("database connection failed")
 }

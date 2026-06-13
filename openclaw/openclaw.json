@@ -16,7 +16,7 @@
           "alias": "DeepSeek"
         }
       },
-      "workspace": "/Users/jocham/programming/openclaw/"
+      "workspace": "/Users/jocham/programming/projects/mediusfy/agents/"
     },
     "list": [
       {
@@ -72,7 +72,8 @@
       },
       "deepseek:default": {
         "mode": "api_key",
-        "provider": "deepseek"
+        "provider": "deepseek",
+        "apiKey": "sk-MPQ3A_kKYzNrhTpL6tYUVg"
       }
     }
   },
@@ -143,10 +144,11 @@
   "mcp": {
     "servers": {
       "agents-planner": {
-        "remote": {
-          "transport": "sse",
-          "url": "http://0.0.0.0:8000"
-        }
+        "transport": "sse",
+        "url": "http://0.0.0.0:8000"
+      },
+      "openclaw-agents": {
+        "command": "/Users/jocham/programming/projects/mediusfy/agents/agents/mcp_run.sh"
       },
       "hermes": {
         "args": [
@@ -175,7 +177,7 @@
     "providers": {
       "deepseek": {
         "api": "openai-completions",
-        "baseUrl": "https://api.deepseek.com",
+        "baseUrl": "https://litellm.jocham.io/v1",
         "models": [
           {
             "api": "openai-completions",
@@ -396,7 +398,7 @@
   "discovery": {
     "wideArea": {
       "enabled": true,
-      "domain": "openclaw.drewjocham.com."
+      "domain": "openclaw.jocham.io."
     }
   }
 }
