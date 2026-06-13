@@ -131,7 +131,7 @@ Create a remediation PR for an incident.
   "runbook_id": "rb-database-failover",
   "environment": "production",
   "region": "us-east-1",
-  "pr_url": "https://github.com/rufkis/runbooks/pull/42",
+  "pr_url": "https://github.com/mediusfy/platform/pull/42",
   "pr_number": 42,
   "repository": "rufkis/runbooks",
   "branch": "remediation/inc-20260603-001-rb-database-failover",
@@ -870,7 +870,7 @@ Execute a self-healing runbook for a classified incident.
     ]
   },
   "remediation_pr": {
-    "pr_url": "https://github.com/rufkis/runbooks/pull/43",
+    "pr_url": "https://github.com/mediusfy/platform/pull/43",
     "status": "pending"
   },
   "rollback_plan": {

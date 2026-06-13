@@ -89,7 +89,7 @@ The full 16-task plan is documented in [`docs/WORK-PLAN.json`](docs/WORK-PLAN.js
 
 ```bash
 # Clone the repository
-git clone https://github.com/rufkis/sre-platform.git
+git clone https://github.com/mediusfy/platform.git
 cd sre-platform
 
 # Install dependencies

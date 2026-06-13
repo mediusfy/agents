@@ -365,7 +365,7 @@ GET /runbooks
         }
       ],
       "git_source": {
-        "repo_url": "https://github.com/rufkis/runbooks",
+        "repo_url": "https://github.com/mediusfy/platform",
         "path": "runbooks/api-gateway-recovery.yaml",
         "commit_sha": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"
       },
@@ -535,7 +535,7 @@ GET /remediations
       "name": "Scale Down Unused Compute",
       "description": "Automatically scale down compute instances with < 5% CPU utilization for 7 days",
       "status": "active",
-      "source_repo": "https://github.com/rufkis/remediations",
+      "source_repo": "https://github.com/mediusfy/platform",
       "source_path": "remediations/scale-down-unused-compute.yaml",
       "source_commit": "b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1",
       "pipeline_type": "kubernetes",

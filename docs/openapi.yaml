@@ -2879,7 +2879,7 @@ components:
               type: string
               format: uri
               description: Git repository URL
-              example: "https://github.com/rufkis/runbooks"
+              example: "https://github.com/mediusfy/platform"
             path:
               type: string
               description: Path within the repository
@@ -3187,7 +3187,7 @@ components:
           type: string
           format: uri
           description: Git repository URL for the pipeline definition
-          example: "https://github.com/rufkis/remediations"
+          example: "https://github.com/mediusfy/platform"
         source_path:
           type: string
           description: Path within the repository to the pipeline definition

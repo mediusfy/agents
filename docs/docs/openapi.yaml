@@ -10,7 +10,7 @@ info:
   version: 1.0.0
   contact:
     name: Rufkis Team
-    url: https://github.com/rufkis/sre-platform
+    url: https://github.com/mediusfy/platform
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0

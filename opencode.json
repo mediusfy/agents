@@ -5,7 +5,7 @@
             "type": "local",
             "enabled": true,
             "command": [
-                "/Users/jocham/programming/ai/agents/mcp_run.sh"
+                "/Users/jocham/programming/projects/mediusfy/agents/agents/mcp_run.sh"
             ]
         },
         "logfire": {

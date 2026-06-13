@@ -544,7 +544,7 @@ def seed_project_context(project_path: str) -> str:
     indexes them into the vector DB so agent context retrieval can find them.
 
     Args:
-        project_path: Absolute path to the project root (e.g., /Users/jocham/programming/rufkis)
+        project_path: Absolute path to the project root (e.g., /Users/jocham/programming/projects/mediusfy/platform)
     """
     import glob
     import os

@@ -34,7 +34,7 @@
           "git_repo": {
             "type": "string",
             "format": "uri",
-            "description": "Git repository URL (e.g., https://github.com/rufkis/runbooks)"
+            "description": "Git repository URL (e.g., https://github.com/mediusfy/platform)"
           },
           "git_path": {
             "type": "string",

@@ -105,7 +105,7 @@ Zero test files across the entire service. This violates the emerging ADR-0006 p
 
 ### 3.4 Duplicate Documentation ⚠️
 
-Repo has nested `docs/docs/` paths resulting from an earlier refactoring issue — there are ADR files duplicated across `docs/docs/adr/`, `docs/docs/docs/adr/`, and even `docs/docs/docs/docs/adr/`. Some file paths contain raw filesystem paths as their name (e.g. `docs/Users/jocham/programming/agents/docs/docs/docs/adr/ADR-003-incident-domain-model.md`).
+Repo has nested `docs/docs/` paths resulting from an earlier refactoring issue — there are ADR files duplicated across `docs/docs/adr/`, `docs/docs/docs/adr/`, and even `docs/docs/docs/docs/adr/`. Some file paths contain raw filesystem paths as their name (e.g. `docs/Users/jocham/programming/projects/mediusfy/agents/docs/docs/docs/adr/ADR-003-incident-domain-model.md`).
 
 ### 3.5 Stale go.sum ⚠️
 

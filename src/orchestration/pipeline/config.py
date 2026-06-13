@@ -60,7 +60,7 @@ class BlueprintSpec(BaseModel):
 # ── Project → Target Directory Mappings ───────────────────────────────────
 PROJECT_ROOTS: dict[str, str] = {
     "default": ".",
-    "rufkis": "/Users/jocham/programming/omni-rufkis/rufkis/kube/view",
+    "rufkis": "/Users/jocham/programming/projects/mediusfy/platform/kube/view",
 }
 
 
