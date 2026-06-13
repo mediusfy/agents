@@ -77,7 +77,8 @@ if __name__ == "__main__":
 
     blueprints_help = []
     for bp_name, bp_cfg in BLUEPRINTS.items():
-        blueprints_help.append(f"  {bp_name}: {bp_cfg['stages']} \u2014 {bp_cfg['description']}")
+        stages_info = bp_cfg.get("stages", bp_cfg.get("framework", "custom"))
+        blueprints_help.append(f"  {bp_name}: {stages_info} \u2014 {bp_cfg['description']}")
 
     parser.add_argument(
         "--blueprint",
