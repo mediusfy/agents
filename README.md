@@ -108,3 +108,4 @@ To see how much Ollama is processing locally versus paid cloud APIs:
     "SELECT model, COUNT(*) as request_count, SUM(completion_tokens + prompt_tokens) AS total_tokens FROM \"LiteLLM_SpendLogs\" GROUP BY model ORDER BY total_tokens DESC;"
   ```
 * **Visual Dashboard**: Log into `http://localhost:4000/ui` using your master key to view usage charts.
+# agent-docs
