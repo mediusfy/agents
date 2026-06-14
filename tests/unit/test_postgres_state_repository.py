@@ -1,8 +1,9 @@
 """Tests for PostgresStateRepository checkpoint adapter."""
 
 import json
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from orchestration.adapters.state_repository import PostgresStateRepository
 from orchestration.models.core import PipelineState

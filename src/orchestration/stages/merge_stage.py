@@ -17,7 +17,6 @@ from orchestration.models.core import PipelineState
 from orchestration.pipeline.config import PipelineConfig
 from orchestration.stages.base import StageRunner
 
-
 logger = logging.getLogger(__name__)
 
 

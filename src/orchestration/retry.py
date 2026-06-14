@@ -10,7 +10,7 @@ import random
 from typing import Any
 
 from pydantic_ai import UnexpectedModelBehavior, UsageLimits
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception_type, stop_after_attempt
 
 logger = logging.getLogger(__name__)
 

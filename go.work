@@ -1,7 +1,0 @@
-go 1.26
-
-use (
-	./services/entity-management
-	./services/region-resolver
-	./shared/go
-)

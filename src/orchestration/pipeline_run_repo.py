@@ -6,8 +6,6 @@ repository. Falls back to an in-memory dict when PostgreSQL is unavailable.
 
 import asyncio
 import logging
-import time
-import uuid
 from datetime import UTC, datetime
 from typing import Any
 

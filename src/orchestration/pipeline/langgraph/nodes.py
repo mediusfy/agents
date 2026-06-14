@@ -7,12 +7,12 @@ from orchestration.models.core import FailureReport, PipelineState
 from orchestration.pipeline.config import PipelineConfig
 from orchestration.pipeline.context import ContextFrame
 from orchestration.session_recorder import recorder
-from orchestration.utils import format_artifacts
 from orchestration.stages.advisory_stage import AdvisoryStage
 from orchestration.stages.ba_stage import BAStage
 from orchestration.stages.implementation_stage import ImplementationStage
 from orchestration.stages.merge_stage import MergeStage
 from orchestration.stages.quality_gate_stage import QualityGateStage
+from orchestration.utils import format_artifacts
 
 logger = logging.getLogger(__name__)
 

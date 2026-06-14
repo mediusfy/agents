@@ -1,111 +1,96 @@
-# AI Provider Agents & SDLC Ecosystem
+# Orgitration — Multi-Agent SDLC Orchestration
 
-This repository is the central hub for our hybrid, multi-agent Software Development Lifecycle (SDLC) ecosystem. It orchestrates autonomous AI agents to progress from raw requirements to production-ready, validated code across local developer environments and cloud nodes.
+## Overview
 
----
+Orgitration orchestrates 25+ AI agents through LangGraph state machines to autonomously progress from raw requirements to production-ready, validated code.
 
-## 🏗️ Architecture Overview
+### Design Tenets
+- **LangGraph only** — single orchestration framework with state machines, retry loops, and subgraphs
+- **pgvector memory** — PostgreSQL-backed vector similarity for context retrieval, no external dependencies
+- **Multi-perspective validation** — every agent's output is peer-reviewed and quality-gated by parallel verification gates
+- **Agents check each other** — peer review node in the implementation subgraph, multi-perspective QG runs 3 agents concurrently
 
-The ecosystem operates on a **hybrid execution model**, routing tasks between cloud infrastructure (**GKS**) and the local developer workstation (**macOS**) depending on resource consumption and sandbox needs.
-
-```mermaid
-graph TD
-    subgraph "GKS (Google Kubernetes Service)"
-        NB[NATS Event Broker] -->|Job Queue| PE[Pipeline Executor]
-        PE -->|Traces| LF[Logfire Telemetry]
-        VDB[(pgvector DB)]
-    end
-
-    subgraph "Local Developer Workstation (macOS)"
-        HUI[Hermes Desktop UI] -->|MCP Protocol| OMS[OpenClaw MCP Server]
-        OMS -->|Local FS Tools| LFS[Local Workspace]
-        OLL[Local Ollama]
-        
-        subgraph "LiteLLM Gateway Stack"
-            SR[Semantic Router Gateway :5001] -->|Complexity Routing| LL[LiteLLM Proxy :4000]
-            LL -->|Orchestrator Pool| CloudLLMs[Gemini Pro / Grok 4.3 / DeepSeek Pro]
-            LL -->|Subagent Pool| LocalLLMs[Local Ollama / Gemini Flash / DeepSeek Flash]
-        end
-        
-        LNB[Local NATS Node :4222]
-    end
-
-    HC[Honcho.dev SaaS] <===>|Cognitive Memory| HUI
-    HC <===>|Cognitive Memory| PE
-    NB <===>|Clustered Sync| LNB
-    HUI <===>|Events| LNB
-    OMS <===>|Events| LNB
-    PE <===>|Shared pgvector Connection| VDB
-```
-
-### Key Architectural Pillars
-
-1. **LiteLLM Gateway (Port `4000`)**: A unified proxy that isolates API credentials and organizes models into functional pools:
-   * **Orchestrator Pool (Heavy Reasoning)**: Mapped to premium reasoning models like **x.ai Grok 4.3**, **Gemini 2.5 Pro**, and **DeepSeek-V4-Pro**.
-   * **Subagent Pool (High Volume)**: Mapped to fast, cost-efficient endpoints like **Ollama/qwen2.5-coder:7b** (local), **DeepSeek-V4-Flash**, and **Gemini 2.5 Flash**.
-2. **Semantic Router (Port `5001`)**: A lightweight Python-based FastAPI gateway that runs a local HuggingFace encoder (`all-MiniLM-L6-v2`) to dynamically direct incoming queries:
-   * Simple scaffolding, docs, or testing prompts route to the cheap **`subagent`** pool.
-   * Complex logic, design, or architecture prompts route to the high-intelligence **`orchestrator`** pool.
-3. **NATS Event Bus (Port `4222`)**: Facilitates reliable, asynchronous event-driven collaboration between agent microservices and pipeline stages.
-4. **Honcho Memory Integration**: Integrated as the cognitive memory layer to maintain state, context, and conversational session history across agent sessions.
-
----
-
-## 📂 Project Structure
+## Architecture
 
 ```
-.
-├── docker-compose.yml       # LiteLLM, Postgres, Redis, and NATS containers
-├── config.yaml              # LiteLLM routing definitions, fallbacks, and model groups
-├── services/
-│   ├── semantic-router/     # FastAPI Semantic Router gateway using local embeddings
-│   └── internal/adapters/   # Go adapters including the real NATS event bus
-└── README.md                # This file
+START → BA → Advisory → HumanGate → Implementation Subgraph → Merge → END
+                              ┌──────────────────────────────┐
+                              │ implementation → peer_review │
+                              │       ↓                     │
+                              │   quality_gate (parallel:    │
+                              │   security + QG + review)    │
+                              │       ↓                     │
+                              │   retry_or_exit ──→ (loop)   │
+                              └──────────────────────────────┘
 ```
 
----
+### Key Components
 
-## 🚀 Getting Started
+- **Pipeline** — LangGraph `StateGraph` with conditional edges, subgraphs, and PostgresSaver checkpoints
+- **25+ Agents** — `pydantic_ai.Agent` with typed outputs, registered via `AgentRegistry`
+- **Tools** — ~30 tools (search, build, test, deps, memory, web) assigned by category groups
+- **Memory** — pgvector (`all-MiniLM-L6-v2`) for semantic retrieval + cross-runtime bridge to Claude Code / Antigravity
+- **Prompts** — Centralized YAML-based prompts with `PromptManager` singleton
+- **MCP Server** — Exposes 45 tools: run agents, pipeline lifecycle, context queries, memory sync
 
-### 1. Start the Local Service Stack
-Initialize the LiteLLM gateway, NATS event broker, Postgres, and Redis:
+## Quick Start
+
 ```bash
-# Sourcing environment variables from envs.zsh injects GEMINI, DEEPSEEK, and XAI keys
-source ~/.zsh/envs.zsh
-docker compose up -d
+# Install
+uv sync
+
+# Run pipeline from CLI
+uv run python main.py --project myapp --requirement "Build a payment service"
+
+# Start MCP server
+uv run python -c "from orchestration.mcp_server import mcp; mcp.run()"
+
+# Run tests
+uv run pytest
 ```
 
-### 2. Start the Semantic Router Gateway
-Start the local Python-based gateway (which handles offline routing classification):
-```bash
-cd services/semantic-router
-chmod +x start.sh
-./start.sh
+## Project Structure
+
+```
+src/orchestration/
+├── agents/           # 25+ pydantic_ai agent definitions
+├── mcp_server/       # MCP server (agent_tools, pipeline_tools, context_tools, memory_tools)
+├── pipeline/         # LangGraph pipeline (graphs, nodes, routing, saver, config)
+├── stages/           # Pipeline stage implementations (BA, Advisory, Implementation, QG, Merge)
+├── adapters/         # PydanticAIAgentProvider, WorkspaceContext, StateRepository
+├── models/           # PipelineState, UserStory, Artifact, FailureReport
+├── tools/            # Agent tools (search, build, test, memory, web, etc.)
+├── prompts/          # YAML prompt files per agent
+├── memory.py         # VectorMemory with pgvector backend
+├── memory_bridge.py  # pgvector ↔ Claude Code ↔ Antigravity sync
+├── context_engine.py # Vector-indexed context retrieval
+├── registry.py       # AgentRegistry + instrumented_query
+├── vector_db.py      # Async pgvector client
+├── validation_gate.py# Cross-agent ValidationGate protocol + CompositeGate
+├── retry.py          # Exponential backoff retry wrapper
+├── prompt_manager.py # Centralized prompt loading
+├── pipeline_jobs.py  # Background pipeline execution
+├── pipeline_run_repo.py # PostgreSQL-backed run persistence
+├── pipeline_metrics.py  # Logfire-integrated per-stage metrics
+└── event_broker.py   # Async event/message broker
 ```
 
-### 3. Verify System Health
-* **LiteLLM Readiness**: `curl http://localhost:4000/health/readiness`
-* **Semantic Router Health**: `curl http://localhost:5001/healthz`
-* **Direct Prompt Routing Test**:
-  ```bash
-  curl -X POST http://localhost:5001/v1/chat/completions \
-    -H "Content-Type: application/json" \
-    -H "Authorization: Bearer <LITELLM_MASTER_KEY>" \
-    -d '{
-      "model": "default",
-      "messages": [{"role": "user", "content": "write unit tests for this function"}],
-      "stream": false
-    }'
-  ```
+## Blueprints
 
----
+| Blueprint | Stages |
+|-----------|--------|
+| `langgraph_full` | BA → Advisory → Implementation → Quality Gate |
+| `langgraph_quick` | Implementation → Quality Gate (backend-only) |
+| `new_feature` | BA → Advisory → Implementation → Quality Gate |
+| `quick_backend` | Implementation → Quality Gate |
+| `docs_update` | Implementation (docs agent) → Quality Gate |
+| `security_review` | Quality Gate (security agent) |
 
-## 📈 Monitoring Local Compute vs Cloud
-To see how much Ollama is processing locally versus paid cloud APIs:
-* **SQL Query**: Run stats directly against the spend database:
-  ```bash
-  docker exec llm-lite-postgres-1 psql -U litellm -d litellm -c \
-    "SELECT model, COUNT(*) as request_count, SUM(completion_tokens + prompt_tokens) AS total_tokens FROM \"LiteLLM_SpendLogs\" GROUP BY model ORDER BY total_tokens DESC;"
-  ```
-* **Visual Dashboard**: Log into `http://localhost:4000/ui` using your master key to view usage charts.
-# agent-docs
+## Environment
+
+Configure via `.env` or environment variables. See `.env.example` for all options.
+
+Key settings:
+- `DATABASE_URL` — PostgreSQL connection for pgvector + pipeline state
+- `LOGFIRE_TOKEN` — Logfire observability token
+- `model_provider` — LLM backend (litellm, deepseek, openai, gemini)

@@ -6,10 +6,9 @@ from orchestration.pipeline.config import PipelineConfig
 from orchestration.registry import registry
 from orchestration.session_recorder import recorder
 from orchestration.settings import settings
-
+from orchestration.stages.base import StageRunner
 from orchestration.utils import format_artifacts
 from orchestration.validators import CodeValidator
-from orchestration.stages.base import StageRunner
 
 logger = logging.getLogger(__name__)
 

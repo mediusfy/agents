@@ -24,7 +24,7 @@ mcp: $(VENV)
 	$(PYTHON) -m uvicorn orchestration.mcp_server:mcp.sse_app --host 0.0.0.0 --port 8002
 
 mcp-stdio: $(VENV)
-	$(PYTHON) -m orchestration.mcp_server
+	$(PYTHON) -c "from orchestration.mcp_server import mcp; mcp.run()"
 
 run: $(VENV)
 	@echo "=== Running full agent pipeline for project: $(PROJECT) ==="

@@ -15,10 +15,8 @@ from orchestration.agents.registration import register_all_agents
 from orchestration.context_engine import retrieve_context
 from orchestration.exceptions import AgentExecutionError, AgentNotFoundError
 from orchestration.mcp_server import mcp
-from orchestration.observability import configure_observability
 from orchestration.registry import instrumented_query, registry
 from orchestration.telemetry import telemetry
-from orchestration.vector_db import vector_db
 
 logger = logging.getLogger(__name__)
 

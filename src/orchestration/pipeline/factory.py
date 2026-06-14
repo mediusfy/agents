@@ -12,10 +12,10 @@ from orchestration.models.core import PipelineState
 from orchestration.pipeline.config import PipelineConfig
 
 # Lazy imports to avoid hard dependency on langgraph at module load time
-_built_pipeline_cache: dict[str, "PipelineOrchestrator"] = {}
+_built_pipeline_cache: dict[str, PipelineOrchestrator] = {}
 
 
-async def build_pipeline(config: PipelineConfig) -> "PipelineOrchestrator":
+async def build_pipeline(config: PipelineConfig) -> PipelineOrchestrator:
     """Build a LangGraph pipeline for the given config.
 
     Results are cached by (project, blueprint) so resume works correctly.

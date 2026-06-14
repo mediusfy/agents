@@ -1,7 +1,8 @@
 """Tests for the Pipeline Executor FastAPI service."""
 
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from orchestration.pipeline_executor_service import app
 

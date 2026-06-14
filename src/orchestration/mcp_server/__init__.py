@@ -20,7 +20,7 @@ mcp = FastMCP(
     ),
 )
 
-from . import agent_tools, context_tools, memory_tools, pipeline_tools
-from .agent_tools import AGENT_DOCSTRINGS, run_agent_by_name
+from . import agent_tools, context_tools, memory_tools, pipeline_tools  # noqa: E402
+from .agent_tools import AGENT_DOCSTRINGS, run_agent_by_name  # noqa: E402
 
 __all__ = ["mcp", "AGENT_DOCSTRINGS", "run_agent_by_name"]

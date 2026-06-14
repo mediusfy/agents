@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from pydantic_ai import UnexpectedModelBehavior, UsageLimits
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception_type, stop_after_attempt
 
 from orchestration.prompt_manager import prompt_manager
 from orchestration.telemetry import telemetry

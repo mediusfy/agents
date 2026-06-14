@@ -9,7 +9,6 @@ from orchestration.session_recorder import recorder
 from orchestration.settings import settings
 from orchestration.stages.base import StageRunner
 
-
 logger = logging.getLogger(__name__)
 
 # ── Emoji markers for progress telemetry ───────────────────────────────────

@@ -1,1 +1,0 @@
-../shared/standards/go-standards.md

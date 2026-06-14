@@ -12,8 +12,6 @@ Heavy dependencies (sentence-transformers, numpy) are imported lazily —
 importing this module never fails.
 """
 
-import asyncio
-import concurrent.futures
 import json
 import logging
 import os
