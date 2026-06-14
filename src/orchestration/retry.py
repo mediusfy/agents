@@ -29,8 +29,8 @@ async def run_with_retry(
     prompt: str,
     deps: Any = None,
     max_retries: int = 3,
-    base_delay: float = 2.0,
-    max_delay: float = 60.0,
+    base_delay: float = 2.0,  # noqa: ARG001
+    max_delay: float = 60.0,  # noqa: ARG001
     timeout: float = 600.0,
 ) -> Any:
     """Run an agent call with exponential backoff, jitter, and retry.

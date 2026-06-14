@@ -28,7 +28,7 @@ class CompositeGate:
             return_exceptions=True,
         )
         output: list[GateResult] = []
-        for (name, _), r in zip(self.gates, results):
+        for (name, _), r in zip(self.gates, results, strict=False):
             if isinstance(r, BaseException):
                 output.append(GateResult(passed=False, feedback=[f"{name}: {r}"], agent_name=name))
             else:

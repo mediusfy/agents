@@ -15,9 +15,9 @@ class TestGetClaudeAgents:
     def test_returns_agent_names(self):
         with patch("orchestration.memory_bridge.CLAUDE_AGENTS_DIR") as mock_dir:
             mock_dir.exists.return_value = True
-            d1 = type("Dir", (), {"name": "agent1", "is_dir": lambda self: True})()
-            d2 = type("Dir", (), {"name": "agent2", "is_dir": lambda self: True})()
-            f1 = type("Dir", (), {"name": "file.txt", "is_dir": lambda self: False})()
+            d1 = type("Dir", (), {"name": "agent1", "is_dir": lambda _: True})()
+            d2 = type("Dir", (), {"name": "agent2", "is_dir": lambda _: True})()
+            f1 = type("Dir", (), {"name": "file.txt", "is_dir": lambda _: False})()
             mock_dir.iterdir.return_value = [d1, d2, f1]
             agents = _get_claude_agents()
             assert agents == ["agent1", "agent2"]

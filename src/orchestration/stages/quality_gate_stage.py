@@ -125,7 +125,7 @@ class QualityGateStage(StageRunner):
 
         failures: list[str] = []
         gate_names = ["security", "quality_gate", "review"]
-        for name, result in zip(gate_names, results):
+        for name, result in zip(gate_names, results, strict=False):
             if isinstance(result, BaseException):
                 failures.append(f"{name}: {result}")
             else:

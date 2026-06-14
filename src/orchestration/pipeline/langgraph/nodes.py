@@ -160,7 +160,7 @@ async def implementation_node(
 
 async def peer_review_node(
     state: PipelineState,
-    config: PipelineConfig,
+    config: PipelineConfig,  # noqa: ARG001
     provider: AgentProviderPort,
 ) -> dict:
     artifacts = state.artifacts or []

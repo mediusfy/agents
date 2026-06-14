@@ -27,7 +27,7 @@ async def submit_pipeline_run(project_name: str, requirement: str) -> str:
 
     await run_store.create_run(run_id, project_name, requirement)
 
-    task = asyncio.create_task(_run_pipeline_in_background(run_id, project_name, requirement))
+    asyncio.create_task(_run_pipeline_in_background(run_id, project_name, requirement))
     return run_id
 
 
@@ -54,15 +54,11 @@ async def _run_pipeline_in_background(run_id: str, project_name: str, requiremen
             logger.exception("Pipeline run %s failed: %s", run_id, e)
             await run_store.update_status(run_id, "failed", error=f"{type(e).__name__}: {e}")
         else:
-            await run_store.update_status(
-                run_id,
-                "completed",
-                result=(
-                    f"Pipeline completed for project '{project_name}'. Artifacts written to generated-app/{project_name}/."
-                ),
-            )
+            result = f"Pipeline completed for project '{project_name}'. Artifacts written to generated-app/{project_name}/."
+            await run_store.update_status(run_id, "completed", result=result)
         finally:
-            elapsed = time.time() - start_time
+            pass
+
 
 
 async def get_pipeline_run(run_id: str) -> dict[str, Any] | None:
