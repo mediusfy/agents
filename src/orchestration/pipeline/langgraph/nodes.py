@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from orchestration.adapters.agents import AgentProviderPort
@@ -6,6 +7,7 @@ from orchestration.models.core import FailureReport, PipelineState
 from orchestration.pipeline.config import PipelineConfig
 from orchestration.pipeline.context import ContextFrame
 from orchestration.session_recorder import recorder
+from orchestration.utils import format_artifacts
 from orchestration.stages.advisory_stage import AdvisoryStage
 from orchestration.stages.ba_stage import BAStage
 from orchestration.stages.implementation_stage import ImplementationStage
@@ -154,6 +156,53 @@ async def implementation_node(
         except Exception as e:
             logger.error(f"Implementation stage failed: {e}")
             return _make_error(state, "implementation", str(e))
+
+
+async def peer_review_node(
+    state: PipelineState,
+    config: PipelineConfig,
+    provider: AgentProviderPort,
+) -> dict:
+    artifacts = state.artifacts or []
+    if not artifacts:
+        logger.info("No artifacts to peer review — skipping")
+        return {"stage": "peer_review"}
+
+    async with recorder.record_span(
+        run_id=state.run_id,
+        agent_name="review",
+        pipeline_stage="peer_review",
+        prompt="Review implementation artifacts",
+    ) as rec:
+        try:
+            from orchestration.registry import registry
+
+            semaphore = asyncio.Semaphore(1)
+            preview = format_artifacts(artifacts, max_chars=40_000, include_agent_header=False)
+            review_prompt = (
+                f"Peer review these code changes for correctness, "
+                f"architecture fit, and code quality:\n\n{preview}"
+            )
+            result = await provider.run_agent(semaphore, "review", registry.get("review"), review_prompt)
+            rec.set_output(result)
+
+            data = result.output
+            feedback = data.feedback if hasattr(data, "feedback") else []
+            approved = data.approved if hasattr(data, "approved") else True
+            cf = ContextFrame(
+                output=f"Peer review complete. Approved: {approved}.",
+                memory_notes=feedback[:3] if feedback else [],
+            )
+            history = [*state.context_history, cf] if state.context_history else [cf]
+            return {
+                "stage": "peer_review",
+                "feedback": "\n".join(feedback) if feedback else None,
+                "active_context": cf,
+                "context_history": history,
+            }
+        except Exception as e:
+            logger.error(f"Peer review failed: {e}")
+            return _make_error(state, "peer_review", str(e))
 
 
 async def quality_gate_node(

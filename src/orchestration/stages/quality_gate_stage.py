@@ -63,112 +63,92 @@ class QualityGateStage(StageRunner):
             state.approved = False
             return state
 
-        logger.info("Running Security Audit...")
+        logger.info("Running Multi-Perspective Verification Gates (security + quality_gate + review in parallel)...")
         from orchestration.context_engine import retrieve_context
 
-        sec_ctx = await retrieve_context("security", full_text)
-        sec_prompt = f"Audit the following code for vulnerabilities:\n{full_text}"
-        if sec_ctx:
-            sec_prompt += f"\n\nRetrieved Security Context:\n{sec_ctx}"
+        async def _run_security():
+            sec_ctx = await retrieve_context("security", full_text)
+            prompt = f"Audit the following code for vulnerabilities:\n{full_text}"
+            if sec_ctx:
+                prompt += f"\n\nRetrieved Security Context:\n{sec_ctx}"
+            async with recorder.record_span(
+                run_id=state.run_id,
+                agent_name="security",
+                pipeline_stage="quality_gate",
+                prompt=prompt,
+            ) as rec:
+                res = await self.provider.run_agent(semaphore, "security", registry.get("security"), prompt)
+                rec.set_output(res)
+                r = res.output
+                logger.info(f"Security: passed={r.passed}, score={r.score}")
+                return r.passed, getattr(r, "vulnerabilities", r.feedback if hasattr(r, "feedback") else [])
 
-        async with recorder.record_span(
-            run_id=state.run_id,
-            agent_name="security",
-            pipeline_stage="quality_gate",
-            prompt=sec_prompt,
-        ) as rec:
-            sec_res = await self.provider.run_agent(
-                semaphore,
-                "security",
-                registry.get("security"),
-                sec_prompt,
+        async def _run_quality_gate():
+            qg_ctx = await retrieve_context("quality_gate", full_text)
+            prompt = f"Perform quality gate check on these artifacts:\n{full_text}"
+            if qg_ctx:
+                prompt += f"\n\nRetrieved Quality Gate Rules:\n{qg_ctx}"
+            async with recorder.record_span(
+                run_id=state.run_id,
+                agent_name="quality_gate",
+                pipeline_stage="quality_gate",
+                prompt=prompt,
+            ) as rec:
+                res = await self.provider.run_agent(semaphore, "quality_gate", registry.get("quality_gate"), prompt)
+                rec.set_output(res)
+                r = res.output
+                logger.info(f"Quality Gate: passed={r.passed}, complexity={r.complexity_score}")
+                return r.passed, r.feedback
+
+        async def _run_review():
+            prompt = (
+                f"Review the following generated artifacts:\n{full_text}\n"
+                "Ensure code is robust, secure, and meets all criteria."
             )
-            rec.set_output(sec_res)
-            sec_result = sec_res.output
-            logger.info(f"Security: passed={sec_result.passed}, score={sec_result.score}")
-            if not sec_result.passed:
-                logger.warning("Security audit failed.")
-                state.feedback = "Security audit failed. Resolve these vulnerabilities: \n" + "\n".join(
-                    sec_result.vulnerabilities
-                )
-                state.failure_report = FailureReport(
-                    source="security_audit",
-                    error_type="security",
-                    trace=state.feedback,
-                )
-                state.approved = False
-                return state
+            review_ctx = await retrieve_context("review", full_text)
+            if review_ctx:
+                prompt += f"\n\nRetrieved Review Context/Conventions:\n{review_ctx}"
+            async with recorder.record_span(
+                run_id=state.run_id,
+                agent_name="review",
+                pipeline_stage="quality_gate",
+                prompt=prompt,
+            ) as rec:
+                res = await self.provider.run_agent(semaphore, "review", registry.get("review"), prompt)
+                rec.set_output(res)
+                r = res.output
+                logger.info(f"Review: approved={r.approved}, risk={r.risk_level}, security_score={r.security_score}")
+                return r.approved, r.feedback
 
-        logger.info("Running Quality Gate...")
-        qg_ctx = await retrieve_context("quality_gate", full_text)
-        qg_prompt = f"Perform quality gate check on these artifacts:\n{full_text}"
-        if qg_ctx:
-            qg_prompt += f"\n\nRetrieved Quality Gate Rules:\n{qg_ctx}"
-
-        async with recorder.record_span(
-            run_id=state.run_id,
-            agent_name="quality_gate",
-            pipeline_stage="quality_gate",
-            prompt=qg_prompt,
-        ) as rec:
-            q_res = await self.provider.run_agent(
-                semaphore,
-                "quality_gate",
-                registry.get("quality_gate"),
-                qg_prompt,
-            )
-            rec.set_output(q_res)
-            q_result = q_res.output
-            logger.info(f"Quality Gate: passed={q_result.passed}, complexity={q_result.complexity_score}")
-            if not q_result.passed:
-                logger.warning("Quality Gate rejected.")
-                state.feedback = "\n".join(q_result.feedback)
-                state.failure_report = FailureReport(
-                    source="quality_gate_agent",
-                    error_type="quality_check",
-                    trace=state.feedback,
-                )
-                state.approved = False
-                return state
-
-        logger.info("Running Board of Review...")
-        review_prompt = (
-            f"Review the following generated artifacts:\n{full_text}\n"
-            "Ensure code is robust, secure, and meets all criteria."
+        results = await asyncio.gather(
+            _run_security(), _run_quality_gate(), _run_review(), return_exceptions=True
         )
-        if state.feedback:
-            review_prompt += f"\n\nAddress previous feedback: {state.feedback}"
 
-        review_ctx = await retrieve_context("review", full_text)
-        if review_ctx:
-            review_prompt += f"\n\nRetrieved Review Context/Conventions:\n{review_ctx}"
-
-        async with recorder.record_span(
-            run_id=state.run_id,
-            agent_name="review",
-            pipeline_stage="quality_gate",
-            prompt=review_prompt,
-        ) as rec:
-            review_res = await self.provider.run_agent(semaphore, "review", registry.get("review"), review_prompt)
-            rec.set_output(review_res)
-            result = review_res.output
-            logger.info(
-                f"Review: approved={result.approved}, risk={result.risk_level}, security_score={result.security_score}"
-            )
-
-            if result.approved:
-                state.approved = True
-                state.feedback = None
-                state.failure_report = None
+        failures: list[str] = []
+        gate_names = ["security", "quality_gate", "review"]
+        for name, result in zip(gate_names, results):
+            if isinstance(result, BaseException):
+                failures.append(f"{name}: {result}")
             else:
-                logger.warning("Review rejected. Setting feedback for implementation retry.")
-                state.feedback = "\n".join(result.feedback)
-                state.failure_report = FailureReport(
-                    source="review_agent",
-                    error_type="review_rejection",
-                    trace=state.feedback,
-                )
-                state.approved = False
+                passed, feedback = result
+                if not passed:
+                    fb = "; ".join(feedback) if isinstance(feedback, list) else str(feedback)
+                    failures.append(f"{name}: {fb}")
+
+        if not failures:
+            logger.info("All verification gates passed.")
+            state.approved = True
+            state.feedback = None
+            state.failure_report = None
+        else:
+            logger.warning(f"Verification gates failed: {len(failures)}/{len(gate_names)}")
+            state.feedback = "Multi-perspective gate failures:\n" + "\n".join(failures)
+            state.failure_report = FailureReport(
+                source="multi_perspective_gate",
+                error_type="verification_failure",
+                trace=state.feedback,
+            )
+            state.approved = False
 
         state.stage = "quality_gate"
         return state

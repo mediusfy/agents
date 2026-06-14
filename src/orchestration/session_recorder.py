@@ -10,6 +10,7 @@ import contextlib
 import json
 import logging
 import os
+import threading
 import time
 from collections.abc import AsyncIterator
 from contextvars import ContextVar
@@ -68,7 +69,7 @@ class SessionRecorder:
         self.filepath = filepath
         self.max_bytes = max_bytes
         self._current: AgentRunRecord | None = None
-        self._write_lock = False
+        self._write_lock = threading.Lock()
 
     def start_run(
         self,
@@ -225,13 +226,14 @@ class SessionRecorder:
             self.finish_run(success=False, error=error)
 
     def _write(self, data: dict[str, Any]) -> None:
-        try:
-            line = json.dumps(data, default=str) + "\n"
-            self._rotate_if_needed()
-            with open(self.filepath, "a") as f:
-                f.write(line)
-        except Exception as e:
-            logger.warning(f"SessionRecorder write failed: {e}")
+        with self._write_lock:
+            try:
+                line = json.dumps(data, default=str) + "\n"
+                self._rotate_if_needed()
+                with open(self.filepath, "a") as f:
+                    f.write(line)
+            except Exception as e:
+                logger.warning(f"SessionRecorder write failed: {e}")
 
     def _rotate_if_needed(self) -> None:
         try:

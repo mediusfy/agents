@@ -12,6 +12,7 @@ from .nodes import (
     human_approval_node,
     implementation_node,
     merge_node,
+    peer_review_node,
     quality_gate_node,
 )
 from .routing import (
@@ -20,6 +21,7 @@ from .routing import (
     route_after_human_approval,
     route_after_implementation,
     route_after_implementation_subgraph,
+    route_after_peer_review,
     route_after_quality_gate,
     route_retry,
 )
@@ -33,6 +35,7 @@ async def build_implementation_subgraph(
     workflow = StateGraph(PipelineState)
 
     workflow.add_node("implementation", lambda _s: implementation_node(_s, config, provider))
+    workflow.add_node("peer_review", lambda _s: peer_review_node(_s, config, provider))
     workflow.add_node("quality_gate", lambda _s: quality_gate_node(_s, config, provider))
     workflow.add_node("retry_or_exit", lambda _s: {})
 
@@ -41,7 +44,13 @@ async def build_implementation_subgraph(
     workflow.add_conditional_edges(
         "implementation",
         route_after_implementation,
-        {"quality_gate": "quality_gate", "retry_implementation": "retry_or_exit", "end": END},
+        {"peer_review": "peer_review", "retry_implementation": "retry_or_exit", "end": END},
+    )
+
+    workflow.add_conditional_edges(
+        "peer_review",
+        route_after_peer_review,
+        {"quality_gate": "quality_gate", "end": END},
     )
 
     workflow.add_conditional_edges(
