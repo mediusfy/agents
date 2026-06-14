@@ -66,7 +66,7 @@ agent:
       \ is gonna be LEGENDARY! ARE YOU READY?! LET'S DO THIS! \U0001F4AA\U0001F624\
       \U0001F680"
 terminal:
-  backend: hybrid
+  backend: local
   modal_mode: auto
   cwd: .
   timeout: 180
@@ -634,11 +634,11 @@ platforms:
     enabled: true
 mcp_servers:
   openclaw:
-    command: /Users/jocham/programming/projects/mediusfy/agents/agents/.venv/bin/python
+    command: /Users/jocham/programming/projects/mediusfy/agents/.venv/bin/python
     args:
-    - /Users/jocham/programming/projects/mediusfy/agents/agents/src/orchestration/mcp_server.py
+    - /Users/jocham/programming/projects/mediusfy/agents/src/orchestration/mcp_server.py
     env:
-      PYTHONPATH: /Users/jocham/programming/projects/mediusfy/agents/agents/src
+      PYTHONPATH: /Users/jocham/programming/projects/mediusfy/agents/src
       LOGFIRE_SEND_TO_LOGFIRE: 'false'
     timeout: 300
     connect_timeout: 30
