@@ -101,6 +101,7 @@ def _apply_result(state: PipelineState, result: Any) -> None:
 def _artifact_from_output(agent_name: str, task_output: Any) -> Artifact:
     output = str(getattr(task_output, "output", task_output)) if hasattr(task_output, "output") else str(task_output)
     from orchestration.utils import parse_code_blocks_to_files
+
     files = parse_code_blocks_to_files(output)
     return Artifact(
         agent_name=agent_name,

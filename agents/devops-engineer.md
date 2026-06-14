@@ -1,1 +1,1 @@
-../../shared/agents/devops-engineer.md
+../../agents-docs/shared/agents/devops-engineer.md

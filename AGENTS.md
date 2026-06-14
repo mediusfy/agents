@@ -1,1 +1,1 @@
-../shared/workspace/AGENTS.md
+../agents-docs/shared/workspace/AGENTS.md

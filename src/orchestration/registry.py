@@ -6,7 +6,7 @@ from collections.abc import Callable
 from typing import Any
 
 import logfire
-from pydantic_ai import Agent, UsageLimits
+from pydantic_ai import Agent
 
 from orchestration.exceptions import (
     AgentExecutionError,
@@ -27,9 +27,10 @@ class AgentRegistry:
         # callers must pass owner=<agent_name> to disambiguate.
         self._cap_index: dict[str, list[str]] = {}
         self._initialized: set[str] = set()
-        
+
         from orchestration.adapters.agents import PydanticAIAgentProvider
         from orchestration.settings import settings
+
         self._provider = PydanticAIAgentProvider()
         self._semaphore = asyncio.Semaphore(settings.max_concurrent_llm_calls)
 
@@ -162,7 +163,7 @@ class AgentRegistry:
             resolved_deps = deps or {}
             if deps_factory and not deps:
                 resolved_deps = deps_factory() if callable(deps_factory) else {}
-            
+
             result = await self._provider.run_agent(
                 semaphore=self._semaphore,
                 agent_name=agent_name,

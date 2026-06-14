@@ -1,1 +1,1 @@
-../../shared/agents/quality-gate.md
+../../agents-docs/shared/agents/quality-gate.md

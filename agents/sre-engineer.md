@@ -1,1 +1,1 @@
-../../shared/agents/sre-engineer.md
+../../agents-docs/shared/agents/sre-engineer.md

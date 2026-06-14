@@ -1,1 +1,1 @@
-../../shared/agents/test-engineer.md
+../../agents-docs/shared/agents/test-engineer.md

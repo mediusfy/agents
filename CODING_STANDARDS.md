@@ -1,1 +1,1 @@
-../shared/standards/go-standards.md
+../agents-docs/shared/standards/go-standards.md

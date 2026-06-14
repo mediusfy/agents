@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from autogen import GroupChat, GroupChatManager, UserProxyAgent
 from orchestration.adapters.autogen_bridge import as_autogen_assistant
@@ -8,23 +9,26 @@ logger = logging.getLogger(__name__)
 
 
 def _get_manager_llm_config() -> dict[str, Any]:
-    from orchestration.settings import settings
-    from orchestration.models.factory import create_model
+
     from pydantic_ai.models.openai import OpenAIChatModel
-    from typing import Any
+
+    from orchestration.models.factory import create_model
+    from orchestration.settings import settings
 
     model_spec = settings.resolve_model(settings.cto_model)
     real_model = model_spec.partition(":")[2] if ":" in model_spec else model_spec
     m = create_model(model_spec)
-    
-    config: dict[str, Any] = {"model": real_model, "temperature": 0.1, "api_type": "openai"}
-    if isinstance(m, OpenAIChatModel) and m.provider:
-        if hasattr(m.provider, "base_url") and m.provider.base_url:
-            config["base_url"] = str(m.provider.base_url)
-        if hasattr(m.provider, "api_key") and m.provider.api_key:
-            config["api_key"] = m.provider.api_key
-    return {"config_list": [config]}
 
+    config: dict[str, Any] = {"model": real_model, "temperature": 0.1, "api_type": "openai"}
+    provider = getattr(m, "provider", getattr(m, "_provider", None))
+    if isinstance(m, OpenAIChatModel) and provider:
+        base_url = getattr(provider, "base_url", None)
+        if base_url:
+            config["base_url"] = str(base_url)
+        api_key = getattr(provider, "api_key", None)
+        if api_key:
+            config["api_key"] = api_key
+    return {"config_list": [config]}
 
 
 class SdlcGroupChat:

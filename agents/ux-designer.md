@@ -1,1 +1,1 @@
-../../shared/agents/ux-designer.md
+../../agents-docs/shared/agents/ux-designer.md
