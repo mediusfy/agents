@@ -51,7 +51,7 @@ encoder = HuggingFaceEncoder(name="sentence-transformers/all-MiniLM-L6-v2")
 rl = RouteLayer(encoder=encoder, routes=[orchestrator, subagent])
 
 
-def _resolve_auth(headers: dict, request: Request) -> dict:
+def _resolve_auth(_body: dict, request: Request) -> dict:
     out = {k: v for k, v in request.headers.items() if k.lower() not in ("host", "content-length")}
     has_auth = any(k.lower() == "authorization" for k in out)
     if not has_auth:

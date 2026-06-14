@@ -17,7 +17,7 @@ model_list:
   - model_name: subagent
     litellm_params:
       model: ollama/qwen2.5-coder:7b
-      api_base: http://host.docker.internal:11434
+      api_base: os.environ/OLLAMA_API_BASE
   - model_name: subagent
     litellm_params:
       model: deepseek/deepseek-v4-flash
@@ -47,17 +47,17 @@ model_list:
   - model_name: qwen2.5-coder:7b
     litellm_params:
       model: ollama/qwen2.5-coder:7b
-      api_base: http://host.docker.internal:11434
+      api_base: os.environ/OLLAMA_API_BASE
 
   - model_name: local-failover
     litellm_params:
       model: ollama/qwen2.5-coder:7b
-      api_base: http://host.docker.internal:11434
+      api_base: os.environ/OLLAMA_API_BASE
 
   - model_name: local-repo-brain
     litellm_params:
       model: ollama/qwen2.5-coder:14b
-      api_base: http://host.docker.internal:11434
+      api_base: os.environ/OLLAMA_API_BASE
 
 
 litellm_settings:
