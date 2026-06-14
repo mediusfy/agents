@@ -1,611 +1,111 @@
-# Orgitration — Multi-Agent SDLC Ecosystem
+# AI Provider Agents & SDLC Ecosystem
 
-> **Version:** 0.1.0 | **Python:** 3.11+ | **License:** MIT
-
-Orgitration is a **multi-agent software development lifecycle (SDLC) ecosystem** that orchestrates autonomous AI agents to go from raw requirements to production-ready code. It supports three agent runtime layers — Claude Code plugins, opencode agents, and pydantic_ai Python agents — all unified by a capability-based registry and exposed via a Model Context Protocol (MCP) server.
+This repository is the central hub for our hybrid, multi-agent Software Development Lifecycle (SDLC) ecosystem. It orchestrates autonomous AI agents to progress from raw requirements to production-ready, validated code across local developer environments and cloud nodes.
 
 ---
 
-## 🌟 Key Features
+## 🏗️ Architecture Overview
 
-- **13 Core SDLC Agents** — Business Analyst, CTO, Backend Engineer, Frontend Engineer, Database Engineer, DevOps Engineer, SRE, Security Engineer, Test Engineer, Code Reviewer, Quality Gate, UX Designer, and Documentation Writer
-- **9 Domain Expert Agents** — Weather, Accountant, Market Shark, Crypto Oracle, Holiday Planner, Price Analyst, Region Analyzer, Current Events, Asymmetric Reviewer
-- **Multi-Runtime Support** — Works with Claude Code, opencode, and any MCP-compatible host
-- **Autonomous Remediation Loop** — Self-healing pipeline that retries with context when gates fail (up to 3 retries)
-- **Capability-Based Registry** — Query agents by capability (`backend`, `security`, `review`, etc.) instead of by name
-- **Vector-Indexed Knowledge Base** — pgvector-backed semantic search across ADRs, conventions, architecture decisions, and project context
-- **Cross-Runtime Memory Bridge** — Bidirectional sync between Orgitration (pgvector), Claude Code (agent-memory), and Antigravity (implicit memory)
-- **Full Observability** — Logfire instrumentation for every LLM call, tool execution, and agent run with token usage tracking
-- **Async Event Broker** — PostgreSQL-backed persistent event broker for long-running task handoffs
+The ecosystem operates on a **hybrid execution model**, routing tasks between cloud infrastructure (**GKS**) and the local developer workstation (**macOS**) depending on resource consumption and sandbox needs.
+
+```mermaid
+graph TD
+    subgraph "GKS (Google Kubernetes Service)"
+        NB[NATS Event Broker] -->|Job Queue| PE[Pipeline Executor]
+        PE -->|Traces| LF[Logfire Telemetry]
+        VDB[(pgvector DB)]
+    end
+
+    subgraph "Local Developer Workstation (macOS)"
+        HUI[Hermes Desktop UI] -->|MCP Protocol| OMS[OpenClaw MCP Server]
+        OMS -->|Local FS Tools| LFS[Local Workspace]
+        OLL[Local Ollama]
+        
+        subgraph "LiteLLM Gateway Stack"
+            SR[Semantic Router Gateway :5001] -->|Complexity Routing| LL[LiteLLM Proxy :4000]
+            LL -->|Orchestrator Pool| CloudLLMs[Gemini Pro / Grok 4.3 / DeepSeek Pro]
+            LL -->|Subagent Pool| LocalLLMs[Local Ollama / Gemini Flash / DeepSeek Flash]
+        end
+        
+        LNB[Local NATS Node :4222]
+    end
+
+    HC[Honcho.dev SaaS] <===>|Cognitive Memory| HUI
+    HC <===>|Cognitive Memory| PE
+    NB <===>|Clustered Sync| LNB
+    HUI <===>|Events| LNB
+    OMS <===>|Events| LNB
+    PE <===>|Shared pgvector Connection| VDB
+```
+
+### Key Architectural Pillars
+
+1. **LiteLLM Gateway (Port `4000`)**: A unified proxy that isolates API credentials and organizes models into functional pools:
+   * **Orchestrator Pool (Heavy Reasoning)**: Mapped to premium reasoning models like **x.ai Grok 4.3**, **Gemini 2.5 Pro**, and **DeepSeek-V4-Pro**.
+   * **Subagent Pool (High Volume)**: Mapped to fast, cost-efficient endpoints like **Ollama/qwen2.5-coder:7b** (local), **DeepSeek-V4-Flash**, and **Gemini 2.5 Flash**.
+2. **Semantic Router (Port `5001`)**: A lightweight Python-based FastAPI gateway that runs a local HuggingFace encoder (`all-MiniLM-L6-v2`) to dynamically direct incoming queries:
+   * Simple scaffolding, docs, or testing prompts route to the cheap **`subagent`** pool.
+   * Complex logic, design, or architecture prompts route to the high-intelligence **`orchestrator`** pool.
+3. **NATS Event Bus (Port `4222`)**: Facilitates reliable, asynchronous event-driven collaboration between agent microservices and pipeline stages.
+4. **Honcho Memory Integration**: Integrated as the cognitive memory layer to maintain state, context, and conversational session history across agent sessions.
 
 ---
 
-## 📁 Multi-Provider Structure
-
-This repo is the **central configuration hub** for all AI agent providers in the ecosystem.
-Provider configs live here; each provider gets a thin workspace under `programming/ai/<provider>/`
-with symlinks back to shared templates and agent definitions.
-
-### Config Layout
+## 📂 Project Structure
 
 ```
-programming/ai/
-├── agents/                          ← This repo: pydantic_ai runtime + provider configs
-│   ├── src/orchestration/agents/         ← Python agent implementations
-│   ├── agents/*.md                  → symlinks → shared/agents/ (role definitions)
-│   ├── .claude/rules/*.md           → Claude Code project rules
-│   ├── .claude/settings.local.json  → Claude Code permission config
-│   ├── .claude-plugin/plugin.json   → Claude Code plugin manifest
-│   ├── opencode.json                → OpenCode project/agent config
-│   ├── .opencode/agents/*.md        → OpenCode subagent definitions
-│   ├── .agents/workflows/*.md       → Orgitration agent workflows
-│   ├── .pre-commit-config.yaml      → Git hooks (ruff, mypy, linting)
-│   └── AGENTS.md → shared/workspace/
-│
-├── orchestration/                       ← Orgitration workspaces (thin wrappers)
-│   ├── GUIDELINES.md                → Global agent operations guide
-│   ├── *.md                        → symlinks → shared/workspace/
-│   ├── agents/*.md                 → symlinks → shared/agents/
-│   ├── docs-writer/                 → Sub-workspace (shared templates)
-│   └── frontend-engineer/           → Sub-workspace (shared templates)
-│
-├── claude/                         ← Claude Code workspace
-│   ├── *.md                        → symlinks → shared/workspace/
-│   └── agents/*.md                 → symlinks → shared/agents/
-│
-├── opencode/                       ← OpenCode workspace
-│   ├── *.md                        → symlinks → shared/workspace/
-│   └── agents/*.md                 → symlinks → shared/agents/
-│
-├── antigravity/                    ← Antigravity workspace
-│   ├── *.md                        → symlinks → shared/workspace/
-│   └── agents/*.md                 → symlinks → shared/agents/
-│
-├── hermes/                         ← Hermes workspace
-│   ├── *.md                        → symlinks → shared/workspace/
-│   └── agents/*.md                 → symlinks → shared/agents/
-│
-├── shared/
-│   ├── agents/*.md                 → 14 canonical agent role definitions
-│   ├── workspace/*.md              → 7 workspace template files
-│   ├── standards/go-standards.md   → Go coding standards
-│   └── docs/provider-config.md     → Full provider config reference
+.
+├── docker-compose.yml       # LiteLLM, Postgres, Redis, and NATS containers
+├── config.yaml              # LiteLLM routing definitions, fallbacks, and model groups
+├── services/
+│   ├── semantic-router/     # FastAPI Semantic Router gateway using local embeddings
+│   └── internal/adapters/   # Go adapters including the real NATS event bus
+└── README.md                # This file
 ```
-
-### Provider Config Discovery
-
-| Provider | Config Files | Discovery Mechanism |
-|----------|-------------|-------------------|
-| **OpenCode** | `opencode.json`, `.opencode/agents/*.md` | Auto-detected from project root when running `opencode` in `programming/ai/opencode/` |
-| **Claude Code** | `.claude/rules/*.md`, `.claude/settings.local.json`, `.claude-plugin/plugin.json` | Auto-detected from `.claude/` in current working directory |
-| **Orgitration** | `.agents/workflows/*.md` | Discovered from agent workspace root |
-| **Antigravity** | `.aivory/`, `.antigravitycli/` | CLI reads from project root |
-| **Hermes** | `.hermes/plans/` (future) | Discovered from workspace root |
-
-> **Full provider config reference**: [`shared/docs/provider-config.md`](../shared/docs/provider-config.md)
-
-### The Golden Rule
-
-**Edit agent role files in `shared/agents/`**, not in individual provider directories.
-Changes propagate automatically via symlinks to all providers.
-
-**Provider-specific configs stay in this repo** under their respective dot-directories
-(`.claude/`, `.opencode/`, `.agents/`).
 
 ---
 
-## 🏗️ Architecture
+## 🚀 Getting Started
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                        AI Hosts                                  │
-│  ┌──────────────┐  ┌──────────────┐  ┌─────────────────────┐    │
-│  │  Claude Code  │  │   Opencode   │  │  Antigravity / etc  │    │
-│  └──────┬───────┘  └──────┬───────┘  └──────────┬──────────┘    │
-│         │                 │                     │               │
-│         └─────────────────┼─────────────────────┘               │
-│                           │ MCP Protocol                        │
-├───────────────────────────┼──────────────────────────────────────┤
-│                    Orgitration MCP Server                           │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  Agent Registry (capability-based)                       │   │
-│  │  ┌─────┐ ┌──────┐ ┌───────┐ ┌─────┐ ┌─────┐ ┌─────┐    │   │
-│  │  │ BA  │ │ CTO  │ │Backend│ │Front│ │ DB  │ │ ... │    │   │
-│  │  └─────┘ └──────┘ └───────┘ └─────┘ └─────┘ └─────┘    │   │
-│  └──────────────────────────────────────────────────────────┘   │
-│                           │                                      │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  Infrastructure Layer                                    │   │
-│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐   │   │
-│  │  │ pgvector │ │ Logfire  │ │  Redis   │ │ JSONL    │   │   │
-│  │  │ (Memory) │ │ (Traces) │ │ (Cache)  │ │ (Logs)   │   │   │
-│  │  └──────────┘ └──────────┘ └──────────┘ └──────────┘   │   │
-│  └──────────────────────────────────────────────────────────┘   │
-│                           │                                      │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  Pipeline Orchestrator (BA → Advisory → Impl → Gate)    │   │
-│  └──────────────────────────────────────────────────────────┘   │
-└──────────────────────────────────────────────────────────────────┘
-```
-
-### Component Layers
-
-| Layer | Components | Description |
-|-------|-----------|-------------|
-| **AI Hosts** | Claude Code, Opencode, Antigravity | IDEs/CLI tools that connect via MCP |
-| **MCP Server** | `mcp_server.py` | Dynamically exposes all agents as tools |
-| **Agent Registry** | `registry.py` | Capability-based agent lookup and lazy initialization |
-| **SDLC Agents** | `agents/*.py` | 13 domain-specific pydantic_ai agents |
-| **Domain Agents** | `agents/non_technical/*.py` | 9 travel/finance agents |
-| **Pipeline** | `pipeline/`, `stages/` | Multi-stage SDLC pipeline with retry logic |
-| **Vector DB** | `vector_db.py` | pgvector-based semantic search |
-| **Memory Bridge** | `memory_bridge.py` | Cross-runtime memory sync |
-| **Event Broker** | `event_broker.py` | PostgreSQL-backed async task management |
-| **Observability** | `observability.py`, `telemetry.py` | Logfire + JSONL telemetry |
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Python 3.11+
-- PostgreSQL with pgvector extension (for memory/knowledge base)
-- At least one LLM API key (DeepSeek, OpenAI, Anthropic, or Gemini)
-
-### Installation
-
+### 1. Start the Local Service Stack
+Initialize the LiteLLM gateway, NATS event broker, Postgres, and Redis:
 ```bash
-# Clone the repository
-git clone <repo-url>
-cd orchestration
-
-# Create virtual environment
-python3.11 -m venv .venv
-source .venv/bin/activate
-
-# Install dependencies
-pip install -e .
-
-# For development dependencies
-pip install -e ".[dev]"
-
-# Copy and edit environment variables
-cp .env.example .env
+# Sourcing environment variables from envs.zsh injects GEMINI, DEEPSEEK, and XAI keys
+source ~/.zsh/envs.zsh
+docker compose up -d
 ```
 
-### API Keys
-
-API keys are managed globally in `~/.zsh/envs.zsh` — not in per-repo `.env` files.
-This repo includes `.env.example` as a reference, but actual keys come from your
-shell environment at runtime.
-
+### 2. Start the Semantic Router Gateway
+Start the local Python-based gateway (which handles offline routing classification):
 ```bash
-# ~/.zsh/envs.zsh (one source of truth for secrets)
-export DEEPSEEK_API_KEY="***"
-export ANTHROPIC_BASE_URL="https://jocham.tail...ts.net/v1"
-export OPENAI_BASE_URL="https://jocham.tail...ts.net/v1"
-export LOGFIRE_TOKEN="***"
-export ORCHESTRATION_AUTH_TOKEN="***"
+cd services/semantic-router
+chmod +x start.sh
+./start.sh
 ```
 
-```bash
-# LLM Provider (at least one required)
-OPENAI_API_KEY="sk-..."
-ANTHROPIC_API_KEY="sk-ant-..."
-GEMINI_API_KEY="..."
-DEEPSEEK_API_KEY="sk-..."
-
-# Observability (recommended)
-LOGFIRE_TOKEN="pylf_v2_eu_..."
-LOGFIRE_SEND_TO_LOGFIRE=true
-
-# Database (for pgvector knowledge base)
-DATABASE_URL="postgresql://user:pass@localhost:5432/orchestration"
-```
-
-### Running the Pipeline
-
-```bash
-# Run the full SDLC pipeline
-python main.py --project my-service --requirement "Build a payment processing API"
-
-# Run a specific stage
-python main.py --step ba --project my-service --requirement "Build a payment API"
-
-# Run with dry run (mock data, no LLM calls)
-python main.py --dry-run --project my-service
-
-# Resume from last checkpoint
-python main.py --resume --project my-service
-```
-
-### Connecting via MCP
-
-#### Claude Code
-
-```bash
-# Register the MCP server
-claude mcp add --scope user orchestration-agents -- \
-  /bin/bash /path/to/orchestration/mcp_run.sh
-
-# Verify connection
-claude mcp get orchestration-agents
-# Expected: Status: ✓ Connected
-```
-
-#### Opencode
-
-Add to your `opencode.json`:
-
-```json
-{
-  "mcpServers": {
-    "agents": {
-      "command": "bash",
-      "args": ["/path/to/orchestration/mcp_run.sh"],
-      "enabled": true
-    }
-  }
-}
-```
+### 3. Verify System Health
+* **LiteLLM Readiness**: `curl http://localhost:4000/health/readiness`
+* **Semantic Router Health**: `curl http://localhost:5001/healthz`
+* **Direct Prompt Routing Test**:
+  ```bash
+  curl -X POST http://localhost:5001/v1/chat/completions \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer <LITELLM_MASTER_KEY>" \
+    -d '{
+      "model": "default",
+      "messages": [{"role": "user", "content": "write unit tests for this function"}],
+      "stream": false
+    }'
+  ```
 
 ---
 
-## 🤖 Agent Reference
-
-### SDLC Pipeline Agents
-
-| Agent | Tool Name | Capabilities | Description |
-|-------|-----------|-------------|-------------|
-| **Business Analyst** | `run_ba` | `ba`, `requirements` | Converts raw requirements into user stories with Gherkin acceptance criteria using DDD |
-| **CTO / Architect** | `run_cto` | `cto`, `architecture`, `advisory` | Pre-implementation architecture reviews, ADR enforcement, and hard constraint validation |
-| **Backend Engineer** | `run_backend` | `backend`, `implementation` | Go (1.26+) Hexagonal Architecture, gRPC, NATS/Kafka, OpenTelemetry |
-| **Frontend Engineer** | `run_frontend` | `frontend`, `implementation` | Vue 3 Composition API, TSX, real-time event bus UI |
-| **Database Engineer** | `run_database` | `database`, `db_schema`, `migrations` | PostgreSQL migrations, indexing strategies, Redis caching |
-| **DevOps Engineer** | `run_devops` | `devops`, `ci_cd`, `deployment` | CI/CD pipelines, Docker Compose, Makefiles |
-| **SRE Engineer** | `run_sre` | `sre`, `infrastructure` | Terraform/OpenTofu, Crossplane, GitOps, multi-region K8s |
-| **Security Engineer** | `run_security` | `security`, `audit` | OWASP Top 10 audits, secret scanning, structured findings |
-| **Test Engineer** | `run_test_eng` | `test`, `testing` | Table-driven Go tests, BDD Playwright from Gherkin |
-| **Test Generator** | `run_test_gen` | `test_gen`, `test_generation` | Automatic test generation |
-| **Go Test Runner** | `run_go_test` | `go_test`, `go_testing` | Test execution and debugging |
-| **Code Reviewer** | `run_review` | `review`, `code_review` | Production readiness verification, drift detection, risk ranking |
-| **Quality Gate** | `run_quality_gate` | `quality_gate`, `review` | Complexity scoring, over-engineering detection |
-| **UX Designer** | `run_ux` | `ux`, `design` | WCAG 2.1 AA accessibility and UX reviews |
-| **Docs Writer** | `run_docs` | `docs`, `documentation` | OpenAPI specs, runbooks, README generation |
-| **Service Engineer** | `run_service_engineer` | `service_engineer`, `existing_code`, `implementation` | Surgical modifications to existing Go codebases |
-| **Planner** | `run_planner` | `plan`, `planning` | Goal decomposition into step-by-step execution plans |
-
-### Domain Expert Agents (Travel & Finance)
-
-| Agent | Tool Name | Capabilities | Description |
-|-------|-----------|-------------|-------------|
-| **Holiday Planner** | `run_holiday_planner` | `planning`, `travel` | Itinerary organization and travel coordination |
-| **Region Analyzer** | `run_region_analyzer` | `analysis` | Cost of living, safety, and geographical analysis |
-| **Asymmetric Reviewer** | `run_asymmetric_reviewer` | `legal`, `finance` | Corporate/legal travel savings and loophole identification |
-| **Current Events** | `run_current_events` | `news`, `history` | Modern news blended with historical context |
-| **Weather** | `run_weather` | `weather` | Forecasts and climate summaries |
-| **Accountant** | `run_accountant` | `finance` | Budget management and expense calculation |
-| **Market Shark** | `run_market_shark` | `finance`, `crypto`, `stocks`, `investing` | Stock market and investment analysis |
-| **Crypto Oracle** | `run_crypto_oracle` | `finance`, `news`, `research` | Cryptocurrency market analysis |
-| **Price Analyst** | `run_price_analyst` | `pricing`, `analysis`, `purchasing` | Pricing comparison and analysis |
-
----
-
-## 🔧 API Reference
-
-### MCP Tools
-
-All agents are exposed as MCP tools with the prefix `run_`. Full API reference is available in [docs/API_REFERENCE.md](docs/API_REFERENCE.md).
-
-**Core orchestration tools:**
-
-| Tool | Description |
-|------|-------------|
-| `delegate_to_orchestration_agent(capability, context, task)` | Delegate a task to any agent by capability |
-| `list_orchestration_capabilities()` | List all registered capabilities |
-| `run_orchestration_pipeline(project_name, requirement)` | Run the full SDLC pipeline as a background task |
-| `check_pipeline_status(run_id)` | Poll pipeline status |
-| `plan_and_execute(goal)` | Plan and execute a high-level goal |
-| `modify_existing_code(change_description, codebase_path)` | Modify existing Go code with autonomous remediation |
-| `scaffold_and_build_service(service_name, bounded_context)` | Build a new service from scratch |
-
-**Knowledge management tools:**
-
-| Tool | Description |
-|------|-------------|
-| `search_adrs(query)` | Search Architecture Decision Records |
-| `save_adr(decision_id, content)` | Save a new ADR |
-| `seed_project_context(project_path)` | Index project files into vector DB |
-| `query_context(query, domain, top_k)` | Query the vector knowledge base |
-
-**Async task tools:**
-
-| Tool | Description |
-|------|-------------|
-| `submit_async_task(task_type, payload)` | Submit a long-running task |
-| `check_task_status(task_id)` | Check async task status |
-| `wait_for_task(task_id, timeout)` | Wait for task completion |
-
-**Memory bridge tools:**
-
-| Tool | Description |
-|------|-------------|
-| `sync_memory(all_runtimes, max_entries)` | Sync memory across runtimes |
-| `memory_bridge_status()` | Get memory system health |
-
-### CLI Pipeline
-
-```bash
-python main.py --step <step> --project <name> [options]
-```
-
-Available steps: `ba`, `advisory`, `implementation`, `backend`, `frontend`, `database`, `test`, `devops`, `docs`, `quality_gate`, `sre`, `review`, `security`, `all`
-
----
-
-## 🔄 Pipeline Flow
-
-### Full SDLC Pipeline
-
-```
-Raw Requirements
-      │
-      ▼
-┌──────────────┐
-│  BA Stage    │  → User Stories with Gherkin + Event Triggers
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│ Advisory     │  → CTO Architecture Review
-└──────┬───────┘
-       │
-       ▼
-┌────────────────────────────────────────────────┐
-│ Implementation Stage                           │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐       │
-│  │ Backend  │ │ Frontend │ │ Database │       │
-│  └──────────┘ └──────────┘ └──────────┘       │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐       │
-│  │  DevOps  │ │   Docs   │ │   SRE    │       │
-│  └──────────┘ └──────────┘ └──────────┘       │
-│  ┌──────────┐                                  │
-│  │   Test   │  → If fails → Retry impl        │
-│  └──────────┘                                  │
-└──────────────────────┬─────────────────────────┘
-                       │
-                       ▼
-┌────────────────────────────────────────────────┐
-│ Quality Gate Stage (Parallel)                  │
-│  ┌──────────────┐   ┌──────────────┐          │
-│  │ Quality Gate │   │    Review    │          │
-│  │ (Complexity) │   │ (Correctness)│          │
-│  └──────────────┘   └──────────────┘          │
-│  ┌──────────────┐   ┌──────────────┐          │
-│  │   Security   │   │     SRE      │          │
-│  └──────────────┘   └──────────────┘          │
-└──────────────────────┬─────────────────────────┘
-                       │
-                       ▼
-              ✅ Approved Artifacts
-```
-
-### Existing Code Modification Pipeline (Autonomous Remediation)
-
-```
-Change Description
-      │
-      ▼
-┌─────────────────────┐
-│  Service Engineer   │  → Reads files, applies change
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│   Test Engineer     │  → Generates/updates tests
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────────────────────┐
-│  Parallel Verification Gates        │
-│  ┌──────────────┐ ┌──────────────┐  │
-│  │ Quality Gate │ │ Code Review  │  │
-│  │(Deterministic)│ │ (Heuristic)  │  │
-│  └──────────────┘ └──────────────┘  │
-└──────────┬──────────────────────────┘
-           │
-     ┌─────┴─────┐
-     ▼           ▼
-  ✅ Pass     ❌ Fail (up to 3 retries)
-                 │
-                 ▼
-          ┌─────────────────┐
-          │ Auto-Remediation│  → Service Engineer with error context
-          └─────────────────┘
-```
-
----
-
-## 🧪 Testing
-
-```bash
-# Run all tests
-pytest
-
-# Run unit tests only
-pytest -m unit
-
-# Run integration tests
-pytest -m integration
-
-# Run with coverage
-pytest --cov=orchestration --cov-report=html
-```
-
----
-
-## 📁 Project Structure
-
-```
-orchestration/
-├── agents/*.md                    → symlinks → shared/agents/ (role definitions)
-├── .opencode/agents/*.md          # OpenCode subagent definitions
-├── .opencode/package.json          # OpenCode SDK dependency
-├── opencode.json                   # OpenCode project & agent configuration
-├── .claude-plugin/plugin.json     # Claude Code plugin manifest
-├── .claude/rules/*.md             # Claude Code project rules (auto-triggered)
-├── .claude/settings.local.json    # Claude Code MCP permission config
-├── .agents/workflows/*.md         # Orgitration multi-agent workflows
-├── .pre-commit-config.yaml        # Git hooks (ruff, mypy, linting)
-├── src/
-│   └── orchestration/
-│       ├── agents/                # pydantic_ai agent implementations
-│       │   ├── ba.py              # Business Analyst
-│       │   ├── backend.py         # Backend Engineer (Go)
-│       │   ├── frontend.py        # Frontend Engineer (Vue 3)
-│       │   ├── database.py        # Database Engineer
-│       │   ├── devops.py          # DevOps Engineer
-│       │   ├── docs.py            # Documentation Writer
-│       │   ├── sre.py             # SRE Engineer
-│       │   ├── security.py        # Security Engineer
-│       │   ├── test_eng.py        # Test Engineer
-│       │   ├── review.py          # Code Reviewer
-│       │   ├── quality_gate.py    # Quality Gate
-│       │   ├── ux.py              # UX Designer
-│       │   ├── cto.py             # CTO/Architect
-│       │   ├── planner_agent.py   # Goal Planner
-│       │   ├── service_engineer.py # Existing Code Modifier
-│       │   ├── registration.py    # Centralized agent registration
-│       │   └── non_technical/     # Travel & Finance agents
-│       ├── tools/                 # Shared agent tools
-│       │   ├── a2a_tools.py       # Agent-to-agent delegation
-│       │   ├── search.py          # Codebase search tools
-│       │   ├── market_tools.py    # Stock/crypto data tools
-│       │   ├── fs_tools.py        # Filesystem tools
-│       │   ├── web_fetch.py       # Web fetching tools
-│       │   ├── docs.py            # Documentation tools
-│       │   ├── registry.py        # Tool registry
-│       │   └── ...
-│       ├── models/                # Pydantic output models
-│       │   ├── core.py            # Core data models
-│       │   └── factory.py         # Model factory (multi-provider)
-│       ├── pipeline/              # Pipeline configuration
-│       │   ├── config.py          # PipelineConfig
-│       │   └── orchestrator.py    # OrgitrationPipeline
-│       ├── stages/                # Pipeline stages
-│       │   ├── base.py            # StageRunner base class
-│       │   ├── ba_stage.py        # BA pipeline stage
-│       │   ├── advisory_stage.py  # CTO advisory stage
-│       │   ├── implementation_stage.py  # Implementation stage
-│       │   └── quality_gate_stage.py    # Quality gate stage
-│       ├── mcp_server.py          # MCP server entry point
-│       ├── registry.py            # AgentRegistry
-│       ├── context_engine.py      # Vector-indexed context retrieval
-│       ├── vector_db.py           # pgvector database interface
-│       ├── memory_bridge.py       # Cross-runtime memory sync
-│       ├── event_broker.py        # PostgreSQL async event broker
-│       ├── existing_code_handler.py  # Existing code pipeline
-│       ├── pipeline_jobs.py      # Background pipeline runner
-│       ├── settings.py            # pydantic-settings configuration
-│       ├── observability.py       # Logfire setup
-│       ├── telemetry.py           # JSONL telemetry
-│       ├── healthcheck.py         # Startup validation
-│       └── exceptions.py          # Typed exception hierarchy
-├── main.py                        # CLI entry point
-├── start_mcp.py                   # MCP server launcher
-├── pyproject.toml                 # Project configuration
-├── .env.example                   # Environment template
-└── tests/                         # pytest test suite
-```
-
----
-
-## 📊 Observability
-
-All agent runs, tool calls, and pipeline stages are instrumented with **Logfire**:
-
-```bash
-# Every agent.run() produces a span with:
-# - Token usage (input/output tokens)
-# - Call latency
-# - Model name
-# - Input/output structures
-# - Error traces
-
-# View the dashboard at:
-# https://logfire.pydantic.dev/[your-project]
-```
-
-JSONL telemetry is also written to `telemetry.jsonl` in the project root.
-
-```bash
-# Clear cached data
-./scripts/clear_cache.sh
-```
-
----
-
-## 🔐 Security
-
-- **Path traversal protection**: All file operations in `service_engineer` and `utils.py` are sandboxed and prevent directory traversal
-- **DNS rebinding protection**: MCP server has built-in transport security
-- **Secret scanning**: Security agent uses `secrets.py` tools to detect hardcoded credentials
-- **Sandboxed execution**: File reads/writes are constrained to the project root
-- **API key validation**: Startup checks validate that API keys are not placeholder values
-
----
-
-## 🤝 Contributing
-
-Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.
-
-**Development setup:**
-
-```bash
-pip install -e ".[dev]"
-pre-commit install    # Install git hooks
-ruff check .          # Lint
-mypy src/orchestration     # Type check
-pytest                # Test
-```
-
----
-
-## 📚 Additional Documentation
-
-| Document | Description |
-|----------|-------------|
-| [API Reference](docs/API_REFERENCE.md) | Complete MCP tool and CLI API reference |
-| [OpenAPI Spec](docs/openapi/orchestration-api.yaml) | OpenAPI 3.1 specification for the MCP API |
-| [Provider Config Reference](../shared/docs/provider-config.md) | How providers discover configs in this repo |
-| [Go Standards](CODING_STANDARDS.md) | Go coding standards for generated code |
-| [AGENTS.md](AGENTS.md) | Agent system prompts and definitions |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines |
-| Agent Role Files | `agents/*.md` → symlinks → `shared/agents/` |
-| OpenCode Agents | `.opencode/agents/*.md` — OpenCode subagent definitions |
-| Claude Rules | `.claude/rules/*.md` — Claude Code auto-triggered rules |
-
----
-
-## 🛠️ Environment Variables Reference
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `OPENAI_API_KEY` | No* | — | OpenAI API key |
-| `ANTHROPIC_BASE_URL` | No | — | Anthropic API proxy base URL (Aperture) |
-| `OPENAI_BASE_URL` | No | — | OpenAI API proxy base URL (Aperture) |
-| `ORCHESTRATION_AUTH_TOKEN` | No | — | Orgitration gateway auth token |
-| `DEEPSEEK_API_KEY` | No* | — | DeepSeek API key |
-| `LOGFIRE_TOKEN` | No | — | Logfire observability token |
-| `DATABASE_URL` | Yes | `postgresql://localhost:5432/orchestration` | PostgreSQL connection string |
-| `REDIS_IRIS_URL` | No | — | Redis Iris connection URL |
-| `model_provider` | No | `deepseek` | LLM provider override |
-
-*\*At least one API key must be configured*
-
----
-
-## 📝 License
-
-MIT License — see [LICENSE](LICENSE) for details.
+## 📈 Monitoring Local Compute vs Cloud
+To see how much Ollama is processing locally versus paid cloud APIs:
+* **SQL Query**: Run stats directly against the spend database:
+  ```bash
+  docker exec llm-lite-postgres-1 psql -U litellm -d litellm -c \
+    "SELECT model, COUNT(*) as request_count, SUM(completion_tokens + prompt_tokens) AS total_tokens FROM \"LiteLLM_SpendLogs\" GROUP BY model ORDER BY total_tokens DESC;"
+  ```
+* **Visual Dashboard**: Log into `http://localhost:4000/ui` using your master key to view usage charts.
+# agent-docs
