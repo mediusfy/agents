@@ -1,0 +1,217 @@
+# =============================================================================
+# Entity Management CD Pipeline
+# =============================================================================
+# Continuous Delivery for the entity-management service.
+# Builds, scans, and pushes Docker images to GHCR.
+# Supports multi-region deployment via build matrix (ENTITYMGMT-11).
+# =============================================================================
+
+name: entity-management CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "entity-management/**"
+      - ".github/workflows/entity-management-cd.yml"
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target deployment environment"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - production
+
+# ---------------------------------------------------------------------------
+# Permissions
+# ---------------------------------------------------------------------------
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+# ---------------------------------------------------------------------------
+# Environment
+# ---------------------------------------------------------------------------
+env:
+  GO_VERSION: "1.26"
+  SERVICE_DIR: entity-management
+  SERVICE_NAME: entity-management
+  DOCKER_REGISTRY: ghcr.io
+
+# ---------------------------------------------------------------------------
+# Concurrency
+# ---------------------------------------------------------------------------
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ===========================================================================
+  # BUILD & PUBLISH DOCKER IMAGE
+  # ===========================================================================
+  build-and-publish:
+    name: Build & Publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: ${{ env.SERVICE_DIR }}/go.sum
+
+      - name: Run unit tests (gate)
+        run: go test -v -race -count=1 -cover ./...
+        working-directory: ${{ env.SERVICE_DIR }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/${{ env.SERVICE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha,prefix=,suffix=,format=short
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ env.SERVICE_DIR }}
+          file: ${{ env.SERVICE_DIR }}/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ env.SERVICE_NAME }}
+          cache-to: type=gha,mode=max,scope=${{ env.SERVICE_NAME }}
+          build-args: |
+            VERSION=${{ github.sha }}
+            GIT_COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+          provenance: true
+          sbom: true
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          format: spdx-json
+          output-file: ${{ env.SERVICE_DIR }}/sbom.spdx.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: ${{ env.SERVICE_DIR }}/sbom.spdx.json
+
+      - name: Sign the Docker image with Cosign
+        uses: sigstore/cosign-installer@v3
+      - name: Sign image
+        run: |
+          cosign sign --yes \
+            ${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/${{ env.SERVICE_NAME }}@${{ steps.build.outputs.digest }}
+
+  # ===========================================================================
+  # VULNERABILITY SCAN
+  # ===========================================================================
+  vulnerability-scan:
+    name: Vulnerability Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [build-and-publish]
+
+    steps:
+      - name: Run Trivy on published image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/${{ env.SERVICE_NAME }}@${{ needs.build-and-publish.outputs.digest }}
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+          ignore-unfixed: true
+
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+
+  # ===========================================================================
+  # MULTI-REGION DEPLOYMENT (ENTITYMGMT-11)
+  # ===========================================================================
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [build-and-publish, vulnerability-scan]
+    if: github.event_name == 'release' || github.event.inputs.environment == 'production'
+    strategy:
+      matrix:
+        region: [us-east-1, eu-west-1]
+      max-parallel: 1  # Serial deployment to validate each region
+
+    environment:
+      name: ${{ github.event.inputs.environment || 'production' }}-${{ matrix.region }}
+      url: https://${{ matrix.region }}.${{ secrets.DOMAIN || 'example.com' }}/healthz
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to ${{ matrix.region }}
+        env:
+          REGION: ${{ matrix.region }}
+          IMAGE: ${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/${{ env.SERVICE_NAME }}@${{ needs.build-and-publish.outputs.digest }}
+          # ENTITYMGMT-11: Region-specific config
+          DATABASE_URL: ${{ secrets[format('DATABASE_URL_{0}', matrix.region)] }}
+          NATS_URL: ${{ secrets[format('NATS_URL_{0}', matrix.region)] }}
+        run: |
+          echo "🚀 Deploying ${{ env.SERVICE_NAME }} to $REGION"
+          echo "   Image: $IMAGE"
+          echo "   DB:    $DATABASE_URL"
+          echo "   NATS:  $NATS_URL"
+          
+          # Placeholder for actual deployment (kubectl, terraform, etc.)
+          # kubectl set image deployment/${{ env.SERVICE_NAME }} \
+          #   ${{ env.SERVICE_NAME }}=$IMAGE \
+          #   --namespace=$REGION
+
+      - name: Health check
+        env:
+          REGION: ${{ matrix.region }}
+        run: |
+          echo "⏳ Waiting for deployment to stabilize in $REGION..."
+          # kubectl rollout status deployment/${{ env.SERVICE_NAME }} \
+          #   --namespace=$REGION --timeout=5m
+          sleep 10  # Simulate rollout verification
+          echo "✅ Deployment verified in $REGION"

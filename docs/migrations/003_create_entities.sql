@@ -1,0 +1,34 @@
+-- Migration: 003_create_entities.sql (REFERENCE — Superseded)
+-- Story: ENTITY-02: Create Entity — Concrete entity instances conforming
+-- to a defined entity schema.
+--
+-- ⚠️ NOTE: This file is a reference/design document. The canonical migration
+-- has been moved to:
+--   docs/generated-app/default/database/migrations/ENTITY-02_000_create_entity_instances.up.sql
+--   docs/generated-app/default/database/migrations/ENTITY-02_000_create_entity_instances.down.sql
+--
+-- Seed data:
+--   docs/generated-app/default/database/seeds/ENTITY-02_000_create_entity_instances_seed.sql
+--
+-- Key changes from this reference to the canonical migration:
+--   1. Added `metadata` JSONB column for free-form metadata
+--   2. Added `deleted_at` TIMESTAMPTZ for soft-delete support
+--   3. Replaced `entity_idempotency` (event-level) with `request_idempotency` (request-level)
+--   4. Added `enqueue_entity_created_event()` function for transactional outbox
+--   5. Added `create_entity_with_outbox()` atomic helper function
+--   6. Added `save_idempotency_key()` function for upsert semantics
+--   7. Added `get_entity_by_idempotency_key()` function for SCENARIO 2
+--   8. Added `prune_expired_idempotency()` cleanup function
+--   9. Added GIN indexes for JSONB attributes and metadata
+--  10. Added partial index for active (non-deleted) entities
+--  11. Event type: 'entitymanagement.EntityCreated' (per Gherkin domain event)
+--
+-- Tables:
+--   entities              — Core entity instances (aggregate root for entity CRUD)
+--   request_idempotency   — Client-supplied idempotency key → entity ID mapping (7-day TTL)
+--
+-- Extends event_outbox from migration 002 to support EntityCreated events.
+-- ============================================================================
+
+-- See canonical migration at the path above for the full implementation.
+-- This file is kept for historical reference only.

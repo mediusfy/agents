@@ -1,0 +1,50 @@
+# === Git ===
+.git/
+.gitignore
+.gitmodules
+
+# === IDE ===
+.idea/
+.vscode/
+.pycharm_plugin/
+
+# === Python Cache ===
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+.venv_*/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# === OS ===
+.DS_Store
+
+# === Generated / Cache ===
+generated-app/
+.coverage
+.coverage.*
+coverage.out
+archive/
+cache/
+mypy_out.txt
+mypy2_out.txt
+
+# === Run-time / Telemetry ===
+session_trace*.jsonl
+telemetry*.jsonl
+*.jsonl
+
+# === Agent Run-time ===
+.dagmem/
+.aivory/
+.claw-checkpoints/
+.claw-vectordb
+.claw-vectordb*/
+.tmp_*
+.tmp_dagster_home_*/
+.logfire/
+
+# === Temp ===
+scratch.go

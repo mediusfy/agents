@@ -1,0 +1,1 @@
+../../agents-docs/shared/agents/quality-gate.md

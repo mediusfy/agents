@@ -1,0 +1,9 @@
+version: "3.8"
+services:
+  agents:
+    build: .
+    working_dir: /workspace
+    env_file:
+      - .env
+    volumes:
+      - .:/opt/agents

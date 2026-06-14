@@ -1,0 +1,599 @@
+{
+  "meta": {
+    "project": "Rufkis SRE Platform",
+    "version": "1.0.0",
+    "generated": "2026-06-03T02:23:20Z",
+    "strategic_themes": [
+      "GitOps-Native Remediation",
+      "Automated FinOps ROI",
+      "Autonomous Agent Triage",
+      "Local-First SRE Workspace"
+    ],
+    "total_stories": 16,
+    "total_tasks": 48
+  },
+  "stories": [
+    {
+      "id": "GITOPS-01",
+      "title": "Automated Incident Response via GitOps PRs",
+      "theme": "GitOps-Native Remediation",
+      "priority": "P0",
+      "status": "planned",
+      "story": "Given an incident has been classified and assigned a runbook, When the autonomous triage triggers the remediation workflow, Then a GitOps pull request is automatically created containing the runbook-specific changes",
+      "acceptance_criteria": [
+        "Incident classification triggers automated remediation workflow",
+        "Runbook-specific changes are rendered as a Git diff",
+        "GitOps PR is created with proper title, description, and labels",
+        "PR references the incident ID in the commit message",
+        "PR creation is idempotent (no duplicate PRs for same incident+runbook combination)"
+      ],
+      "tasks": [
+        {
+          "id": "GITOPS-01-T1",
+          "description": "Design and implement RemediationWorkflow engine that receives classified incidents and maps them to runbooks",
+          "effort": "3d",
+          "dependencies": ["TRIAGE-01", "GITOPS-02"]
+        },
+        {
+          "id": "GITOPS-01-T2",
+          "description": "Implement Git provider abstraction layer (GitHub/GitLab/Bitbucket) for PR creation",
+          "effort": "3d",
+          "dependencies": []
+        },
+        {
+          "id": "GITOPS-01-T3",
+          "description": "Build PR templating engine that renders runbook changes as Git diffs with incident context",
+          "effort": "2d",
+          "dependencies": ["GITOPS-01-T1"]
+        }
+      ]
+    },
+    {
+      "id": "GITOPS-02",
+      "title": "Declarative Runbook Definitions Stored in Git",
+      "theme": "GitOps-Native Remediation",
+      "priority": "P0",
+      "status": "planned",
+      "story": "Given an SRE author has created a runbook definition in YAML, When the runbook is committed to the runbooks repository, Then the runbook is validated against the runbook schema and the runbook contains: trigger conditions, remediation steps, rollback procedure, approval requirements, and severity mapping",
+      "acceptance_criteria": [
+        "Runbook YAML schema is defined and versioned",
+        "Schema validation occurs on commit (via webhook or CI)",
+        "Runbook contains: triggers, remediation steps, rollback procedure, approval requirements, severity mapping",
+        "Invalid runbooks are rejected with clear error messages",
+        "Runbook registry is queryable via API"
+      ],
+      "tasks": [
+        {
+          "id": "GITOPS-02-T1",
+          "description": "Define and version the runbook YAML schema (JSON Schema / CUE)",
+          "effort": "2d",
+          "dependencies": []
+        },
+        {
+          "id": "GITOPS-02-T2",
+          "description": "Implement schema validation service that runs on commit hooks and CI pipelines",
+          "effort": "2d",
+          "dependencies": ["GITOPS-02-T1"]
+        },
+        {
+          "id": "GITOPS-02-T3",
+          "description": "Build runbook registry API for querying and indexing runbooks",
+          "effort": "2d",
+          "dependencies": ["GITOPS-02-T2"]
+        }
+      ]
+    },
+    {
+      "id": "GITOPS-03",
+      "title": "Audit Trail and Rollback via Git History",
+      "theme": "GitOps-Native Remediation",
+      "priority": "P0",
+      "status": "planned",
+      "story": "Given a remediation action has been executed via a merged PR, When an auditor queries the remediation history for a specific incident, Then the complete git history shows: who approved, what changed, when it was deployed, and the rollback commit",
+      "acceptance_criteria": [
+        "Every remediation PR creates a verifiable audit trail in Git history",
+        "Audit query returns: approver identity, diff summary, deployment timestamp, rollback commit SHA",
+        "Rollback is a single-click operation that creates a revert PR",
+        "Audit trail is immutable (signed commits, branch protection)",
+        "API endpoint exposes audit history for compliance queries"
+      ],
+      "tasks": [
+        {
+          "id": "GITOPS-03-T1",
+          "description": "Implement audit trail data model and storage (Git-referenced metadata)",
+          "effort": "3d",
+          "dependencies": ["GITOPS-01"]
+        },
+        {
+          "id": "GITOPS-03-T2",
+          "description": "Build audit query API with filtering by incident, date range, approver, and service",
+          "effort": "2d",
+          "dependencies": ["GITOPS-03-T1"]
+        },
+        {
+          "id": "GITOPS-03-T3",
+          "description": "Implement one-click rollback via automated revert PR creation",
+          "effort": "2d",
+          "dependencies": ["GITOPS-03-T1"]
+        }
+      ]
+    },
+    {
+      "id": "GITOPS-04",
+      "title": "Policy-as-Code for Remediation Approval Gates",
+      "theme": "GitOps-Native Remediation",
+      "priority": "P1",
+      "status": "planned",
+      "story": "Given a remediation PR has been created, When the PR is evaluated by the policy engine, Then the PR is tagged with required approvers based on: severity level, affected service, and environment (prod/staging/dev)",
+      "acceptance_criteria": [
+        "Policy engine evaluates every remediation PR via webhook",
+        "Policies are defined as code (Rego/OPA) and stored in a policies directory",
+        "Required approvers are dynamically assigned based on severity, service, environment",
+        "P0 production changes require 2+ approvers including an SRE lead",
+        "Policy violations block PR merge with clear rejection reasons"
+      ],
+      "tasks": [
+        {
+          "id": "GITOPS-04-T1",
+          "description": "Integrate OPA/Rego policy engine and define policy data model",
+          "effort": "3d",
+          "dependencies": ["GITOPS-01"]
+        },
+        {
+          "id": "GITOPS-04-T2",
+          "description": "Write Rego policies for approval gates: severity-based, service-based, environment-based",
+          "effort": "2d",
+          "dependencies": ["GITOPS-04-T1"]
+        },
+        {
+          "id": "GITOPS-04-T3",
+          "description": "Build webhook handler that evaluates PRs and tags with required approvers",
+          "effort": "2d",
+          "dependencies": ["GITOPS-04-T1"]
+        }
+      ]
+    },
+    {
+      "id": "FINOPS-01",
+      "title": "Real-Time Cloud Cost Anomaly Detection per Region per Provider",
+      "theme": "Automated FinOps ROI",
+      "priority": "P0",
+      "status": "planned",
+      "story": "Given cost telemetry is being ingested from AWS/GCP/Azure for each region (EU, US), When a cost metric deviates beyond the dynamic threshold (e.g., >3 standard deviations from trailing 7-day baseline), Then an anomaly alert is created and the FinOps engine triggers an optimization scan",
+      "acceptance_criteria": [
+        "Cost telemetry ingestion from AWS (Cost Explorer API), GCP (Billing API), Azure (Cost Management API)",
+        "Per-region, per-service cost baseline computed from trailing 7-day window",
+        "Dynamic thresholding using rolling statistics (mean, std dev, z-score)",
+        "Anomaly alert triggers automated optimization scan",
+        "Anomalies are viewable in dashboard with drill-down to provider/region/service"
+      ],
+      "tasks": [
+        {
+          "id": "FINOPS-01-T1",
+          "description": "Implement cloud cost telemetry ingestion pipeline with provider adapters (AWS, GCP, Azure)",
+          "effort": "4d",
+          "dependencies": []
+        },
+        {
+          "id": "FINOPS-01-T2",
+          "description": "Build anomaly detection engine with dynamic thresholding (z-score, rolling window statistics)",
+          "effort": "3d",
+          "dependencies": ["FINOPS-01-T1"]
+        },
+        {
+          "id": "FINOPS-01-T3",
+          "description": "Create anomaly alerting and notification pipeline (PagerDuty, Slack, Webhook)",
+          "effort": "2d",
+          "dependencies": ["FINOPS-01-T2"]
+        }
+      ]
+    },
+    {
+      "id": "FINOPS-02",
+      "title": "Automated Cost Optimization Recommendations with Projected ROI",
+      "theme": "Automated FinOps ROI",
+      "priority": "P0",
+      "status": "planned",
+      "story": "Given a cost anomaly or a scheduled optimization scan has been triggered, When the FinOps engine analyzes the cost data across all providers and regions, Then it generates optimization recommendations showing: resource ID, current cost, recommended action, projected monthly savings, implementation complexity, and ROI confidence score",
+      "acceptance_criteria": [
+        "Optimization scan is triggered by anomaly or on a schedule (daily/weekly)",
+        "Recommendations include: resource ID, current cost, action, projected savings, complexity, ROI score",
+        "Recommendation types: right-sizing, reserved instances, spot instances, storage tiering, unused resource elimination",
+        "ROI calculation includes implementation cost vs projected 30/60/90-day savings",
+        "Recommendations are stored and queryable via API"
+      ],
+      "tasks": [
+        {
+          "id": "FINOPS-02-T1",
+          "description": "Build optimization analysis engine with recommendation generators for each provider",
+          "effort": "4d",
+          "dependencies": ["FINOPS-01-T1"]
+        },
+        {
+          "id": "FINOPS-02-T2",
+          "description": "Implement ROI projection calculator with confidence scoring",
+          "effort": "2d",
+          "dependencies": ["FINOPS-02-T1"]
+        },
+        {
+          "id": "FINOPS-02-T3",
+          "description": "Create recommendations API and storage layer",
+          "effort": "2d",
+          "dependencies": ["FINOPS-02-T2"]
+        }
+      ]
+    },
+    {
+      "id": "FINOPS-03",
+      "title": "Showback/Show-Charge Reporting per SRE Team per Service",
+      "theme": "Automated FinOps ROI",
+      "priority": "P1",
+      "status": "planned",
+      "story": "Given cost allocation tags are configured per SRE team and service, When the monthly billing cycle completes, Then a showback report is generated per team showing: total cost, cost by provider, cost by region, cost trend over last 3 months, and top 5 cost drivers",
+      "acceptance_criteria": [
+        "Cost allocation tags are configurable per team, service, and environment",
+        "Monthly showback report is auto-generated on billing cycle completion",
+        "Report shows: total cost, provider breakdown, regional breakdown, 3-month trend, top 5 cost drivers",
+        "Reports are exportable as PDF, CSV, and viewable in dashboard",
+        "Showback data is queryable via API with team and date filters"
+      ],
+      "tasks": [
+        {
+          "id": "FINOPS-03-T1",
+          "description": "Implement cost allocation tag management and ingestion",
+          "effort": "2d",
+          "dependencies": ["FINOPS-01-T1"]
+        },
+        {
+          "id": "FINOPS-03-T2",
+          "description": "Build monthly showback report generator with multi-dimensional breakdowns",
+          "effort": "3d",
+          "dependencies": ["FINOPS-03-T1"]
+        },
+        {
+          "id": "FINOPS-03-T3",
+          "description": "Create report export service (PDF, CSV) and dashboard widgets",
+          "effort": "2d",
+          "dependencies": ["FINOPS-03-T2"]
+        }
+      ]
+    },
+    {
+      "id": "FINOPS-04",
+      "title": "Cost vs. Reliability Trade-off Visualization Dashboard",
+      "theme": "Automated FinOps ROI",
+      "priority": "P1",
+      "status": "planned",
+      "story": "Given the SRE team has configured their reliability SLOs and cost budgets, When a user navigates to the trade-off dashboard, Then they see a scatter plot of all services comparing: monthly cost (x-axis), error budget burn rate (y-axis), and risk quadrant (under-funded, optimal, over-engineered, at-risk)",
+      "acceptance_criteria": [
+        "SLO and cost budget configurations are stored per service",
+        "Scatter plot renders with monthly cost on x-axis and error budget burn rate on y-axis",
+        "Risk quadrants are clearly labeled: under-funded, optimal, over-engineered, at-risk",
+        "Clicking a service point shows detailed SLO and cost breakdown",
+        "Dashboard supports date range filtering and export"
+      ],
+      "tasks": [
+        {
+          "id": "FINOPS-04-T1",
+          "description": "Implement SLO and cost budget configuration storage and API",
+          "effort": "2d",
+          "dependencies": ["FINOPS-03-T1"]
+        },
+        {
+          "id": "FINOPS-04-T2",
+          "description": "Build trade-off analytics engine (cost vs error budget burn rate computation)",
+          "effort": "3d",
+          "dependencies": ["FINOPS-04-T1"]
+        },
+        {
+          "id": "FINOPS-04-T3",
+          "description": "Create scatter plot dashboard with risk quadrant visualization and drill-down",
+          "effort": "3d",
+          "dependencies": ["FINOPS-04-T2"]
+        }
+      ]
+    },
+    {
+      "id": "TRIAGE-01",
+      "title": "AI-Powered Incident Triage for Severity and Ownership Classification",
+      "theme": "Autonomous Agent Triage",
+      "priority": "P0",
+      "status": "planned",
+      "story": "Given an alert or incident notification arrives from any monitoring source, When the triage agent processes the incident, Then it classifies severity (P0/P1/P2/P3/P4) with a confidence score and it assigns ownership to the appropriate SRE team based on service ownership mapping",
+      "acceptance_criteria": [
+        "Ingests alerts from Prometheus, Datadog, Grafana, CloudWatch, and generic webhooks",
+        "Severity classification with confidence score (P0-P4)",
+        "Owner assignment based on service ownership mapping and on-call schedule",
+        "Classification accuracy >= 90% for P0/P1 (measured against human review)",
+        "API returns classification result with confidence, rationale, and alternative assignments"
+      ],
+      "tasks": [
+        {
+          "id": "TRIAGE-01-T1",
+          "description": "Build alert ingestion pipeline with multiple source adapters (Prometheus, Datadog, Grafana, CloudWatch, webhook)",
+          "effort": "3d",
+          "dependencies": []
+        },
+        {
+          "id": "TRIAGE-01-T2",
+          "description": "Implement LLM-based severity classifier with confidence scoring and fallback heuristics",
+          "effort": "4d",
+          "dependencies": ["TRIAGE-01-T1"]
+        },
+        {
+          "id": "TRIAGE-01-T3",
+          "description": "Build service ownership mapping and on-call schedule integration for team assignment",
+          "effort": "2d",
+          "dependencies": ["TRIAGE-01-T2"]
+        }
+      ]
+    },
+    {
+      "id": "TRIAGE-02",
+      "title": "Automated Root Cause Analysis Suggestions",
+      "theme": "Autonomous Agent Triage",
+      "priority": "P0",
+      "status": "planned",
+      "story": "Given an incident has been classified by the triage agent, When the RCA engine analyzes the incident context (logs, metrics, traces, recent changes), Then it produces a ranked list of likely root causes with supporting evidence and confidence scores",
+      "acceptance_criteria": [
+        "RCA engine consumes logs, metrics, traces, and recent change events",
+        "Produces ranked list of root causes with evidence snippets and confidence scores",
+        "Integrates with OpenTelemetry for trace analysis",
+        "Integrates with Git history for recent change correlation",
+        "RCA results are stored with the incident record for post-mortem analysis"
+      ],
+      "tasks": [
+        {
+          "id": "TRIAGE-02-T1",
+          "description": "Implement context collector service (logs, metrics, traces, Git changes)",
+          "effort": "4d",
+          "dependencies": ["TRIAGE-01"]
+        },
+        {
+          "id": "TRIAGE-02-T2",
+          "description": "Build RCA analysis engine with ranking and evidence extraction",
+          "effort": "4d",
+          "dependencies": ["TRIAGE-02-T1"]
+        },
+        {
+          "id": "TRIAGE-02-T3",
+          "description": "Create RCA storage and API for incident correlation",
+          "effort": "2d",
+          "dependencies": ["TRIAGE-02-T2"]
+        }
+      ]
+    },
+    {
+      "id": "TRIAGE-03",
+      "title": "Self-Healing Runbook Execution via Autonomous Agents",
+      "theme": "Autonomous Agent Triage",
+      "priority": "P1",
+      "status": "planned",
+      "story": "Given an incident has been classified with an automatable runbook available, When the self-healing agent matches the incident to a runbook with confidence > 90%, Then the agent creates a GitOps remediation PR automatically, executes dry-run first, and reports results back to the incident timeline",
+      "acceptance_criteria": [
+        "Self-healing agent matches incidents to runbooks with confidence scoring",
+        "Automated GitOps PR creation for matched runbooks (confidence > 90%)",
+        "Dry-run execution before actual remediation",
+        "Results reported back to incident timeline",
+        "Agent provides rollback plan in the PR description"
+      ],
+      "tasks": [
+        {
+          "id": "TRIAGE-03-T1",
+          "description": "Implement runbook matching engine (incident-to-runbook classifier)",
+          "effort": "3d",
+          "dependencies": ["TRIAGE-01", "GITOPS-02"]
+        },
+        {
+          "id": "TRIAGE-03-T2",
+          "description": "Build self-healing agent orchestrator with dry-run capability",
+          "effort": "3d",
+          "dependencies": ["TRIAGE-03-T1"]
+        },
+        {
+          "id": "TRIAGE-03-T3",
+          "description": "Integrate with incident timeline for result reporting and rollback plan generation",
+          "effort": "2d",
+          "dependencies": ["TRIAGE-03-T2"]
+        }
+      ]
+    },
+    {
+      "id": "TRIAGE-04",
+      "title": "Escalation Logic with Human-in-the-Loop for Critical Decisions",
+      "theme": "Autonomous Agent Triage",
+      "priority": "P0",
+      "status": "planned",
+      "story": "Given an incident requires escalation (P0, or self-healing failure, or low-confidence classification), When the escalation engine evaluates the escalation policy, Then it pages the on-call engineer with full incident context, classification details, and suggested remediation steps",
+      "acceptance_criteria": [
+        "Escalation policy is configurable as code (JSON/YAML/Rego)",
+        "Escalation triggers: P0 incidents, self-healing failure, classification confidence < 70%",
+        "On-call engineer is paged with full incident context and suggested steps",
+        "Escalation supports multi-tier: engineer → team lead → SRE manager",
+        "Escalation and response are tracked in the incident timeline"
+      ],
+      "tasks": [
+        {
+          "id": "TRIAGE-04-T1",
+          "description": "Design and implement escalation policy engine with configurable rules",
+          "effort": "3d",
+          "dependencies": ["TRIAGE-01"]
+        },
+        {
+          "id": "TRIAGE-04-T2",
+          "description": "Build paging integration (PagerDuty, OpsGenie, Slack) with incident context payload",
+          "effort": "2d",
+          "dependencies": ["TRIAGE-04-T1"]
+        },
+        {
+          "id": "TRIAGE-04-T3",
+          "description": "Implement multi-tier escalation logic and incident timeline tracking",
+          "effort": "2d",
+          "dependencies": ["TRIAGE-04-T2"]
+        }
+      ]
+    },
+    {
+      "id": "WORKSPACE-01",
+      "title": "Offline-Capable SRE Dashboard with Local-First Architecture",
+      "theme": "Local-First SRE Workspace",
+      "priority": "P0",
+      "status": "planned",
+      "story": "Given an SRE engineer has network connectivity, When they open the SRE dashboard, Then the dashboard loads data from the local-first store (IndexedDB/SQLite in browser) with cloud sync as background, and When the engineer loses connectivity, Then the dashboard continues to function with locally cached data and queues changes for sync",
+      "acceptance_criteria": [
+        "Dashboard loads from local store first (offline-first), syncs with cloud in background",
+        "All core features work offline: viewing incidents, runbooks, service health",
+        "Changes made offline are queued and synced when connectivity is restored",
+        "Sync conflicts are resolved using CRDT-based strategies",
+        "User sees clear connectivity status indicator and sync progress"
+      ],
+      "tasks": [
+        {
+          "id": "WORKSPACE-01-T1",
+          "description": "Set up local-first data layer with IndexedDB/SQLite and CRDT integration",
+          "effort": "3d",
+          "dependencies": []
+        },
+        {
+          "id": "WORKSPACE-01-T2",
+          "description": "Build offline-capable dashboard UI with connectivity-aware rendering",
+          "effort": "4d",
+          "dependencies": ["WORKSPACE-01-T1"]
+        },
+        {
+          "id": "WORKSPACE-01-T3",
+          "description": "Implement background sync engine with conflict resolution and queue management",
+          "effort": "3d",
+          "dependencies": ["WORKSPACE-01-T1"]
+        }
+      ]
+    },
+    {
+      "id": "WORKSPACE-02",
+      "title": "Local-First Runbook Authoring and Versioning",
+      "theme": "Local-First SRE Workspace",
+      "priority": "P0",
+      "status": "planned",
+      "story": "Given an SRE engineer is editing a runbook offline, When they make changes to the YAML runbook definition, Then changes are stored locally using CRDTs for conflict-free data types, and the local version is synced to Git when connectivity is restored",
+      "acceptance_criteria": [
+        "Runbook editor works fully offline with YAML validation",
+        "Changes use CRDT (Y.js) for conflict-free concurrent editing",
+        "Local changes are auto-synced to Git repository when online",
+        "Multiple engineers can edit the same runbook with automatic merge",
+        "Version history is preserved locally and in Git"
+      ],
+      "tasks": [
+        {
+          "id": "WORKSPACE-02-T1",
+          "description": "Build YAML runbook editor with offline support and real-time validation",
+          "effort": "4d",
+          "dependencies": ["WORKSPACE-01-T1", "GITOPS-02"]
+        },
+        {
+          "id": "WORKSPACE-02-T2",
+          "description": "Integrate CRDT (Y.js) for conflict-free concurrent editing of runbooks",
+          "effort": "3d",
+          "dependencies": ["WORKSPACE-02-T1"]
+        },
+        {
+          "id": "WORKSPACE-02-T3",
+          "description": "Implement Git sync bridge that converts CRDT changes to Git commits",
+          "effort": "3d",
+          "dependencies": ["WORKSPACE-02-T2"]
+        }
+      ]
+    },
+    {
+      "id": "WORKSPACE-03",
+      "title": "P2P Sync Between SRE Team Member Workspaces",
+      "theme": "Local-First SRE Workspace",
+      "priority": "P1",
+      "status": "planned",
+      "story": "Given multiple SRE engineers are working in the same region on the same incident, When one engineer updates the incident timeline or runbook locally, Then the change is synced peer-to-peer to other online team members in real-time via WebRTC",
+      "acceptance_criteria": [
+        "P2P sync uses WebRTC for direct browser-to-browser connections",
+        "Changes are synced in real-time across online team members",
+        "P2P sync works without cloud backend (LAN-only mode)",
+        "Sync includes: incident timeline updates, runbook edits, annotations",
+        "Connection status and sync state are visible per team member"
+      ],
+      "tasks": [
+        {
+          "id": "WORKSPACE-03-T1",
+          "description": "Implement WebRTC signaling and P2P connection management",
+          "effort": "4d",
+          "dependencies": ["WORKSPACE-01-T1"]
+        },
+        {
+          "id": "WORKSPACE-03-T2",
+          "description": "Build CRDT-based P2P sync protocol for incident timeline and runbook data",
+          "effort": "3d",
+          "dependencies": ["WORKSPACE-03-T1", "WORKSPACE-02-T2"]
+        },
+        {
+          "id": "WORKSPACE-03-T3",
+          "description": "Create team presence UI showing member online status and sync state",
+          "effort": "2d",
+          "dependencies": ["WORKSPACE-03-T2"]
+        }
+      ]
+    },
+    {
+      "id": "WORKSPACE-04",
+      "title": "Progressive Sync to Cloud Backend When Online",
+      "theme": "Local-First SRE Workspace",
+      "priority": "P1",
+      "status": "planned",
+      "story": "Given an SRE engineer's local workspace has accumulated changes while offline, When connectivity is restored, Then the workspace progressively syncs changes to the cloud backend in order of priority: incident timeline updates first, then runbook changes, then configuration changes, and sync progress is displayed to the user",
+      "acceptance_criteria": [
+        "Sync order prioritization: incident timeline > runbook changes > configuration changes",
+        "Sync progress is visible with per-item status (pending, syncing, synced, failed)",
+        "Failed syncs are retried with exponential backoff",
+        "Sync is bandwidth-aware (progressive, chunked uploads)",
+        "User can pause/resume sync and view sync history"
+      ],
+      "tasks": [
+        {
+          "id": "WORKSPACE-04-T1",
+          "description": "Design and implement priority-based sync queue with ordering",
+          "effort": "3d",
+          "dependencies": ["WORKSPACE-01-T3"]
+        },
+        {
+          "id": "WORKSPACE-04-T2",
+          "description": "Build progressive sync engine with chunked uploads, retry logic, and bandwidth awareness",
+          "effort": "3d",
+          "dependencies": ["WORKSPACE-04-T1"]
+        },
+        {
+          "id": "WORKSPACE-04-T3",
+          "description": "Create sync progress UI with per-item status visibility and pause/resume controls",
+          "effort": "2d",
+          "dependencies": ["WORKSPACE-04-T2"]
+        }
+      ]
+    }
+  ],
+  "dependencies": {
+    "critical_path": [
+      "TRIAGE-01 → TRIAGE-02 → GITOPS-01 → GITOPS-03",
+      "TRIAGE-01 → TRIAGE-04",
+      "WORKSPACE-01 → WORKSPACE-02 → WORKSPACE-03 → WORKSPACE-04",
+      "FINOPS-01 → FINOPS-02 → FINOPS-03 → FINOPS-04"
+    ],
+    "phase_1_p0": ["GITOPS-01", "GITOPS-02", "GITOPS-03", "FINOPS-01", "FINOPS-02", "TRIAGE-01", "TRIAGE-02", "TRIAGE-04", "WORKSPACE-01", "WORKSPACE-02"],
+    "phase_2_p1": ["GITOPS-04", "FINOPS-03", "FINOPS-04", "TRIAGE-03", "WORKSPACE-03", "WORKSPACE-04"]
+  },
+  "phases": {
+    "phase_1": {
+      "name": "Foundation & Core Automation",
+      "duration": "12 weeks",
+      "stories": ["GITOPS-01", "GITOPS-02", "GITOPS-03", "FINOPS-01", "FINOPS-02", "TRIAGE-01", "TRIAGE-02", "TRIAGE-04", "WORKSPACE-01", "WORKSPACE-02"]
+    },
+    "phase_2": {
+      "name": "Advanced & Optimization",
+      "duration": "8 weeks",
+      "stories": ["GITOPS-04", "FINOPS-03", "FINOPS-04", "TRIAGE-03", "WORKSPACE-03", "WORKSPACE-04"]
+    }
+  }
+}
