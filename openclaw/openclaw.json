@@ -1,0 +1,404 @@
+{
+  "agents": {
+    "defaults": {
+      "bootstrapMaxChars": 50000,
+      "bootstrapTotalMaxChars": 300000,
+      "contextInjection": "always",
+      "model": {
+        "primary": "deepseek/deepseek-chat"
+      },
+      "models": {
+        "anthropic/claude-haiku-4-5": {},
+        "anthropic/claude-opus-4-6": {},
+        "anthropic/claude-opus-4-7": {},
+        "anthropic/claude-sonnet-4-6": {},
+        "deepseek/deepseek-chat": {
+          "alias": "DeepSeek"
+        }
+      },
+      "workspace": "/Users/jocham/programming/projects/mediusfy/agents/"
+    },
+    "list": [
+      {
+        "id": "backend-engineer"
+      },
+      {
+        "id": "business-analyst"
+      },
+      {
+        "id": "code-reviewer"
+      },
+      {
+        "id": "cto"
+      },
+      {
+        "id": "database-engineer"
+      },
+      {
+        "id": "devops-engineer"
+      },
+      {
+        "id": "docs-writer"
+      },
+      {
+        "id": "frontend-engineer"
+      },
+      {
+        "id": "quality-gate"
+      },
+      {
+        "id": "security-engineer"
+      },
+      {
+        "id": "sre-engineer",
+        "workspace": "/Users/jocham/Documents/obsidian/ai/"
+      },
+      {
+        "id": "test-engineer"
+      },
+      {
+        "id": "ux-designer"
+      },
+      {
+        "id": "planner-agent"
+      }
+    ]
+  },
+  "auth": {
+    "profiles": {
+      "anthropic:claude-cli": {
+        "mode": "oauth",
+        "provider": "claude-cli"
+      },
+      "deepseek:default": {
+        "mode": "api_key",
+        "provider": "deepseek",
+        "apiKey": "sk-MPQ3A_kKYzNrhTpL6tYUVg"
+      }
+    }
+  },
+  "channels": {
+    "googlechat": {
+      "enabled": true,
+      "webhookUrl": "https://chat.googleapis.com/v1/spaces/AAQAvPSoisg/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=YWbnmcK6lFH9R2R90RDO2S2fAFjEVVwlYhHFsi0Pb1U",
+      "groupPolicy": "allowlist"
+    },
+    "whatsapp": {
+      "accounts": {
+        "default": {
+          "enabled": true
+        }
+      },
+      "allowFrom": [
+        "+491721796943"
+      ],
+      "capabilities": [],
+      "enabled": true,
+      "dmPolicy": "pairing",
+      "groupPolicy": "allowlist",
+      "debounceMs": 0,
+      "mediaMaxMb": 50,
+      "groupAllowFrom": [
+        "+491721796943"
+      ]
+    }
+  },
+  "gateway": {
+    "auth": {
+      "mode": "token",
+      "token": "8a84fb34728a0d186602935300b3f445a0a8927e213122f8"
+    },
+    "bind": "auto",
+    "controlUi": {
+      "allowedOrigins": [
+        "http://localhost:18789",
+        "http://127.0.0.1:18789",
+        "https://drews-macbook-pro.taildcb72a.ts.net"
+      ],
+      "allowInsecureAuth": true
+    },
+    "mode": "local",
+    "nodes": {
+      "denyCommands": [
+        "camera.snap",
+        "camera.clip",
+        "screen.record",
+        "contacts.add",
+        "calendar.add",
+        "reminders.add",
+        "sms.send",
+        "sms.search"
+      ]
+    },
+    "port": 18789,
+    "remote": {
+      "token": "6c36c20e6a725ef104505d20b09d5fa32b3a2fffc1ca2eb3",
+      "transport": "direct",
+      "url": "ws://openclaw-gks.taildcb72a.ts.net:18789"
+    },
+    "tailscale": {
+      "mode": "off",
+      "resetOnExit": false
+    }
+  },
+  "mcp": {
+    "servers": {
+      "agents-planner": {
+        "transport": "sse",
+        "url": "http://0.0.0.0:8000"
+      },
+      "openclaw-agents": {
+        "command": "/Users/jocham/programming/projects/mediusfy/agents/agents/mcp_run.sh"
+      },
+      "hermes": {
+        "args": [
+          "mcp",
+          "serve"
+        ],
+        "command": "/Users/jocham/.local/bin/hermes"
+      }
+    },
+    "sessionIdleTtlMs": 600000
+  },
+  "memory": {
+    "backend": "qmd"
+  },
+  "messages": {
+    "groupChat": {
+      "visibleReplies": "message_tool"
+    }
+  },
+  "meta": {
+    "lastTouchedAt": "2026-06-11T11:34:18.219Z",
+    "lastTouchedVersion": "2026.6.5"
+  },
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "deepseek": {
+        "api": "openai-completions",
+        "baseUrl": "https://litellm.jocham.io/v1",
+        "models": [
+          {
+            "api": "openai-completions",
+            "compat": {
+              "supportsUsageInStreaming": true
+            },
+            "contextWindow": 131072,
+            "cost": {
+              "cacheRead": 0.028,
+              "cacheWrite": 0,
+              "input": 0.28,
+              "output": 0.42
+            },
+            "id": "deepseek-chat",
+            "input": [
+              "text"
+            ],
+            "maxTokens": 8192,
+            "name": "DeepSeek Chat",
+            "reasoning": false
+          },
+          {
+            "api": "openai-completions",
+            "compat": {
+              "supportsUsageInStreaming": true
+            },
+            "contextWindow": 131072,
+            "cost": {
+              "cacheRead": 0.028,
+              "cacheWrite": 0,
+              "input": 0.28,
+              "output": 0.42
+            },
+            "id": "deepseek-reasoner",
+            "input": [
+              "text"
+            ],
+            "maxTokens": 65536,
+            "name": "DeepSeek Reasoner",
+            "reasoning": true
+          }
+        ]
+      }
+    }
+  },
+  "plugins": {
+    "entries": {
+      "acpx": {
+        "enabled": true,
+        "config": {
+          "timeoutSeconds": 120
+        }
+      },
+      "anthropic": {
+        "enabled": true,
+        "config": {}
+      },
+      "deepseek": {
+        "enabled": true,
+        "config": {}
+      },
+      "googlechat": {
+        "enabled": true,
+        "config": {}
+      },
+      "lossless-claw": {
+        "enabled": true,
+        "config": {}
+      },
+      "ollama": {
+        "enabled": true,
+        "config": {}
+      },
+      "openclaw-honcho": {
+        "config": {
+          "baseUrl": "http://localhost:8000",
+          "workspaceId": "openclaw",
+          "ownerObserveOthers": false,
+          "disableDefaultNoisePatterns": false,
+          "crossSessionSearch": true
+        },
+        "enabled": true
+      },
+      "openclaw-logfire": {
+        "config": {
+          "token": "pylf_v2_eu_3fd048bb-3ff5-4d76-95eb-76d36927c22b_p5PCtsQcpXxPbCQhhzLbHsFTpXjLH2RNBw6Yt3s7yckx",
+          "region": "us",
+          "environment": "development",
+          "serviceName": "openclaw-agent",
+          "providerNameMap": {},
+          "captureToolInput": true,
+          "captureToolOutput": false,
+          "toolInputMaxLength": 2048,
+          "toolOutputMaxLength": 512,
+          "captureStackTraces": true,
+          "captureMessageContent": false,
+          "captureHistoryMessages": false,
+          "historyMessagesMaxLength": 16384,
+          "captureToolDefinitions": false,
+          "redactSecrets": true,
+          "enableMetrics": true,
+          "metricsIntervalMs": 60000,
+          "enableTraceLinks": true,
+          "saveHookLogs": false,
+          "logLevel": "info",
+          "spanProcessorType": "batch"
+        },
+        "enabled": true
+      },
+      "whatsapp": {
+        "enabled": true,
+        "config": {}
+      }
+    },
+    "slots": {
+      "contextEngine": "lossless-claw",
+      "memory": "openclaw-honcho"
+    }
+  },
+  "session": {
+    "dmScope": "per-channel-peer"
+  },
+  "skills": {
+    "entries": {
+      "blogwatcher": {
+        "enabled": false
+      },
+      "blucli": {
+        "enabled": false
+      },
+      "camsnap": {
+        "enabled": false
+      },
+      "coding-agent": {
+        "enabled": true
+      },
+      "discord": {
+        "enabled": false
+      },
+      "eightctl": {
+        "enabled": false
+      },
+      "gog": {
+        "enabled": false
+      },
+      "goplaces": {
+        "apiKey": "AIzaSyBQOzbPDRKw4zPeZXiOaqjaqQ6-R1Eu9c0",
+        "enabled": false
+      },
+      "himalaya": {
+        "enabled": false
+      },
+      "imsg": {
+        "enabled": false
+      },
+      "nano-pdf": {
+        "enabled": false
+      },
+      "notion": {
+        "enabled": false
+      },
+      "openai-whisper": {
+        "enabled": false
+      },
+      "openai-whisper-api": {
+        "enabled": false
+      },
+      "peekaboo": {
+        "enabled": false
+      },
+      "sag": {
+        "enabled": false
+      },
+      "sherpa-onnx-tts": {
+        "enabled": false
+      },
+      "slack": {
+        "enabled": false
+      },
+      "songsee": {
+        "enabled": false
+      },
+      "sonoscli": {
+        "enabled": false
+      },
+      "spotify-player": {
+        "enabled": false
+      },
+      "summarize": {
+        "enabled": false
+      },
+      "trello": {
+        "enabled": false
+      },
+      "voice-call": {
+        "enabled": false
+      }
+    },
+    "install": {
+      "nodeManager": "npm"
+    }
+  },
+  "tools": {
+    "profile": "coding",
+    "web": {
+      "search": {
+        "enabled": true,
+        "provider": "ollama"
+      }
+    }
+  },
+  "wizard": {
+    "lastRunAt": "2026-06-11T11:30:53.390Z",
+    "lastRunCommand": "doctor",
+    "lastRunMode": "local",
+    "lastRunVersion": "2026.6.5"
+  },
+  "discovery": {
+    "wideArea": {
+      "enabled": true,
+      "domain": "openclaw.jocham.io."
+    }
+  }
+}

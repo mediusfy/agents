@@ -1,0 +1,1 @@
+../../shared/agents/docs-writer.md
