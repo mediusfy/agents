@@ -20,7 +20,7 @@ def state():
 
 @pytest.fixture
 def config():
-    return PipelineConfig(blueprint="langgraph_full", framework="langgraph", requirement="Build a payment service")
+    return PipelineConfig(blueprint="langgraph_full", requirement="Build a payment service")
 
 
 @pytest.fixture

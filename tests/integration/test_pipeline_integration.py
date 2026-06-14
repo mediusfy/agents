@@ -17,7 +17,7 @@ import pytest
 
 from orchestration.adapters.state_repository import LocalDiskStateRepository
 from orchestration.checkpoint import CheckpointManager
-from orchestration.memory import RedisIrisMemory, VectorMemory, create_memory_backend, get_memory_backend
+from orchestration.memory import VectorMemory
 from orchestration.models.core import (
     AgentAdvice,
     Artifact,
@@ -772,55 +772,18 @@ class TestExistingCodePipelineIntegration:
 
 
 # =============================================================================
-# Redis / Mem0 Memory Backend
+# Memory Backend
 # =============================================================================
 
 
 class TestMemoryBackendSelection:
-    """Verifies the memory backend is selected correctly based on configuration."""
+    """Verifies the memory backend works correctly."""
 
-    def test_default_backend_is_vectormemory(self, monkeypatch):
-        """Without REDIS_IRIS_TOKEN, create_memory_backend returns VectorMemory."""
-        monkeypatch.setattr("orchestration.memory.settings.redis_iris_token", None)
-        backend = create_memory_backend()
-        assert isinstance(backend, VectorMemory)
+    def test_long_term_memory_has_correct_defaults(self):
+        from orchestration.memory import VectorMemory, long_term_memory
 
-    def test_redis_backend_import_error_when_package_missing(self):
-        """RedisIrisMemory methods raise ImportError when redis-agent-memory is not installed."""
-        mem = RedisIrisMemory(server_url="x", store_id="x", api_key="x")
-
-        import builtins
-
-        real_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "redis_agent_memory":
-                raise ModuleNotFoundError("No module named 'redis_agent_memory'")
-            return real_import(name, *args, **kwargs)
-
-        with (
-            patch("builtins.__import__", side_effect=mock_import),
-            pytest.raises(ModuleNotFoundError, match="redis.agent.memory"),
-        ):
-            import asyncio
-
-            asyncio.run(mem.add_memory("test"))
-
-    def test_fallback_on_redis_iris_init_failure(self, monkeypatch):
-        """When Redis IRIS init fails, create_memory_backend falls back to VectorMemory."""
-        monkeypatch.setattr("orchestration.memory.settings.redis_iris_token", "fake-key")
-        with patch("orchestration.memory.RedisIrisMemory.__init__", side_effect=Exception("API unreachable")):
-            backend = create_memory_backend()
-            assert isinstance(backend, VectorMemory)
-
-    def test_get_memory_backend_lazy_init(self, monkeypatch):
-        """get_memory_backend must return the same instance on repeated calls."""
-        monkeypatch.setattr("orchestration.memory._memory_backend", None)
-        monkeypatch.setattr("orchestration.memory.settings.redis_iris_token", None)
-        first = get_memory_backend()
-        second = get_memory_backend()
-        assert first is second
-        assert isinstance(first, VectorMemory)
+        assert isinstance(long_term_memory, VectorMemory)
+        assert long_term_memory.collection_name == "activity_logs"
 
     # ── pgvector test helpers ──────────────────────────────────────────────
 

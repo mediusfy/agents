@@ -9,6 +9,7 @@ from orchestration.session_recorder import recorder
 from orchestration.settings import settings
 from orchestration.stages.base import StageRunner
 
+
 logger = logging.getLogger(__name__)
 
 # ── Emoji markers for progress telemetry ───────────────────────────────────
@@ -119,7 +120,7 @@ class ImplementationStage(StageRunner):
             progress.start(label)
             from orchestration.context_engine import retrieve_context
 
-            test_ctx = retrieve_context("test_eng", us.gherkin)
+            test_ctx = await retrieve_context("test_eng", us.gherkin)
             test_prompt = f"Write tests for gherkin: {us.gherkin}"
             if test_ctx:
                 test_prompt += f"\n\nRetrieved Test Guidelines:\n{test_ctx}"
@@ -160,7 +161,7 @@ class ImplementationStage(StageRunner):
         async def run_backend(sem, us, repo_ctx, cto_adv, proj_state, story_idx):
             from orchestration.context_engine import retrieve_context
 
-            backend_ctx = retrieve_context("backend", us.gherkin)
+            backend_ctx = await retrieve_context("backend", us.gherkin)
             backend_ctx_str = f"\n\nRetrieved Backend Guidelines:\n{backend_ctx}" if backend_ctx else ""
 
             if is_retry:
@@ -204,7 +205,7 @@ class ImplementationStage(StageRunner):
             if not is_retry:
                 from orchestration.context_engine import retrieve_context
 
-                fe_ctx = retrieve_context("frontend", us.gherkin)
+                fe_ctx = await retrieve_context("frontend", us.gherkin)
                 fe_ctx_str = f"\n\nRetrieved Frontend Guidelines:\n{fe_ctx}" if fe_ctx else ""
 
                 fe_prompt = (
@@ -216,7 +217,7 @@ class ImplementationStage(StageRunner):
                 )
                 per_story_tasks.append(("frontend", run_tagged(semaphore, "frontend", fe_prompt, story_id=us.id)))
 
-                db_ctx = retrieve_context("database", us.gherkin)
+                db_ctx = await retrieve_context("database", us.gherkin)
                 db_ctx_str = f"\n\nRetrieved Database Guidelines:\n{db_ctx}" if db_ctx else ""
 
                 db_prompt = (

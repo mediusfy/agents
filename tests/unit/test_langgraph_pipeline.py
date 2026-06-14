@@ -27,7 +27,7 @@ def state():
 
 @pytest.fixture
 def config():
-    return PipelineConfig(blueprint="langgraph_full", framework="langgraph", requirement="test requirement")
+    return PipelineConfig(blueprint="langgraph_full", requirement="test requirement")
 
 
 class TestLangGraphNodes:
@@ -163,23 +163,26 @@ class TestLangGraphRouting:
 
 
 class TestLangGraphGraphBuilder:
-    def test_build_implementation_subgraph(self, config, mock_provider):
+    @pytest.mark.asyncio
+    async def test_build_implementation_subgraph(self, config, mock_provider):
         from orchestration.pipeline.langgraph.graphs import build_implementation_subgraph
 
-        graph = build_implementation_subgraph(config, mock_provider)
+        graph = await build_implementation_subgraph(config, mock_provider)
         assert graph is not None
 
-    def test_build_full_graph(self, config, mock_provider):
+    @pytest.mark.asyncio
+    async def test_build_full_graph(self, config, mock_provider):
         from orchestration.pipeline.langgraph.graphs import build_full_graph
 
-        graph = build_full_graph(config, mock_provider)
+        graph = await build_full_graph(config, mock_provider)
         assert graph is not None
 
-    def test_full_graph_with_checkpointer(self, config, mock_provider):
+    @pytest.mark.asyncio
+    async def test_full_graph_with_checkpointer(self, config, mock_provider):
         from langgraph.checkpoint.memory import MemorySaver
 
         from orchestration.pipeline.langgraph.graphs import build_full_graph
 
         checkpointer = MemorySaver()
-        graph = build_full_graph(config, mock_provider, checkpointer=checkpointer)
+        graph = await build_full_graph(config, mock_provider, checkpointer=checkpointer)
         assert graph is not None

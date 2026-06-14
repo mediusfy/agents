@@ -1,114 +1,59 @@
 """Pipeline factory — single source of truth for assembling any pipeline.
 
-Dispatches to the correct framework based on PipelineConfig.framework.
-Preserves the legacy ``build_default_pipeline()`` for backwards compatibility.
+All pipelines are built as LangGraph state machines. This factory is the
+single entry point for both the CLI (main.py) and MCP background runs.
 """
 
 from __future__ import annotations
 
-import importlib
-import logging
-from typing import Any
+import uuid
 
 from orchestration.models.core import PipelineState
-from orchestration.pipeline.config import STAGES, PipelineConfig
-from orchestration.pipeline.orchestrator import OrgitrationPipeline
-from orchestration.pipeline.protocols import PipelineOrchestrator
-from orchestration.stages.advisory_stage import AdvisoryStage
-from orchestration.stages.ba_stage import BAStage
-from orchestration.stages.implementation_stage import ImplementationStage
-from orchestration.stages.quality_gate_stage import QualityGateStage
+from orchestration.pipeline.config import PipelineConfig
 
-logger = logging.getLogger(__name__)
+# Lazy imports to avoid hard dependency on langgraph at module load time
+_built_pipeline_cache: dict[str, "PipelineOrchestrator"] = {}
 
 
-_FRAMEWORK_EXTRAS: dict[str, str] = {
-    "crewai": "crewai",
-    "autogen": "pyautogen",
-}
+async def build_pipeline(config: PipelineConfig) -> "PipelineOrchestrator":
+    """Build a LangGraph pipeline for the given config.
 
+    Results are cached by (project, blueprint) so resume works correctly.
+    """
+    from orchestration.adapters.agents import PydanticAIAgentProvider
+    from orchestration.pipeline.langgraph.graphs import build_full_graph
 
-def build_default_pipeline(config: PipelineConfig) -> OrgitrationPipeline:
-    """Legacy: construct an ``OrgitrationPipeline`` with the four standard stages."""
-    pipeline = OrgitrationPipeline(config)
-    pipeline.register_stage(STAGES.BA, BAStage())
-    pipeline.register_stage(STAGES.ADVISORY, AdvisoryStage())
-    pipeline.register_stage(STAGES.IMPLEMENTATION, ImplementationStage())
-    pipeline.register_stage(STAGES.QUALITY_GATE, QualityGateStage())
+    cache_key = f"{config.project}:{config.blueprint}"
+    if cache_key in _built_pipeline_cache and config.resume:
+        return _built_pipeline_cache[cache_key]
+
+    provider = PydanticAIAgentProvider()
+    graph = await build_full_graph(config, provider)
+    pipeline = _GraphPipelineWrapper(graph, config)
+    if config.resume:
+        _built_pipeline_cache[cache_key] = pipeline
     return pipeline
 
 
-def build_pipeline(config: PipelineConfig) -> PipelineOrchestrator | OrgitrationPipeline:
-    """Dispatch to the correct framework orchestrator based on config.framework."""
-    _ensure_dependency(config.framework)
-    if config.framework == "langgraph":
-        return _build_langgraph_pipeline(config)
-    elif config.framework == "crewai":
-        return _build_crewai_pipeline(config)
-    elif config.framework == "autogen":
-        return _build_autogen_pipeline(config)
-    elif config.framework == "composite":
-        return _build_composite_pipeline(config)
-    else:
-        return build_default_pipeline(config)
+class PipelineOrchestrator:
+    """Protocol for pipeline orchestrators."""
 
-
-def _ensure_dependency(framework: str) -> None:
-    extra = _FRAMEWORK_EXTRAS.get(framework)
-    if extra is None:
-        return
-    if importlib.util.find_spec(extra) is None:
-        raise ImportError(
-            f"Framework '{framework}' requires the '{extra}' package. "
-            f"Install it with: uv sync --extra {framework}  "
-            f"or: pip install orchestration[{framework}]"
-        )
-
-
-def _build_langgraph_pipeline(config: PipelineConfig) -> PipelineOrchestrator:
-    from orchestration.adapters.agents import PydanticAIAgentProvider
-    from orchestration.pipeline.langgraph.graphs import build_full_graph
-
-    provider = PydanticAIAgentProvider()
-    graph = build_full_graph(config, provider)
-    return _GraphPipelineWrapper(graph, config)
-
-
-def _build_crewai_pipeline(config: PipelineConfig) -> PipelineOrchestrator:
-    from orchestration.pipeline.crewai.orchestrator import CrewAIPipeline
-
-    return CrewAIPipeline(config)
-
-
-def _build_autogen_pipeline(config: PipelineConfig) -> PipelineOrchestrator:
-    from orchestration.pipeline.autogen.orchestrator import AutoGenPipeline
-
-    return AutoGenPipeline(config)
-
-
-def _build_composite_pipeline(config: PipelineConfig) -> PipelineOrchestrator:
-    from orchestration.adapters.agents import PydanticAIAgentProvider
-    from orchestration.pipeline.langgraph.graphs import build_full_graph
-
-    provider = PydanticAIAgentProvider()
-    graph = build_full_graph(config, provider)
-    return _GraphPipelineWrapper(graph, config)
+    async def execute(self) -> PipelineState:
+        raise NotImplementedError
 
 
 class _GraphPipelineWrapper:
     """Wraps a compiled LangGraph for the ``execute()`` interface.
 
-    Provides the same ``async def execute()`` contract expected by callers
-    (``main.py``, ``pipeline_jobs.py``) so LangGraph can be a drop-in replacement.
+    Provides the ``async def execute()`` contract expected by callers
+    (``main.py``, ``pipeline_jobs.py``).
     """
 
-    def __init__(self, graph: Any, config: PipelineConfig):
+    def __init__(self, graph: object, config: PipelineConfig):
         self._graph = graph
         self._config = config
 
     async def execute(self) -> PipelineState:
-        import uuid
-
         initial = PipelineState(
             run_id=f"run-{uuid.uuid4().hex[:8]}",
             stage="init",

@@ -41,8 +41,8 @@ class AdvisoryStage(StageRunner):
 
         from orchestration.context_engine import retrieve_context
 
-        cto_ctx = retrieve_context("cto", story_context)
-        ux_ctx = retrieve_context("ux", story_context)
+        cto_ctx = await retrieve_context("cto", story_context)
+        ux_ctx = await retrieve_context("ux", story_context)
 
         cto_prompt = f"Review these user stories and provide architectural advice:\n{story_context}"
         if cto_ctx:

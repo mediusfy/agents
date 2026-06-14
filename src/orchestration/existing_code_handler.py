@@ -309,7 +309,7 @@ async def run_existing_code_pipeline(
             result.passed = True
             result.retries_used = attempt
             logger.info("All gates passed on attempt %d.", attempt + 1)
-            _sync_memory_after_pipeline()
+            await _sync_memory_after_pipeline()
             return result
 
         # Append gate errors to result errors for next attempt context
@@ -322,7 +322,7 @@ async def run_existing_code_pipeline(
         else:
             logger.warning("Max retries (%d) reached. Escalating to Lead Orchestrator.", MAX_RETRIES)
 
-    _sync_memory_after_pipeline()
+    await _sync_memory_after_pipeline()
 
     # All retries exhausted
     result.passed = False
@@ -371,13 +371,12 @@ def format_result_summary(result: ExistingCodeResult) -> str:
     return "\n".join(lines)
 
 
-def _sync_memory_after_pipeline() -> None:
-    """Auto-sync pipeline results to Claude Code and Antigravity memory."""
+async def _sync_memory_after_pipeline() -> None:
     _logger = logging.getLogger(__name__)
     try:
         from orchestration.memory_bridge import sync_memory_to_claude
 
-        sync_memory_to_claude(max_entries=25)
+        await sync_memory_to_claude(max_entries=25)
         _logger.info("Memory bridge synced after pipeline run")
     except Exception as e:
         _logger.warning("Memory bridge sync after pipeline failed: %s", e)

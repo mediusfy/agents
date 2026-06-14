@@ -17,6 +17,7 @@ from orchestration.models.core import PipelineState
 from orchestration.pipeline.config import PipelineConfig
 from orchestration.stages.base import StageRunner
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -121,7 +122,7 @@ class MergeStage(StageRunner):
                 try:
                     from orchestration.context_engine import store_artifact_context
 
-                    store_artifact_context(
+                    await store_artifact_context(
                         domain="project",
                         content=f"File: {clean_path}\nAgent: {agent}\nContent:\n{content}",
                         metadata={"agent": agent, "file": clean_path, "project": config.project},

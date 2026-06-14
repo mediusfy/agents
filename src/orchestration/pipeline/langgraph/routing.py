@@ -4,6 +4,12 @@ from orchestration.models.core import PipelineState
 from orchestration.settings import settings
 
 
+def route_after_human_approval(state: PipelineState) -> Literal["advisory", "end"]:
+    if state.errors:
+        return "end"
+    return "advisory"
+
+
 def route_after_ba(state: PipelineState) -> Literal["advisory", "end"]:
     if state.errors or not state.user_stories:
         return "end"

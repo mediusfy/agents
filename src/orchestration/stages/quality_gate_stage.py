@@ -6,9 +6,10 @@ from orchestration.pipeline.config import PipelineConfig
 from orchestration.registry import registry
 from orchestration.session_recorder import recorder
 from orchestration.settings import settings
-from orchestration.stages.base import StageRunner
+
 from orchestration.utils import format_artifacts
 from orchestration.validators import CodeValidator
+from orchestration.stages.base import StageRunner
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ class QualityGateStage(StageRunner):
         logger.info("Running SRE Agent...")
         from orchestration.context_engine import retrieve_context
 
-        sre_ctx = retrieve_context("sre", "Provision infrastructure and apply Helm charts.")
+        sre_ctx = await retrieve_context("sre", "Provision infrastructure and apply Helm charts.")
         sre_prompt = "Provision infrastructure and apply Helm charts."
         if sre_ctx:
             sre_prompt += f"\n\nRetrieved SRE Context/ADRs:\n{sre_ctx}"
@@ -65,7 +66,7 @@ class QualityGateStage(StageRunner):
         logger.info("Running Security Audit...")
         from orchestration.context_engine import retrieve_context
 
-        sec_ctx = retrieve_context("security", full_text)
+        sec_ctx = await retrieve_context("security", full_text)
         sec_prompt = f"Audit the following code for vulnerabilities:\n{full_text}"
         if sec_ctx:
             sec_prompt += f"\n\nRetrieved Security Context:\n{sec_ctx}"
@@ -99,7 +100,7 @@ class QualityGateStage(StageRunner):
                 return state
 
         logger.info("Running Quality Gate...")
-        qg_ctx = retrieve_context("quality_gate", full_text)
+        qg_ctx = await retrieve_context("quality_gate", full_text)
         qg_prompt = f"Perform quality gate check on these artifacts:\n{full_text}"
         if qg_ctx:
             qg_prompt += f"\n\nRetrieved Quality Gate Rules:\n{qg_ctx}"
@@ -138,7 +139,7 @@ class QualityGateStage(StageRunner):
         if state.feedback:
             review_prompt += f"\n\nAddress previous feedback: {state.feedback}"
 
-        review_ctx = retrieve_context("review", full_text)
+        review_ctx = await retrieve_context("review", full_text)
         if review_ctx:
             review_prompt += f"\n\nRetrieved Review Context/Conventions:\n{review_ctx}"
 

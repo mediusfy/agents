@@ -45,11 +45,11 @@ class VectorMemory:
         # Flatten metadata for ChromaDB compatibility — Chroma requires
         # scalar values (str, int, float, bool), not nested dicts.
         chroma_metadata = _flatten_metadata(memory.model_dump())
-        await vector_db.async_add_documents(self.collection_name, [content], [chroma_metadata], [doc_id])
+        await vector_db.add_documents(self.collection_name, [content], [chroma_metadata], [doc_id])
 
     async def get_relevant_memories(self, query: str, n_results: int = 5) -> list[Memory]:
         """Retrieves the most relevant memories for a given query."""
-        results = await vector_db.async_search(self.collection_name, query, n_results=n_results)
+        results = await vector_db.search(self.collection_name, query, n_results=n_results)
         return [Memory(content=res) for res in results]
 
     async def consolidate(self, n_recent: int = 50) -> str | None:

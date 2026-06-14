@@ -181,7 +181,7 @@ class TestAddMemory:
         """add_memory delegates to vector_db.async_add_documents with correct args."""
         vm = VectorMemory("test_collection")
 
-        with patch("orchestration.memory.vector_db.async_add_documents", AsyncMock()) as mock_add:
+        with patch("orchestration.memory.vector_db.add_documents", AsyncMock()) as mock_add:
             await vm.add_memory("hello world", metadata={"key": "val"})
 
         mock_add.assert_awaited_once()

@@ -32,10 +32,6 @@ class Settings(BaseSettings):
     # Supported providers: deepseek, gemini, vertexai, openai, litellm
     model_provider: str | None = "litellm"
 
-    redis_iris_url: str | None = None
-    redis_iris_store_id: str | None = None
-    redis_iris_token: str | None = None
-
     # Agent Model Overrides
     # NOTE: When model_provider is set (e.g. "deepseek"), resolve_model() remaps ALL
     # model names through the provider. So these defaults serve as capability tiers

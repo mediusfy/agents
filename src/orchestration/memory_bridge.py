@@ -1,9 +1,4 @@
-"""Cross-runtime memory bridge: Orgitration pgvector ↔ Claude Code ↔ Antigravity.
-
-Writes context entries from pgvector activity_logs into Claude Code agent-memory
-directories and Antigravity implicit memory, then pulls Claude's memory back
-into pgvector for a bidirectional sync.
-"""
+"""Cross-runtime memory bridge: Orgitration pgvector ↔ Claude Code ↔ Antigravity."""
 
 import hashlib
 import logging
@@ -20,19 +15,16 @@ ANTIGRAVITY_ANNOTATIONS_DIR = Path.home() / ".gemini" / "antigravity" / "annotat
 
 
 def _get_claude_agents() -> list[str]:
-    """List Claude Code agents that have a config directory."""
     if not CLAUDE_AGENTS_DIR.exists():
         return []
     return [d.name for d in CLAUDE_AGENTS_DIR.iterdir() if d.is_dir()]
 
 
 def _claude_agent_memory_dir(agent_name: str) -> Path:
-    """Path to a Claude Code agent's memory directory."""
     return CLAUDE_AGENTS_DIR / agent_name / "agent-memory"
 
 
 def claude_memory_count() -> dict[str, int]:
-    """Count memory files per Claude Code agent."""
     agents = _get_claude_agents()
     counts: dict[str, int] = {}
     for agent in sorted(agents):
@@ -44,18 +36,14 @@ def claude_memory_count() -> dict[str, int]:
     return counts
 
 
-def sync_memory_to_claude(max_entries: int = 50) -> int:
-    """Push recent pgvector activity entries to Claude Code agent-memory dirs.
-
-    Returns number of entries pushed.
-    """
+async def sync_memory_to_claude(max_entries: int = 50) -> int:
     agents = _get_claude_agents()
     if not agents:
         logger.warning("No Claude Code agents found at %s", CLAUDE_AGENTS_DIR)
         return 0
 
     try:
-        results = vector_db.search("activity_logs", "", n_results=max_entries)
+        results = await vector_db.search("activity_logs", "", n_results=max_entries)
     except Exception:
         logger.warning("Vector DB activity_logs search failed — nothing to sync")
         return 0
@@ -69,7 +57,6 @@ def sync_memory_to_claude(max_entries: int = 50) -> int:
     for agent in agents:
         mem_dir = _claude_agent_memory_dir(agent)
         mem_dir.mkdir(parents=True, exist_ok=True)
-
         for i, entry in enumerate(entries):
             sig = hashlib.sha256(entry.encode()).hexdigest()[:8]
             filepath = mem_dir / f"orchestration_{i:04d}_{sig}.md"
@@ -83,7 +70,6 @@ def sync_memory_to_claude(max_entries: int = 50) -> int:
     else:
         logger.info("No new memory entries to push to Claude Code agents")
 
-    # Also write to Antigravity implicit memory
     if ANTIGRAVITY_IMPLICIT_DIR.exists():
         ANTIGRAVITY_IMPLICIT_DIR.mkdir(parents=True, exist_ok=True)
     ag_pushed = 0
@@ -100,11 +86,7 @@ def sync_memory_to_claude(max_entries: int = 50) -> int:
     return pushed
 
 
-def sync_claude_to_pgvector(_max_entries: int = 50) -> int:
-    """Pull Claude Code agent-memory files back into pgvector.
-
-    Returns number of documents added.
-    """
+async def sync_claude_to_pgvector(_max_entries: int = 50) -> int:
     agents = _get_claude_agents()
     if not agents:
         return 0
@@ -121,7 +103,7 @@ def sync_claude_to_pgvector(_max_entries: int = 50) -> int:
             if not content:
                 continue
             try:
-                vector_db.add_documents(
+                await vector_db.add_documents(
                     "activity_logs",
                     [content],
                     ids=[f"claude_{agent}_{fpath.stem}"],
@@ -135,9 +117,8 @@ def sync_claude_to_pgvector(_max_entries: int = 50) -> int:
     return added
 
 
-def get_bridge_status() -> dict[str, Any]:
-    """Get the current status of all memory systems."""
-    activity_results = vector_db.search("activity_logs", "", n_results=100)
+async def get_bridge_status() -> dict[str, Any]:
+    activity_results = await vector_db.search("activity_logs", "", n_results=100)
     activity_count = len(activity_results) if activity_results else 0
     claude_agent_memory = claude_memory_count()
     antigravity_implicit = len(list(ANTIGRAVITY_IMPLICIT_DIR.glob("*.md"))) if ANTIGRAVITY_IMPLICIT_DIR.exists() else 0

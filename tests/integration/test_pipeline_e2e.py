@@ -26,7 +26,7 @@ def mock_provider():
 @pytest.fixture
 def config():
     return PipelineConfig(
-        blueprint="new_feature", framework="legacy", requirement="Build a payment service", project="test"
+        blueprint="new_feature", requirement="Build a payment service", project="test"
     )
 
 
@@ -140,8 +140,8 @@ class TestFrameworkParity:
     def test_ab_testing_framework_works(self):
         from tests.evaluation.ab_testing import ABReport, compare_configs
 
-        config_a = PipelineConfig(blueprint="langgraph_full", framework="langgraph")
-        config_b = PipelineConfig(blueprint="new_feature", framework="legacy")
+        config_a = PipelineConfig(blueprint="langgraph_full")
+        config_b = PipelineConfig(blueprint="new_feature")
 
         def runner(cfg: PipelineConfig, req: str):
             state = make_pipeline_state(req)

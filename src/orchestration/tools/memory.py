@@ -28,7 +28,7 @@ async def log_activity(ctx: RunContext[Any], action: str, summary: str, artifact
     doc_id = f"log_{pass_num}_{agent_name}_{datetime.datetime.now().timestamp()}"
     narrative_doc = f"During pass {pass_num}, the {agent_name} agent performed an action: {action}. Summary: {summary}"
 
-    await vector_db.async_add_documents(
+    await vector_db.add_documents(
         "activity_logs", [narrative_doc], [{"json_data": log_entry.model_dump_json(), "type": "activity"}], [doc_id]
     )
     return f"Activity logged successfully: {action}"
@@ -36,7 +36,7 @@ async def log_activity(ctx: RunContext[Any], action: str, summary: str, artifact
 
 async def query_history(ctx: RunContext[Any], query: str, pass_num: int | None = None) -> str:
     """Queries the project history to find past decisions or actions."""
-    results = await vector_db.async_search("activity_logs", query, n_results=5)
+    results = await vector_db.search("activity_logs", query, n_results=5)
     if not results:
         return "No relevant history found."
 
@@ -61,7 +61,7 @@ async def read_and_memorize_url(ctx: RunContext[Any], url: str) -> str:
         return f"Error: Invalid URL '{url}'. This tool requires an http:// or https:// URL. For local files, use the read_file tool instead."
 
     try:
-        return await vector_db.async_ingest_url("knowledge_base", url)
+        return await vector_db.ingest_url("knowledge_base", url)
     except Exception as e:
         return f"Failed to ingest URL: {e}"
 
@@ -70,7 +70,7 @@ async def read_and_memorize_pdf(ctx: RunContext[Any], file_path: str) -> str:
     """Reads a PDF document, splits it into semantic chunks, and saves it directly to memory."""
     try:
         safe_path_join(os.getcwd(), file_path)
-        return await vector_db.async_ingest_pdf("knowledge_base", file_path)
+        return await vector_db.ingest_pdf("knowledge_base", file_path)
     except ValueError as e:
         return f"Error: {e}"
     except Exception as e:

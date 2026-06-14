@@ -124,7 +124,7 @@ class PersistentEventBroker:
             from orchestration.vector_db import vector_db
 
             store_result = result if isinstance(result, str) else str(result)
-            vector_db.add_documents(
+            await vector_db.add_documents(
                 "project",
                 [f"Task {task_id} completed: {store_result}"],
                 [{"task_id": task_id, "status": "completed", "source": "event_broker"}],

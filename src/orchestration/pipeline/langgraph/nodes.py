@@ -1,6 +1,7 @@
 import logging
 
 from orchestration.adapters.agents import AgentProviderPort
+from orchestration.gates import HumanInTheLoopGate
 from orchestration.models.core import FailureReport, PipelineState
 from orchestration.pipeline.config import PipelineConfig
 from orchestration.pipeline.context import ContextFrame
@@ -23,6 +24,20 @@ def _make_error(state: PipelineState, agent_name: str, message: str) -> dict:
             trace=message,
         ),
     }
+
+
+async def human_approval_node(
+    state: PipelineState,
+    config: PipelineConfig,
+) -> dict:
+    gate = HumanInTheLoopGate()
+    artifacts = state.artifacts or []
+    approved = gate.prompt_proceed(artifacts, auto_yes=config.auto_yes)
+    if not approved:
+        logger.info("HumanInTheLoopGate rejected — halting pipeline")
+        return {"errors": [*state.errors, "Pipeline halted by HumanInTheLoopGate"]}
+    logger.info("HumanInTheLoopGate approved — proceeding to advisory")
+    return {}
 
 
 async def ba_node(

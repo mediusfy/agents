@@ -39,7 +39,7 @@ class BAStage(StageRunner):
 
         from orchestration.context_engine import retrieve_context
 
-        retrieved_ctx = retrieve_context("ba", raw_requirements)
+        retrieved_ctx = await retrieve_context("ba", raw_requirements)
 
         prompt = f"Process these requirements: {raw_requirements}"
         if retrieved_ctx:

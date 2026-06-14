@@ -2,6 +2,7 @@ import abc
 import json
 import logging
 import os
+import time
 import uuid
 
 from orchestration.models.core import PipelineState
@@ -113,3 +114,121 @@ class LocalDiskStateRepository(StateRepositoryPort):
         except Exception as e:
             logger.warning(f"Error finding latest run: {e}")
             return None
+
+
+class PostgresStateRepository(StateRepositoryPort):
+    """
+    PostgreSQL-backed implementation of the StateRepositoryPort using asyncpg.
+
+    Stores PipelineState checkpoints in a `pipeline_checkpoints` table.
+    Uses CHECKPOINT_DSN env var (falls back to DATABASE_URL).
+    """
+
+    def __init__(self, dsn: str | None = None):
+        self._dsn = dsn or os.environ.get("CHECKPOINT_DSN") or settings.database_url or "postgresql://localhost:5432/orchestration"
+        self._pool = None
+
+    async def _ensure_pool(self):
+        if self._pool is None:
+            import asyncpg
+            self._pool = await asyncpg.create_pool(self._dsn, min_size=1, max_size=3)
+            async with self._pool.acquire() as conn:
+                await conn.execute("""
+                    CREATE TABLE IF NOT EXISTS pipeline_checkpoints (
+                        run_id      TEXT NOT NULL,
+                        stage       TEXT NOT NULL,
+                        state       JSONB NOT NULL,
+                        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        PRIMARY KEY (run_id, stage)
+                    )
+                """)
+        return self._pool
+
+    def save(self, run_id: str, stage: str, state: PipelineState) -> None:
+        import asyncio
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            asyncio.run(self._async_save(run_id, stage, state))
+        else:
+            import threading
+            t = threading.Thread(target=lambda: asyncio.run(self._async_save(run_id, stage, state)), daemon=True)
+            t.start()
+            t.join()
+
+    async def _async_save(self, run_id: str, stage: str, state: PipelineState):
+        pool = await self._ensure_pool()
+        data = state.model_dump_json()
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO pipeline_checkpoints (run_id, stage, state, updated_at)
+                VALUES ($1, $2, $3::jsonb, NOW())
+                ON CONFLICT (run_id, stage)
+                DO UPDATE SET state = EXCLUDED.state, updated_at = NOW()
+                """,
+                run_id,
+                stage,
+                data,
+            )
+        logger.info("State saved to Postgres: run=%s stage=%s", run_id, stage)
+
+    def load(self, run_id: str, stage: str) -> PipelineState | None:
+        import asyncio
+        return asyncio.run(self._async_load(run_id, stage))
+
+    async def _async_load(self, run_id: str, stage: str) -> PipelineState | None:
+        pool = await self._ensure_pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT state FROM pipeline_checkpoints WHERE run_id = $1 AND stage = $2",
+                run_id,
+                stage,
+            )
+        if not row:
+            return None
+        try:
+            return PipelineState.model_validate_json(row["state"])
+        except Exception as e:
+            logger.warning("Corrupted checkpoint for run=%s stage=%s: %s", run_id, stage, e)
+            return None
+
+    def exists(self, run_id: str, stage: str) -> bool:
+        import asyncio
+        return asyncio.run(self._async_exists(run_id, stage))
+
+    async def _async_exists(self, run_id: str, stage: str) -> bool:
+        pool = await self._ensure_pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchval(
+                "SELECT 1 FROM pipeline_checkpoints WHERE run_id = $1 AND stage = $2",
+                run_id,
+                stage,
+            )
+            return row == 1
+
+    def clear(self, run_id: str) -> None:
+        import asyncio
+        asyncio.run(self._async_clear(run_id))
+
+    async def _async_clear(self, run_id: str):
+        pool = await self._ensure_pool()
+        async with pool.acquire() as conn:
+            result = await conn.execute(
+                "DELETE FROM pipeline_checkpoints WHERE run_id = $1",
+                run_id,
+            )
+        logger.info("Cleared %s checkpoints for run=%s", result, run_id)
+
+    def find_latest_run_id(self) -> str | None:
+        import asyncio
+        return asyncio.run(self._async_find_latest_run_id())
+
+    async def _async_find_latest_run_id(self) -> str | None:
+        pool = await self._ensure_pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchval(
+                "SELECT run_id FROM pipeline_checkpoints ORDER BY updated_at DESC LIMIT 1"
+            )
+            return row

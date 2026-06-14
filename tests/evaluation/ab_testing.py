@@ -72,8 +72,8 @@ def compare_configs(
     runner: Any,
 ) -> ABResult:
     result = ABResult(
-        variant_a_name=f"{config_a.blueprint}-{config_a.framework}",
-        variant_b_name=f"{config_b.blueprint}-{config_b.framework}",
+        variant_a_name=f"{config_a.blueprint}-{config_a.blueprint}",
+        variant_b_name=f"{config_b.blueprint}-{config_b.blueprint}",
         input_requirement=requirement,
     )
 

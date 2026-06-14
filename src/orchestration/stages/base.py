@@ -1,6 +1,4 @@
 from orchestration.adapters.agents import AgentProviderPort
-from orchestration.models.core import PipelineState
-from orchestration.pipeline.config import PipelineConfig
 
 
 class StageRunner:
@@ -12,10 +10,3 @@ class StageRunner:
         if self.agent_provider is None:
             raise RuntimeError("AgentProviderPort is not configured")
         return self.agent_provider
-
-    async def run(self, state: PipelineState, config: PipelineConfig) -> PipelineState:
-        """
-        Executes a pipeline stage taking the current state and returning the updated state.
-        Must be implemented by all stage handlers.
-        """
-        raise NotImplementedError("StageRunner must implement run()")
