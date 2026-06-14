@@ -27,6 +27,11 @@ class AgentRegistry:
         # callers must pass owner=<agent_name> to disambiguate.
         self._cap_index: dict[str, list[str]] = {}
         self._initialized: set[str] = set()
+        
+        from orchestration.adapters.agents import PydanticAIAgentProvider
+        from orchestration.settings import settings
+        self._provider = PydanticAIAgentProvider()
+        self._semaphore = asyncio.Semaphore(settings.max_concurrent_llm_calls)
 
     def register(
         self,
@@ -157,11 +162,15 @@ class AgentRegistry:
             resolved_deps = deps or {}
             if deps_factory and not deps:
                 resolved_deps = deps_factory() if callable(deps_factory) else {}
-            if timeout:
-                coro = agent.run(prompt, deps=resolved_deps, usage_limits=UsageLimits(request_limit=500))
-                result = await asyncio.wait_for(coro, timeout=timeout)
-            else:
-                result = await agent.run(prompt, deps=resolved_deps, usage_limits=UsageLimits(request_limit=500))
+            
+            result = await self._provider.run_agent(
+                semaphore=self._semaphore,
+                agent_name=agent_name,
+                agent=agent,
+                prompt=prompt,
+                deps=resolved_deps,
+                timeout=timeout or 3600.0,
+            )
             if hasattr(result, "data"):
                 return str(result.data)
             return str(result.output) if hasattr(result, "output") else str(result)

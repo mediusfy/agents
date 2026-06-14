@@ -25,6 +25,13 @@ def _is_placeholder(value: str | None) -> bool:
 def validate_api_keys() -> list[str]:
     """Check that at least one API key is configured and not a placeholder."""
     errors: list[str] = []
+    
+    if settings.model_provider == "litellm":
+        litellm_key = os.environ.get("LITELLM_VIRTUAL_KEY") or os.environ.get("LITELLM_MASTER_KEY")
+        if not litellm_key or _is_placeholder(litellm_key):
+            errors.append("Model provider is 'litellm' but LITELLM_VIRTUAL_KEY or LITELLM_MASTER_KEY is not set.")
+        return errors
+
     keys = {
         "OPENAI_API_KEY": settings.openai_api_key,
         "ANTHROPIC_API_KEY": settings.anthropic_api_key,

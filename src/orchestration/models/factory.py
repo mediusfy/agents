@@ -51,12 +51,15 @@ def create_model(model_spec: str):
     api_key: str | None = None
 
     if provider == "openai" and settings.model_provider == "litellm":
-        env = os.environ.get("LITELLM_ENV", "local").lower()
-        if env == "cloud":
-            base_url = os.environ.get("LITELLM_CLOUD_URL", "https://litellm-proxy.run.app")
-        else:
-            base_url = "http://localhost:4000"
-        base_url = f"{base_url}/v1"
+        base_url = os.environ.get("LITELLM_BASE_URL") or os.environ.get("OPENAI_BASE_URL")
+        if not base_url:
+            env = os.environ.get("LITELLM_ENV", "local").lower()
+            if env == "cloud":
+                base_url = os.environ.get("LITELLM_CLOUD_URL", "https://litellm-proxy.run.app")
+            else:
+                base_url = "http://localhost:4000"
+        if not base_url.endswith("/v1"):
+            base_url = f"{base_url.rstrip('/')}/v1"
         api_key = os.environ.get("LITELLM_VIRTUAL_KEY") or os.environ.get("LITELLM_MASTER_KEY")
         if not api_key:
             import sys

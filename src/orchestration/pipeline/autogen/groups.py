@@ -7,6 +7,26 @@ from orchestration.registry import registry
 logger = logging.getLogger(__name__)
 
 
+def _get_manager_llm_config() -> dict[str, Any]:
+    from orchestration.settings import settings
+    from orchestration.models.factory import create_model
+    from pydantic_ai.models.openai import OpenAIChatModel
+    from typing import Any
+
+    model_spec = settings.resolve_model(settings.cto_model)
+    real_model = model_spec.partition(":")[2] if ":" in model_spec else model_spec
+    m = create_model(model_spec)
+    
+    config: dict[str, Any] = {"model": real_model, "temperature": 0.1, "api_type": "openai"}
+    if isinstance(m, OpenAIChatModel) and m.provider:
+        if hasattr(m.provider, "base_url") and m.provider.base_url:
+            config["base_url"] = str(m.provider.base_url)
+        if hasattr(m.provider, "api_key") and m.provider.api_key:
+            config["api_key"] = m.provider.api_key
+    return {"config_list": [config]}
+
+
+
 class SdlcGroupChat:
     def build(self, _task: str) -> tuple[GroupChat, GroupChatManager]:
         ba = as_autogen_assistant(
@@ -55,10 +75,7 @@ class SdlcGroupChat:
 
         manager = GroupChatManager(
             groupchat=group_chat,
-            llm_config={
-                "config_list": [{"model": "gpt-4o", "api_type": "openai"}],
-                "temperature": 0.1,
-            },
+            llm_config=_get_manager_llm_config(),
         )
 
         return group_chat, manager
@@ -102,10 +119,7 @@ class DesignGroupChat:
 
         manager = GroupChatManager(
             groupchat=group_chat,
-            llm_config={
-                "config_list": [{"model": "gpt-4o", "api_type": "openai"}],
-                "temperature": 0.2,
-            },
+            llm_config=_get_manager_llm_config(),
         )
 
         return group_chat, manager
@@ -144,10 +158,7 @@ class DebugGroupChat:
 
         manager = GroupChatManager(
             groupchat=group_chat,
-            llm_config={
-                "config_list": [{"model": "gpt-4o", "api_type": "openai"}],
-                "temperature": 0.1,
-            },
+            llm_config=_get_manager_llm_config(),
         )
 
         return group_chat, manager

@@ -65,3 +65,51 @@ def format_artifacts(artifacts: list[Any], max_chars: int = 80_000, include_agen
             parts.append("... (artifact output truncated, review continues on remaining items)")
             break
     return "\n\n".join(parts)
+
+
+def parse_code_blocks_to_files(text: str) -> dict[str, str]:
+    """Parse markdown code blocks and extract filenames from headers or inline path comments."""
+    import re
+    files = {}
+    lines = text.split("\n")
+    i = 0
+    current_file = None
+    block_lines = []
+    in_block = False
+    
+    while i < len(lines):
+        line = lines[i].strip()
+        if line.startswith("```"):
+            if in_block:
+                if current_file:
+                    files[current_file] = "\n".join(block_lines)
+                in_block = False
+                current_file = None
+                block_lines = []
+            else:
+                in_block = True
+                found_file = None
+                for offset in range(1, 4):
+                    if i - offset >= 0:
+                        prev_line = lines[i - offset].strip()
+                        prev_line_clean = prev_line.strip("*`#:").strip()
+                        if ("." in prev_line_clean or "/" in prev_line_clean) and " " not in prev_line_clean and len(prev_line_clean) < 100:
+                            found_file = prev_line_clean
+                            break
+                current_file = found_file
+            i += 1
+            continue
+            
+        if in_block:
+            if not block_lines:
+                m = re.match(r"^(?://|#|/\*|<!--)\s*([a-zA-Z0-9_\-\./]+)\s*(?:\*/|-->)?$", line)
+                if m and not current_file:
+                    current_file = m.group(1).strip()
+                    i += 1
+                    continue
+            block_lines.append(lines[i])
+        i += 1
+        
+    if not files:
+        files["output.txt"] = text
+    return files

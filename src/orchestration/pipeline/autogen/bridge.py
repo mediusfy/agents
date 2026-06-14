@@ -84,6 +84,41 @@ def _apply_group_result(state: PipelineState, group_class_name: str, result: Any
     summary = str(result.summary if hasattr(result, "summary") else result)
     if group_class_name == "SdlcGroupChat":
         state.advisory_results["conversation"] = summary
+        
+        # Extract code block artifacts from chat history messages
+        from orchestration.models.core import Artifact
+        from orchestration.utils import parse_code_blocks_to_files
+        
+        chat_history = getattr(result, "chat_history", [])
+        for msg in chat_history:
+            content = msg.get("content", "")
+            name = msg.get("name", "")
+            if not content or not name:
+                continue
+            
+            name_lower = name.lower()
+            agent_name = None
+            if "backend" in name_lower:
+                agent_name = "backend"
+            elif "frontend" in name_lower:
+                agent_name = "frontend"
+            elif "qa" in name_lower or "test" in name_lower:
+                agent_name = "test_eng"
+            elif "docs" in name_lower:
+                agent_name = "docs"
+            elif "devops" in name_lower:
+                agent_name = "devops"
+                
+            if agent_name:
+                files = parse_code_blocks_to_files(content)
+                if files and not (len(files) == 1 and "output.txt" in files):
+                    state.artifacts.append(
+                        Artifact(
+                            agent_name=agent_name,
+                            files=files,
+                            metadata={"agent_name": agent_name, "user_story_id": "global"},
+                        )
+                    )
     elif group_class_name == "DesignGroupChat":
         state.advisory_results["design_discussion"] = summary
         state.cto_approved = True

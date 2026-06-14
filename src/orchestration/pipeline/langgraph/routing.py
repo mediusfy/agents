@@ -17,8 +17,11 @@ def route_after_advisory(state: PipelineState) -> Literal["implementation", "end
 
 
 def route_after_implementation(state: PipelineState) -> Literal["quality_gate", "retry_implementation", "end"]:
-    if state.failure_report and state.failure_report.source == "test_suite":
-        return "retry_implementation"
+    if state.failure_report:
+        if state.failure_report.source == "test_suite":
+            return "retry_implementation"
+        if state.failure_report.error_type == "runtime_error":
+            return "end"
     return "quality_gate"
 
 
