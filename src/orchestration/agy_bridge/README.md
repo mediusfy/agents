@@ -86,8 +86,10 @@ Register Python-side lifecycle callbacks that fire during a bridge session:
 ```python
 from orchestration.agy_bridge.hooks import on_session_start, pre_tool_call, post_turn
 
+
 @on_session_start("planning")
 async def warm_cache(ctx): ...
+
 
 @pre_tool_call("implementation")
 async def validate_path(ctx, tool_name, tool_args): ...
