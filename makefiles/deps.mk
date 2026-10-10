@@ -1,6 +1,6 @@
 # makefiles/deps.mk
 
-VENV_DIR := agents/.venv
+VENV_DIR := ../agents/.venv
 
 .PHONY: deps
 deps: deps-python deps-go

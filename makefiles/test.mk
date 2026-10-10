@@ -1,6 +1,6 @@
 # makefiles/test.mk
 
-VENV_DIR := agents/.venv
+VENV_DIR := ../agents/.venv
 
 .PHONY: test-all
 test-all: test-python test-go
@@ -8,7 +8,7 @@ test-all: test-python test-go
 .PHONY: test-python
 test-python:
 	@echo "--- Running Python tests ---"
-	@(cd agents && .venv/bin/pytest)
+	@(cd ../agents && .venv/bin/pytest)
 
 GO_MODULES := $(shell find services -name "go.mod")
 
