@@ -23,6 +23,7 @@ dependencies = [
     "openai",
     "pip-system-certs",
     "pydantic>=2.9.0,<3.0",
+    "pydantic-agents @ git+ssh://git@github.com/mediusfy/pydantic_agents.git@6fe8ac748c6d7003a301aa1e82b9670e293cd425",
     "pydantic-ai>=1.0.0,<2.0",
     "pydantic-ai-slim[anthropic,deepseek,google,logfire,openai]>=1.61.0",
     "pydantic-settings>=2.5.0,<3.0",
