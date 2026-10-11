@@ -33,7 +33,7 @@ dependencies = [
     "langchain-openai>=0.3.0,<0.4.0",
     "langgraph>=0.2.0,<0.3.0",
     "langchain-community>=0.3.21",
-    "pydantic-agents @ git+https://github.com/mediusfy/pydantic_agents.git@main",
+    "pydantic-agents @ git+https://github.com/mediusfy/pydantic_agents.git@v0.1.0",
 ]
 
 [project.optional-dependencies]
