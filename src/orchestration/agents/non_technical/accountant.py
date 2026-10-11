@@ -1,25 +1,16 @@
-from dataclasses import dataclass
-
-from pydantic_ai import Agent
-
-from orchestration.models.factory import create_model
-from orchestration.settings import settings
-
-
-@dataclass
-class AccountantDeps:
-    agent_name: str = "accountant"
-
-
-accountant_prompt = """You are an Accountant Agent.
-Your job is to manage budgets, calculate expenses, and provide financial advice for travel and general purposes.
-"""
-
-accountant_agent = Agent(
-    create_model(settings.resolve_model(settings.accountant_model)),
-    deps_type=AccountantDeps,
-    system_prompt=accountant_prompt,
-    output_type=str,
-    defer_model_check=True,
-    retries=5,
+# ruff: noqa: F401  (re-export shim; unused-looking imports are the point)
+# Shim: re-exports pydantic_agents.agents.non_technical.accountant so `orchestration.agents.non_technical.accountant`
+# keeps working for existing callers while the real implementation lives in the
+# externally-installed pydantic-agents package (single shared registry/settings).
+#
+# Explicit named imports (not `import *`) so mypy can resolve
+# `from orchestration.X import name` at downstream call sites.
+from pydantic_agents.agents.non_technical.accountant import (
+    AccountantDeps,
+    Agent,
+    accountant_agent,
+    accountant_prompt,
+    create_model,
+    dataclass,
+    settings,
 )
