@@ -43,7 +43,7 @@ mcp = FastMCP(
 register_all_agents()
 
 
-async def run_agent_by_name(agent_name: str, request: str, run_on_gks: bool = False) -> str:
+async def run_agent_by_name(agent_name: str, request: str) -> str:
     """Run a registered agent by its name, resolving dependencies and tracking telemetry.
 
     FORTIFIED CONTEXT MANAGEMENT:
@@ -52,60 +52,6 @@ async def run_agent_by_name(agent_name: str, request: str, run_on_gks: bool = Fa
     prepends them to the request. This ensures agents are fed exactly the relevant
     context without needing to manually hunt through the file system.
     """
-    if run_on_gks:
-        import asyncio
-        import json
-        import os
-
-        try:
-            config_path = os.path.expanduser("~/.orchestration/orchestration.json")
-            with open(config_path) as f:
-                config = json.load(f)
-            remote_url = config.get("gateway", {}).get("remote", {}).get("url")
-            remote_token = config.get("gateway", {}).get("remote", {}).get("token")
-
-            if not remote_url or not remote_token:
-                return "ERROR: GKS remote URL or token is not configured in ~/.orchestration/orchestration.json"
-
-            params = json.dumps({"agent": agent_name, "message": request})
-            cmd = [
-                "orchestration",
-                "gateway",
-                "call",
-                "agent",
-                "--expect-final",
-                "--url",
-                remote_url,
-                "--token",
-                remote_token,
-                "--params",
-                params,
-            ]
-
-            with logfire.span("mcp.delegate_to_gks", agent_name=agent_name, _level="info"):
-                proc = await asyncio.create_subprocess_exec(
-                    *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-                )
-                try:
-                    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=300)
-                except TimeoutError:
-                    proc.kill()
-                    return "ERROR running on GKS: Gateway RPC timed out after 300 seconds."
-
-                if proc.returncode != 0:
-                    return f"ERROR running on GKS: {stderr.decode()}\nOutput: {stdout.decode()}"
-
-                raw_out = stdout.decode().strip()
-                try:
-                    parsed = json.loads(raw_out)
-                    if isinstance(parsed, dict) and "result" in parsed:
-                        return str(parsed["result"])
-                    return raw_out
-                except Exception:
-                    return raw_out
-        except Exception as e:
-            return f"ERROR routing to GKS: {e}"
-
     try:
         agent = registry.get(agent_name)
     except ValueError as e:
@@ -183,8 +129,8 @@ AGENT_DOCSTRINGS = {
 
 def _register_agent_mcp_tools():
     def make_runner(agent_name: str):
-        async def agent_runner(request: str, run_on_gks: bool = False) -> str:
-            return await run_agent_by_name(agent_name, request, run_on_gks=run_on_gks)
+        async def agent_runner(request: str) -> str:
+            return await run_agent_by_name(agent_name, request)
 
         return agent_runner
 
@@ -242,7 +188,6 @@ async def delegate_to_orchestration_agent(
     capability: str,
     context: str,
     task: str,
-    run_on_gks: bool = False,
     owner: str | None = None,
 ) -> str:
     """
@@ -256,8 +201,6 @@ async def delegate_to_orchestration_agent(
 
     For modifying existing code, prefer the 'modify_existing_code' tool.
 
-    If run_on_gks is True, the task is offloaded to the remote GKS Orgitration instance.
-
     If the capability is ambiguous (claimed by multiple agents), pass
     owner=<agent_name> to disambiguate.
     """
@@ -270,9 +213,6 @@ async def delegate_to_orchestration_agent(
     full_prompt = (
         f"Context from IDE:\n<ide_context>\n{context}\n</ide_context>\n\nTask:\n<user_task>\n{task}\n</user_task>"
     )
-
-    if run_on_gks:
-        return await run_agent_by_name(capability, full_prompt, run_on_gks=True)
 
     try:
         return await instrumented_query(
