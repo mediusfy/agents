@@ -1,16 +1,4 @@
-import orchestration.tools.a2a_tools
-import orchestration.tools.deps
-import orchestration.tools.docs
-import orchestration.tools.frontend_tools
-import orchestration.tools.fs_tools
-import orchestration.tools.gobuild
-import orchestration.tools.langchain_bridge
-import orchestration.tools.market_tools
-import orchestration.tools.memory
-import orchestration.tools.search
-import orchestration.tools.secrets
-import orchestration.tools.test_tools
-import orchestration.tools.travel_finance
-import orchestration.tools.validate
-import orchestration.tools.web_fetch
-from orchestration.tools.registry import apply_tools
+# Shim: re-exports pydantic_agents.core.tools so `orchestration.tools`
+# keeps working for existing callers while the real implementation lives in the
+# externally-installed pydantic-agents package (single shared registry/settings).
+from pydantic_agents.core.tools import *  # noqa: F401,F403
