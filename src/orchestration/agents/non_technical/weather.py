@@ -1,25 +1,16 @@
-from dataclasses import dataclass
-
-from pydantic_ai import Agent
-
-from orchestration.models.factory import create_model
-from orchestration.settings import settings
-
-
-@dataclass
-class WeatherDeps:
-    agent_name: str = "weather"
-
-
-weather_prompt = """You are a Weather Agent.
-Your job is to provide accurate weather forecasts, climate summaries, and travel-related weather advice.
-"""
-
-weather_agent = Agent(
-    create_model(settings.resolve_model(settings.weather_model)),
-    deps_type=WeatherDeps,
-    system_prompt=weather_prompt,
-    output_type=str,
-    defer_model_check=True,
-    retries=5,
+# ruff: noqa: F401  (re-export shim; unused-looking imports are the point)
+# Shim: re-exports pydantic_agents.agents.non_technical.weather so `orchestration.agents.non_technical.weather`
+# keeps working for existing callers while the real implementation lives in the
+# externally-installed pydantic-agents package (single shared registry/settings).
+#
+# Explicit named imports (not `import *`) so mypy can resolve
+# `from orchestration.X import name` at downstream call sites.
+from pydantic_agents.agents.non_technical.weather import (
+    Agent,
+    WeatherDeps,
+    create_model,
+    dataclass,
+    settings,
+    weather_agent,
+    weather_prompt,
 )

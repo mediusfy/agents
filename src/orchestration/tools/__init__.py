@@ -1,16 +1,10 @@
-import orchestration.tools.a2a_tools
-import orchestration.tools.deps
-import orchestration.tools.docs
-import orchestration.tools.frontend_tools
-import orchestration.tools.fs_tools
-import orchestration.tools.gobuild
-import orchestration.tools.langchain_bridge
-import orchestration.tools.market_tools
-import orchestration.tools.memory
-import orchestration.tools.search
-import orchestration.tools.secrets
-import orchestration.tools.test_tools
-import orchestration.tools.travel_finance
-import orchestration.tools.validate
-import orchestration.tools.web_fetch
-from orchestration.tools.registry import apply_tools
+# ruff: noqa: F401  (re-export shim; unused-looking imports are the point)
+# Shim: re-exports pydantic_agents.core.tools so `orchestration.tools`
+# keeps working for existing callers while the real implementation lives in the
+# externally-installed pydantic-agents package (single shared registry/settings).
+#
+# Explicit named imports (not `import *`) so mypy can resolve
+# `from orchestration.X import name` at downstream call sites.
+from pydantic_agents.core.tools import (
+    apply_tools,
+)

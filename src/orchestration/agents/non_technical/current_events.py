@@ -1,25 +1,16 @@
-from dataclasses import dataclass
-
-from pydantic_ai import Agent
-
-from orchestration.models.factory import create_model
-from orchestration.settings import settings
-
-
-@dataclass
-class CurrentEventsDeps:
-    agent_name: str = "current_events"
-
-
-events_prompt = """You are a Current Events Agent and a history buff.
-Your job is to provide context on current events, blending modern news with historical perspectives.
-"""
-
-current_events_agent = Agent(
-    create_model(settings.resolve_model(settings.current_events_model)),
-    deps_type=CurrentEventsDeps,
-    system_prompt=events_prompt,
-    output_type=str,
-    defer_model_check=True,
-    retries=5,
+# ruff: noqa: F401  (re-export shim; unused-looking imports are the point)
+# Shim: re-exports pydantic_agents.agents.non_technical.current_events so `orchestration.agents.non_technical.current_events`
+# keeps working for existing callers while the real implementation lives in the
+# externally-installed pydantic-agents package (single shared registry/settings).
+#
+# Explicit named imports (not `import *`) so mypy can resolve
+# `from orchestration.X import name` at downstream call sites.
+from pydantic_agents.agents.non_technical.current_events import (
+    Agent,
+    CurrentEventsDeps,
+    create_model,
+    current_events_agent,
+    dataclass,
+    events_prompt,
+    settings,
 )

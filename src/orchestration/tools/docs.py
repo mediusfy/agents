@@ -1,31 +1,14 @@
-import os
-
-from pydantic_ai import RunContext
-
-from orchestration.exceptions import PathTraversalError
-from orchestration.tools.registry import register_tool
-from orchestration.utils import safe_path_join
-
-
-async def update_documentation(ctx: RunContext, file_path: str, content: str, mode: str = "append") -> str:
-    """Updates project documentation. Use this to proactively document decisions or implementation details."""
-    base_docs_dir = os.path.realpath("docs")
-    safe_file = file_path.lstrip("/")
-    try:
-        full_path = safe_path_join(base_docs_dir, safe_file)
-    except (PathTraversalError, ValueError) as e:
-        return f"Error: {e}"
-
-    os.makedirs(os.path.dirname(str(full_path)), exist_ok=True)
-
-    if mode == "overwrite":
-        with open(full_path, "w") as f:
-            f.write(content)
-    else:
-        with open(full_path, "a") as f:
-            f.write(f"\n\n{content}")
-
-    return f"Documentation updated: {file_path}"
-
-
-register_tool("update_documentation", update_documentation, "Updates project documentation", ["documentation"])
+# ruff: noqa: F401  (re-export shim; unused-looking imports are the point)
+# Shim: re-exports pydantic_agents.core.tools.docs so `orchestration.tools.docs`
+# keeps working for existing callers while the real implementation lives in the
+# externally-installed pydantic-agents package (single shared registry/settings).
+#
+# Explicit named imports (not `import *`) so mypy can resolve
+# `from orchestration.X import name` at downstream call sites.
+from pydantic_agents.core.tools.docs import (
+    PathTraversalError,
+    RunContext,
+    register_tool,
+    safe_path_join,
+    update_documentation,
+)

@@ -1,25 +1,16 @@
-from dataclasses import dataclass
-
-from pydantic_ai import Agent
-
-from orchestration.models.factory import create_model
-from orchestration.settings import settings
-
-
-@dataclass
-class RegionAnalyzerDeps:
-    agent_name: str = "region_analyzer"
-
-
-analyzer_prompt = """You are a Region Analyzer Agent.
-Your job is to analyze geographical regions based on various factors like safety, cost of living, and local attractions.
-"""
-
-region_analyzer_agent = Agent(
-    create_model(settings.resolve_model(settings.region_analyzer_model)),
-    deps_type=RegionAnalyzerDeps,
-    system_prompt=analyzer_prompt,
-    output_type=str,
-    defer_model_check=True,
-    retries=5,
+# ruff: noqa: F401  (re-export shim; unused-looking imports are the point)
+# Shim: re-exports pydantic_agents.agents.non_technical.region_analyzer so `orchestration.agents.non_technical.region_analyzer`
+# keeps working for existing callers while the real implementation lives in the
+# externally-installed pydantic-agents package (single shared registry/settings).
+#
+# Explicit named imports (not `import *`) so mypy can resolve
+# `from orchestration.X import name` at downstream call sites.
+from pydantic_agents.agents.non_technical.region_analyzer import (
+    Agent,
+    RegionAnalyzerDeps,
+    analyzer_prompt,
+    create_model,
+    dataclass,
+    region_analyzer_agent,
+    settings,
 )

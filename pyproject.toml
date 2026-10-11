@@ -13,6 +13,11 @@ dependencies = [
     "asyncpg>=0.31.0,<0.32.0",
     "beautifulsoup4>=4.12,<5.0",
     "certifi",
+    # Pinned below 2.2: numpy>=2.2 ships PEP 695 `type` statement syntax in its
+    # stubs, which mypy rejects under this project's `python_version = "3.11"`
+    # config. Transitively pulled in via yfinance -> pandas, so this needs to
+    # be a direct top-level constraint, not just on the `vector` extra's numpy.
+    "numpy>=1.26,<2.2",
     "duckduckgo-search>=5.0.0,<7.0",
     "fastapi",
     "yfinance>=0.2.0,<0.6",
@@ -34,6 +39,7 @@ dependencies = [
     "langchain-openai>=0.3.0,<0.4.0",
     "langgraph>=0.2.0,<0.3.0",
     "langchain-community>=0.3.21",
+    "pydantic-agents @ git+https://github.com/mediusfy/pydantic_agents.git@v0.1.0",
 ]
 
 [project.optional-dependencies]
@@ -47,7 +53,6 @@ dev = [
     "types-pyyaml>=6.0",
 ]
 vector = [
-    "numpy>=1.26",
     "pgvector>=0.3",
     "sentence-transformers>=2.2,<4.0",
 ]
