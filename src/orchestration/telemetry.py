@@ -1,4 +1,13 @@
+# ruff: noqa: F401  (re-export shim; unused-looking imports are the point)
 # Shim: re-exports pydantic_agents.core.telemetry so `orchestration.telemetry`
 # keeps working for existing callers while the real implementation lives in the
 # externally-installed pydantic-agents package (single shared registry/settings).
-from pydantic_agents.core.telemetry import *  # noqa: F401,F403
+#
+# Explicit named imports (not `import *`) so mypy can resolve
+# `from orchestration.X import name` at downstream call sites.
+from pydantic_agents.core.telemetry import (
+    Any,
+    Telemetry,
+    logger,
+    telemetry,
+)

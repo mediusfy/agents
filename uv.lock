@@ -3495,6 +3495,7 @@ dependencies = [
     { name = "langgraph" },
     { name = "logfire" },
     { name = "mcp" },
+    { name = "numpy" },
     { name = "openai" },
     { name = "pip-system-certs" },
     { name = "pydantic" },
@@ -3530,7 +3531,6 @@ ingest = [
     { name = "pypdf" },
 ]
 vector = [
-    { name = "numpy" },
     { name = "pgvector" },
     { name = "sentence-transformers" },
 ]
@@ -3555,7 +3555,7 @@ requires-dist = [
     { name = "logfire" },
     { name = "mcp", specifier = ">=1.0.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.11,<2.0" },
-    { name = "numpy", marker = "extra == 'vector'", specifier = ">=1.26" },
+    { name = "numpy", specifier = ">=1.26,<2.2" },
     { name = "openai" },
     { name = "pgvector", marker = "extra == 'vector'", specifier = ">=0.3" },
     { name = "pip-system-certs" },
