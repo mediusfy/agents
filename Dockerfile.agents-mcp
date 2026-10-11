@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 FROM python:3.12-slim-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -7,14 +8,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
     git \
+    openssh-client \
     ripgrep \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p -m 0700 /root/.ssh \
+    && ssh-keyscan github.com >> /root/.ssh/known_hosts
 
 WORKDIR /opt/agents
 
 COPY . .
 
-RUN pip install --no-cache-dir -e ".[dev]" && \
+# pydantic-agents is a private GitHub repo pinned via git+ssh in pyproject.toml,
+# so pip install needs the build-time SSH agent forwarded via BuildKit
+# (docker build --ssh default, or DOCKER_BUILDKIT=1 with an ssh-agent running).
+RUN --mount=type=ssh pip install --no-cache-dir -e ".[dev]" && \
     pip install --no-cache-dir uvicorn
 
 EXPOSE 8080

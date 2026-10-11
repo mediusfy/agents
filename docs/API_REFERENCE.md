@@ -35,148 +35,148 @@ The MCP server (`mcp_server.py`) registers all agents as individual tools and pr
 
 Each registered agent is automatically exposed as an MCP tool named `run_{agent_name}`. These accept a single prompt string and return the agent's response.
 
-#### `run_ba(request: str, run_on_gks: bool = False) -> str`
+#### `run_ba(request: str) -> str`
 Invokes the **Business Analyst (BA)** agent to write user stories and requirements.
 - **Capabilities:** `ba`, `requirements`
 - **Output:** List of `UserStory` models with Gherkin acceptance criteria
 - **Context domains queried:** `architecture`, `project`
 
-#### `run_cto(request: str, run_on_gks: bool = False) -> str`
+#### `run_cto(request: str) -> str`
 Invokes the **CTO agent** for architectural guidance and advisories.
 - **Capabilities:** `cto`, `architecture`, `advisory`
 - **Output:** `AgentAdvice` model with bottlenecks, recommendations, and approval
 - **Context domains queried:** `adrs`, `architecture`
 
-#### `run_backend(request: str, run_on_gks: bool = False) -> str`
+#### `run_backend(request: str) -> str`
 Invokes the **Backend Engineer agent** to generate high-concurrency Go services.
 - **Capabilities:** `backend`, `implementation`
 - **Output:** `Artifact` model with Go source files (Hexagonal Architecture)
 - **Context domains queried:** `adrs`, `architecture`, `dependencies`, `conventions`
 
-#### `run_frontend(request: str, run_on_gks: bool = False) -> str`
+#### `run_frontend(request: str) -> str`
 Invokes the **Frontend Engineer agent** to generate user interfaces.
 - **Capabilities:** `frontend`, `implementation`
 - **Output:** `Artifact` model with Vue 3 / TSX source files
 - **Context domains queried:** `adrs`, `architecture`, `dependencies`
 
-#### `run_database(request: str, run_on_gks: bool = False) -> str`
+#### `run_database(request: str) -> str`
 Invokes the **Database agent** to generate schema migrations and seed scripts.
 - **Capabilities:** `database`, `db_schema`, `migrations`
 - **Output:** `Artifact` model with PostgreSQL migration files
 - **Context domains queried:** `adrs`, `architecture`
 
-#### `run_devops(request: str, run_on_gks: bool = False) -> str`
+#### `run_devops(request: str) -> str`
 Invokes the **DevOps agent** to generate CI/CD pipelines and Docker Compose configurations.
 - **Capabilities:** `devops`, `ci_cd`, `deployment`
 - **Output:** `Artifact` model with CI/CD config files
 - **Context domains queried:** `adrs`, `dependencies`
 
-#### `run_docs(request: str, run_on_gks: bool = False) -> str`
+#### `run_docs(request: str) -> str`
 Invokes the **Documentation agent** to generate API documentation and READMEs.
 - **Capabilities:** `docs`, `documentation`
 - **Output:** `Artifact` model with documentation files
 - **Context domains queried:** `conventions`
 
-#### `run_sre(request: str, run_on_gks: bool = False) -> str`
+#### `run_sre(request: str) -> str`
 Invokes the **SRE agent** to generate Kubernetes/Helm infrastructure manifests.
 - **Capabilities:** `sre`, `infrastructure`
 - **Output:** `Artifact` model with K8s manifests
 - **Context domains queried:** `adrs`, `architecture`, `dependencies`
 
-#### `run_test_eng(request: str, run_on_gks: bool = False) -> str`
+#### `run_test_eng(request: str) -> str`
 Invokes the **Test Engineer agent** to run tests and analyze coverage.
 - **Capabilities:** `test`, `testing`
 - **Output:** `Artifact` model with test files
 - **Context domains queried:** `conventions`, `architecture`
 
-#### `run_test_gen(request: str, run_on_gks: bool = False) -> str`
+#### `run_test_gen(request: str) -> str`
 Invokes the **Test Generator agent** to write unit and table-driven tests.
 - **Capabilities:** `test_gen`, `test_generation`
 - **Context domains queried:** `conventions`
 
-#### `run_go_test(request: str, run_on_gks: bool = False) -> str`
+#### `run_go_test(request: str) -> str`
 Invokes the **Go Testing agent** to run tests and debug test failures.
 - **Capabilities:** `go_test`, `go_testing`
 - **Context domains queried:** `conventions`
 
-#### `run_review(request: str, run_on_gks: bool = False) -> str`
+#### `run_review(request: str) -> str`
 Invokes the **Code Review agent** to verify production readiness and standards.
 - **Capabilities:** `review`, `code_review`
 - **Output:** `ReviewResult` model with approval status, feedback, security score, and risk level
 - **Context domains queried:** `adrs`, `architecture`, `conventions`
 
-#### `run_security(request: str, run_on_gks: bool = False) -> str`
+#### `run_security(request: str) -> str`
 Invokes the **Security agent** to audit code and scan for vulnerabilities.
 - **Capabilities:** `security`, `audit`
 - **Output:** `SecurityReport` model with pass/fail, score, and feedback
 - **Context domains queried:** `adrs`, `architecture`
 
-#### `run_ux(request: str, run_on_gks: bool = False) -> str`
+#### `run_ux(request: str) -> str`
 Invokes the **UX Design agent** to refine page layout and flow.
 - **Capabilities:** `ux`, `design`
 - **Output:** `Artifact` model with UX design files
 - **Context domains queried:** `architecture`
 
-#### `run_quality_gate(request: str, run_on_gks: bool = False) -> str`
+#### `run_quality_gate(request: str) -> str`
 Invokes the **Quality Gate agent** to check for over-engineering and complexity.
 - **Capabilities:** `quality_gate`, `review`
 - **Output:** `QualityGateResult` model with passed status, complexity score (0-100), and feedback
 - **Context domains queried:** `adrs`, `architecture`, `conventions`
 
-#### `run_service_engineer(request: str, run_on_gks: bool = False) -> str`
+#### `run_service_engineer(request: str) -> str`
 Invokes the **Service Engineer agent** to modify existing Go codebases.
 - **Capabilities:** `service_engineer`, `existing_code`, `implementation`
 - **Output:** `Artifact` model with only the changed files
 - **Context domains queried:** `adrs`, `architecture`, `dependencies`, `project`
 - **Tools available:** `read_file`, `list_directory`, `run_gofmt_check`
 
-#### `run_planner(request: str, run_on_gks: bool = False) -> str`
+#### `run_planner(request: str) -> str`
 Invokes the **Planner agent** to create execution plans.
 - **Capabilities:** `plan`, `planning`
 - **Output:** Execution plan with ordered tasks, dependencies, and assigned capabilities
 - **Context domains queried:** `adrs`, `architecture`, `project`
 
-#### `run_accountant(request: str, run_on_gks: bool = False) -> str`
+#### `run_accountant(request: str) -> str`
 Invokes the **Accountant Agent** for budget management and expense calculation.
 - **Capabilities:** `finance`
 - **Dependencies:** `AccountantDeps`
 
-#### `run_asymmetric_reviewer(request: str, run_on_gks: bool = False) -> str`
+#### `run_asymmetric_reviewer(request: str) -> str`
 Invokes the **Asymmetric Reviewer Agent** for corporate/legal travel savings and loophole identification.
 - **Capabilities:** `legal`, `finance`
 - **Dependencies:** `AsymmetricReviewerDeps`
 
-#### `run_current_events(request: str, run_on_gks: bool = False) -> str`
+#### `run_current_events(request: str) -> str`
 Invokes the **Current Events Agent** for modern news blended with historical context.
 - **Capabilities:** `news`, `history`
 - **Dependencies:** `CurrentEventsDeps`
 
-#### `run_region_analyzer(request: str, run_on_gks: bool = False) -> str`
+#### `run_region_analyzer(request: str) -> str`
 Invokes the **Region Analyzer Agent** for cost-of-living, safety, and geographical analysis.
 - **Capabilities:** `analysis`
 - **Dependencies:** `RegionAnalyzerDeps`
 
-#### `run_weather(request: str, run_on_gks: bool = False) -> str`
+#### `run_weather(request: str) -> str`
 Invokes the **Weather Agent** for forecasts and climate summaries.
 - **Capabilities:** `weather`
 - **Dependencies:** `WeatherDeps`
 
-#### `run_crypto_oracle(request: str, run_on_gks: bool = False) -> str`
+#### `run_crypto_oracle(request: str) -> str`
 Invokes the **Crypto Oracle Agent** to analyze crypto markets and trends.
 - **Capabilities:** `finance`, `news`, `research`
 - **Dependencies:** `CryptoOracleDeps`
 
-#### `run_holiday_planner(request: str, run_on_gks: bool = False) -> str`
+#### `run_holiday_planner(request: str) -> str`
 Invokes the **Holiday Planner Agent** for itinerary organization and travel coordination.
 - **Capabilities:** `planning`, `travel`
 - **Dependencies:** `HolidayPlannerDeps`
 
-#### `run_market_shark(request: str, run_on_gks: bool = False) -> str`
+#### `run_market_shark(request: str) -> str`
 Invokes the **Market Shark Agent** to analyze stock markets and investments.
 - **Capabilities:** `finance`, `crypto`, `stocks`, `investing`
 - **Dependencies:** `MarketSharkDeps`
 
-#### `run_price_analyst(request: str, run_on_gks: bool = False) -> str`
+#### `run_price_analyst(request: str) -> str`
 Invokes the **Price Analyst Agent** to analyze and compare pricing.
 - **Capabilities:** `pricing`, `analysis`, `purchasing`
 - **Dependencies:** `PriceAnalystDeps`
@@ -185,7 +185,7 @@ Invokes the **Price Analyst Agent** to analyze and compare pricing.
 
 ### Orchestration Tools
 
-#### `delegate_to_orchestration_agent(capability: str, context: str, task: str, run_on_gks: bool = False) -> str`
+#### `delegate_to_orchestration_agent(capability: str, context: str, task: str) -> str`
 Delegate a heavy-lifting engineering task to an Orgitration autonomous agent.
 
 **Parameters:**
@@ -194,15 +194,13 @@ Delegate a heavy-lifting engineering task to an Orgitration autonomous agent.
 | `capability` | `str` | Agent capability string (e.g., `backend`, `frontend`, `security`, `review`) |
 | `context` | `str` | Context from the IDE/caller |
 | `task` | `str` | The specific task for the target agent |
-| `run_on_gks` | `bool` | If `True`, offload to the remote GKS Orgitration instance |
 
 **Returns:** Agent's response string.
 
 **Process:**
 1. `register_all_agents()` is called to ensure the registry is populated
 2. A unified prompt is assembled from `context` and `task`
-3. If `run_on_gks`, the task is forwarded to the remote gateway
-4. Otherwise, `instrumented_query()` runs the agent with Logfire telemetry
+3. `instrumented_query()` runs the agent with Logfire telemetry
 
 #### `list_orchestration_capabilities() -> str`
 List all currently registered agent capabilities with their primary owning agent.

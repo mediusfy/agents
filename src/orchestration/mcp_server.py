@@ -12,17 +12,17 @@ from typing import Any
 import logfire
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
+from pydantic_agents.agents.registration import register_all_agents
+from pydantic_agents.core.exceptions import AgentExecutionError, AgentNotFoundError
+from pydantic_agents.core.registry import registry
+from pydantic_agents.core.telemetry import telemetry
+from pydantic_agents.core.vector_db import vector_db
 from pydantic_ai import UsageLimits
 
-from orchestration.agents.registration import register_all_agents
 from orchestration.context_engine import retrieve_context
 from orchestration.event_broker import Event, EventKind, event_broker
-from orchestration.exceptions import AgentExecutionError, AgentNotFoundError
 from orchestration.memory_bridge import get_bridge_status, sync_claude_to_pgvector, sync_memory_to_claude
 from orchestration.observability import configure_observability
-from orchestration.registry import registry
-from orchestration.telemetry import telemetry
-from orchestration.vector_db import vector_db
 
 logger = logging.getLogger(__name__)
 
@@ -171,8 +171,8 @@ def _list_capabilities() -> str:
 
     Used to keep the delegate_to_orchestration_agent docstring honest at runtime.
     """
-    from orchestration.agents.registration import register_all_agents
-    from orchestration.registry import registry
+    from pydantic_agents.agents.registration import register_all_agents
+    from pydantic_agents.core.registry import registry
 
     register_all_agents()
     lines = []
@@ -193,7 +193,7 @@ async def delegate_to_orchestration_agent(
     """
     Delegate a heavy-lifting engineering task to the Orgitration autonomous agents.
 
-    Pass a capability string registered via orchestration.agents.registration; common
+    Pass a capability string registered via pydantic_agents.agents.registration; common
     ones include 'backend', 'frontend', 'database', 'security', 'review',
     'quality_gate', 'go_test', 'planning', 'sre', 'docs'. The full live list is
     available via the list_orchestration_capabilities tool — call that first if you
@@ -204,9 +204,9 @@ async def delegate_to_orchestration_agent(
     If the capability is ambiguous (claimed by multiple agents), pass
     owner=<agent_name> to disambiguate.
     """
-    from orchestration.agents.registration import register_all_agents
-    from orchestration.exceptions import AgentExecutionError, AgentNotFoundError, AmbiguousCapabilityError
-    from orchestration.registry import instrumented_query
+    from pydantic_agents.agents.registration import register_all_agents
+    from pydantic_agents.core.exceptions import AgentExecutionError, AgentNotFoundError, AmbiguousCapabilityError
+    from pydantic_agents.core.registry import instrumented_query
 
     register_all_agents()
 
@@ -306,8 +306,8 @@ async def cancel_pipeline_run(run_id: str) -> str:
 async def plan_and_execute(goal: str) -> str:
     """Creates a plan to achieve a high-level goal and executes all tasks in dependency order."""
     with logfire.span("mcp.plan_and_execute", goal_length=len(goal), _level="info"):
-        from orchestration.agents.planner_agent import planner_agent
-        from orchestration.registry import instrumented_query
+        from pydantic_agents.agents.planner_agent import planner_agent
+        from pydantic_agents.core.registry import instrumented_query
 
         plan_response = await planner_agent.run(
             f"Create a plan to achieve this goal: {goal}",
@@ -370,7 +370,8 @@ async def modify_existing_code(change_description: str, codebase_path: str = "")
         codebase_path=codebase_path or "auto-detect",
         _level="info",
     ):
-        from orchestration.agents.registration import register_all_agents
+        from pydantic_agents.agents.registration import register_all_agents
+
         from orchestration.existing_code_handler import format_result_summary, run_existing_code_pipeline
 
         register_all_agents()
