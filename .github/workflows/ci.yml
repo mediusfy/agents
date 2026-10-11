@@ -17,6 +17,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+      - name: Authenticate git for private pydantic_agents dependency
+        run: |
+          git config --global url."https://x-access-token:${PYDANTIC_AGENTS_PAT}@github.com/mediusfy/pydantic_agents.git".insteadOf "ssh://git@github.com/mediusfy/pydantic_agents.git"
+        env:
+          PYDANTIC_AGENTS_PAT: ${{ secrets.PYDANTIC_AGENTS_PAT }}
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -38,6 +43,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Authenticate git for private pydantic_agents dependency
+        run: |
+          git config --global url."https://x-access-token:${PYDANTIC_AGENTS_PAT}@github.com/mediusfy/pydantic_agents.git".insteadOf "ssh://git@github.com/mediusfy/pydantic_agents.git"
+        env:
+          PYDANTIC_AGENTS_PAT: ${{ secrets.PYDANTIC_AGENTS_PAT }}
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -64,6 +74,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+      - name: Authenticate git for private pydantic_agents dependency
+        run: |
+          git config --global url."https://x-access-token:${PYDANTIC_AGENTS_PAT}@github.com/mediusfy/pydantic_agents.git".insteadOf "ssh://git@github.com/mediusfy/pydantic_agents.git"
+        env:
+          PYDANTIC_AGENTS_PAT: ${{ secrets.PYDANTIC_AGENTS_PAT }}
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
