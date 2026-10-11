@@ -3562,7 +3562,7 @@ requires-dist = [
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.8,<4.0" },
     { name = "pyautogen", marker = "extra == 'autogen'", specifier = ">=0.7.0,<0.8.0" },
     { name = "pydantic", specifier = ">=2.9.0,<3.0" },
-    { name = "pydantic-agents", git = "https://github.com/mediusfy/pydantic_agents.git?rev=v0.1.0" },
+    { name = "pydantic-agents", git = "ssh://git@github.com/mediusfy/pydantic_agents.git?rev=6fe8ac748c6d7003a301aa1e82b9670e293cd425" },
     { name = "pydantic-ai", specifier = ">=1.0.0,<2.0" },
     { name = "pydantic-ai-slim", extras = ["anthropic", "deepseek", "google", "logfire", "openai"], specifier = ">=1.61.0" },
     { name = "pydantic-settings", specifier = ">=2.5.0,<3.0" },
@@ -4438,7 +4438,7 @@ email = [
 [[package]]
 name = "pydantic-agents"
 version = "0.1.0"
-source = { git = "https://github.com/mediusfy/pydantic_agents.git?rev=v0.1.0#80de3be39f5c5edf3bd6e4761c53dd244cc2d2ec" }
+source = { git = "ssh://git@github.com/mediusfy/pydantic_agents.git?rev=6fe8ac748c6d7003a301aa1e82b9670e293cd425#6fe8ac748c6d7003a301aa1e82b9670e293cd425" }
 dependencies = [
     { name = "httpx" },
     { name = "logfire" },
