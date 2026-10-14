@@ -18,11 +18,18 @@ WORKDIR /opt/agents
 
 COPY . .
 
-# pydantic-agents is a private GitHub repo pinned via git+ssh in pyproject.toml,
-# so pip install needs the build-time SSH agent forwarded via BuildKit
-# (docker build --ssh default, or DOCKER_BUILDKIT=1 with an ssh-agent running).
-RUN --mount=type=ssh pip install --no-cache-dir -e ".[dev]" && \
-    pip install --no-cache-dir uvicorn
+# pydantic-agents is a private GitHub repo pinned via git+ssh in pyproject.toml.
+# Auth is either a PAT mounted as the `pydantic_agents_pat` BuildKit secret (CI)
+# or a forwarded ssh agent (docker build --ssh default, local).
+# The `vector` extra (pgvector, sentence-transformers) is required for the
+# agents' ADR/architecture context retrieval.
+RUN --mount=type=ssh --mount=type=secret,id=pydantic_agents_pat,required=false \
+    if [ -s /run/secrets/pydantic_agents_pat ]; then \
+      git config --global url."https://x-access-token:$(cat /run/secrets/pydantic_agents_pat)@github.com/mediusfy/pydantic_agents.git".insteadOf "ssh://git@github.com/mediusfy/pydantic_agents.git"; \
+    fi && \
+    pip install --no-cache-dir -e ".[dev,vector]" && \
+    pip install --no-cache-dir uvicorn; \
+    rc=$?; rm -f /root/.gitconfig; exit $rc
 
 EXPOSE 8080
 

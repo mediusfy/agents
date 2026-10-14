@@ -35,7 +35,9 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./Dockerfile
+          file: ./Dockerfile.agents-mcp
+          secrets: |
+            pydantic_agents_pat=${{ secrets.PYDANTIC_AGENTS_PAT }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
