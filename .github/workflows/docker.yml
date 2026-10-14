@@ -25,11 +25,23 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
           
+      - name: Log in to Google Artifact Registry
+        uses: docker/login-action@v3
+        with:
+          registry: us-east1-docker.pkg.dev
+          username: _json_key
+          password: ${{ secrets.GCP_IMAGE_PUSH_SA_KEY }}
+
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: |
+            ghcr.io/${{ github.repository }}
+            us-east1-docker.pkg.dev/home-lab-ai-pipelines/mediusfy/agents-mcp
+          tags: |
+            type=sha,prefix=,format=short
+            type=raw,value=latest
           
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
