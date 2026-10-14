@@ -1,3 +1,8 @@
+> **ARCHIVED (2026-10-14).** This repo is retired. The agents, orchestration pipeline and MCP server now live in
+> [mediusfy/pydantic_agents](https://github.com/mediusfy/pydantic_agents) (v0.2.0+), deployed from
+> `k8s/charts/agents` in `mediusfy/infrastructure` as the `pydantic-agents` release. litellm tools are named
+> `pydantic_agents-run_<agent>`.
+
 # AI Provider Agents & SDLC Ecosystem
 
 This repository is the central hub for our hybrid, multi-agent Software Development Lifecycle (SDLC) ecosystem. It orchestrates autonomous AI agents to progress from raw requirements to production-ready, validated code across local developer environments and cloud nodes.
