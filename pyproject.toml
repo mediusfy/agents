@@ -28,7 +28,7 @@ dependencies = [
     "openai",
     "pip-system-certs",
     "pydantic>=2.9.0,<3.0",
-    "pydantic-agents @ git+ssh://git@github.com/mediusfy/pydantic_agents.git@v0.1.2",
+    "pydantic-agents[vector] @ git+ssh://git@github.com/mediusfy/pydantic_agents.git@v0.1.3",
     "pydantic-ai>=1.0.0,<2.0",
     "pydantic-ai-slim[anthropic,deepseek,google,logfire,openai]>=1.61.0",
     "pydantic-settings>=2.5.0,<3.0",
@@ -51,10 +51,9 @@ dev = [
     "pre-commit>=3.8,<4.0",
     "types-pyyaml>=6.0",
 ]
-vector = [
-    "pgvector>=0.3",
-    "sentence-transformers>=2.2,<4.0",
-]
+# Vector deps are owned by pydantic-agents[vector]; this extra is kept so
+# existing `.[dev,vector]` installs keep working.
+vector = []
 ingest = [
     "langchain-community>=0.3,<0.4",
     "langchain-text-splitters>=0.3,<0.4",
